@@ -115,6 +115,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotSharp.Plugin.Graph", "sr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotSharp.Plugin.AudioHandler", "src\Plugins\BotSharp.Plugin.AudioHandler\BotSharp.Plugin.AudioHandler.csproj", "{F57F4862-F8D4-44A1-AC12-5C131B5C9785}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotSharp.Plugin.LiteDBStorage", "src\Plugins\BotSharp.Plugin.LiteDBStorage\BotSharp.Plugin.LiteDBStorage.csproj", "{844684E9-70EE-4478-9B50-894E4246F6CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -459,6 +461,14 @@ Global
 		{F57F4862-F8D4-44A1-AC12-5C131B5C9785}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F57F4862-F8D4-44A1-AC12-5C131B5C9785}.Release|x64.ActiveCfg = Release|Any CPU
 		{F57F4862-F8D4-44A1-AC12-5C131B5C9785}.Release|x64.Build.0 = Release|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Debug|x64.Build.0 = Debug|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Release|x64.ActiveCfg = Release|Any CPU
+		{844684E9-70EE-4478-9B50-894E4246F6CA}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -514,6 +524,7 @@ Global
 		{97A0B191-64D7-4F8A-BFE8-1BFCC5E247E1} = {2635EC9B-2E5F-4313-AC21-0B847F31F36C}
 		{EBFE97DA-D0BA-48BA-8B5D-083B60348D1D} = {97A0B191-64D7-4F8A-BFE8-1BFCC5E247E1}
 		{F57F4862-F8D4-44A1-AC12-5C131B5C9785} = {51AFE054-AE99-497D-A593-69BAEFB5106F}
+		{844684E9-70EE-4478-9B50-894E4246F6CA} = {5CD330E1-9E5A-4112-8346-6E31CA98EF78}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A9969D89-C98B-40A5-A12B-FC87E55B3A19}
