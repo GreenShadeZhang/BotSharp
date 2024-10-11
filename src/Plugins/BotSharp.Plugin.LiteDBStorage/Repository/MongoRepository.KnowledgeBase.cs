@@ -8,7 +8,6 @@ public partial class MongoRepository
     #region Configs
     public bool AddKnowledgeCollectionConfigs(List<VectorCollectionConfig> configs, bool reset = false)
     {
-        var filter = Builders<KnowledgeCollectionConfigDocument>.Filter.Empty;
         var docs = configs?.Where(x => !string.IsNullOrWhiteSpace(x.Name))
             .Select(x => new KnowledgeCollectionConfigDocument
             {
@@ -21,8 +20,8 @@ public partial class MongoRepository
 
         if (reset)
         {
-            _dc.KnowledgeCollectionConfigs.DeleteMany(filter);
-            _dc.KnowledgeCollectionConfigs.InsertMany(docs);
+            _dc.KnowledgeCollectionConfigs.DeleteAll();
+            _dc.KnowledgeCollectionConfigs.InsertBulk(docs);
             return true;
         }
 
@@ -31,9 +30,9 @@ public partial class MongoRepository
         var updateDocs = new List<KnowledgeCollectionConfigDocument>();
 
         var names = docs.Select(x => x.Name).ToList();
-        filter = Builders<KnowledgeCollectionConfigDocument>.Filter.In(x => x.Name, names);
-        var savedConfigs = _dc.KnowledgeCollectionConfigs.Find(filter).ToList();
-        
+
+        var savedConfigs = _dc.KnowledgeCollectionConfigs.Find(x => names.Contains(x.Name)).ToList();
+
         foreach (var doc in docs)
         {
             var found = savedConfigs.FirstOrDefault(x => x.Name == doc.Name);
@@ -52,18 +51,22 @@ public partial class MongoRepository
 
         if (!insertDocs.IsNullOrEmpty())
         {
-            _dc.KnowledgeCollectionConfigs.InsertMany(docs);
+            _dc.KnowledgeCollectionConfigs.InsertBulk(docs);
         }
 
         if (!updateDocs.IsNullOrEmpty())
         {
             foreach (var doc in updateDocs)
             {
-                filter = Builders<KnowledgeCollectionConfigDocument>.Filter.Eq(x => x.Id, doc.Id);
-                _dc.KnowledgeCollectionConfigs.ReplaceOne(filter, doc);
+                var congfig = _dc.KnowledgeCollectionConfigs.Find(x => x.Id == doc.Id).FirstOrDefault();
+
+                if (congfig != null)
+                {
+                    _dc.KnowledgeCollectionConfigs.Update(doc);
+                }
             }
         }
-        
+
         return true;
     }
 
@@ -71,9 +74,8 @@ public partial class MongoRepository
     {
         if (string.IsNullOrWhiteSpace(collectionName)) return false;
 
-        var filter = Builders<KnowledgeCollectionConfigDocument>.Filter.Eq(x => x.Name, collectionName);
-        var deleted = _dc.KnowledgeCollectionConfigs.DeleteMany(filter);
-        return deleted.DeletedCount > 0;
+        var deleted = _dc.KnowledgeCollectionConfigs.DeleteMany(x => x.Name == collectionName);
+        return deleted > 0;
     }
 
     public IEnumerable<VectorCollectionConfig> GetKnowledgeCollectionConfigs(VectorCollectionConfigFilter filter)
@@ -83,27 +85,26 @@ public partial class MongoRepository
             return Enumerable.Empty<VectorCollectionConfig>();
         }
 
-        var builder = Builders<KnowledgeCollectionConfigDocument>.Filter;
-        var filters = new List<FilterDefinition<KnowledgeCollectionConfigDocument>> { builder.Empty };
+        var query = _dc.KnowledgeCollectionConfigs.Query();
 
         // Apply filters
         if (!filter.CollectionNames.IsNullOrEmpty())
         {
-            filters.Add(builder.In(x => x.Name, filter.CollectionNames));
+            query = query.Where(x => filter.CollectionNames.Contains(x.Name));
         }
 
         if (!filter.CollectionTypes.IsNullOrEmpty())
         {
-            filters.Add(builder.In(x => x.Type, filter.CollectionTypes));
+            query = query.Where(x => filter.CollectionTypes.Contains(x.Type));
         }
 
         if (!filter.VectorStroageProviders.IsNullOrEmpty())
         {
-            filters.Add(builder.In(x => x.VectorStore.Provider, filter.VectorStroageProviders));
+            query = query.Where(x => filter.VectorStroageProviders.Contains(x.VectorStore.Provider));
         }
 
         // Get data
-        var configs = _dc.KnowledgeCollectionConfigs.Find(Builders<KnowledgeCollectionConfigDocument>.Filter.And(filters)).ToList();
+        var configs = query.ToList();
 
         return configs.Select(x => new VectorCollectionConfig
         {
@@ -140,7 +141,7 @@ public partial class MongoRepository
             CreateUserId = metaData.CreateUserId
         };
 
-        _dc.KnowledgeCollectionFileMeta.InsertOne(doc);
+        _dc.KnowledgeCollectionFileMeta.Insert(doc);
         return true;
     }
 
@@ -152,20 +153,15 @@ public partial class MongoRepository
             return false;
         }
 
-        var builder = Builders<KnowledgeCollectionFileMetaDocument>.Filter;
-        var filters = new List<FilterDefinition<KnowledgeCollectionFileMetaDocument>>()
-        {
-            builder.Eq(x => x.Collection, collectionName),
-            builder.Eq(x => x.VectorStoreProvider, vectorStoreProvider)
-        };
+        // todo：fileId
+        //if (fileId != null)
+        //{
+        //    filters.Add(builder.Eq(x => x.FileId, fileId));
+        //}
 
-        if (fileId != null)
-        {
-            filters.Add(builder.Eq(x => x.FileId, fileId));
-        }
-
-        var res = _dc.KnowledgeCollectionFileMeta.DeleteMany(builder.And(filters));
-        return res.DeletedCount > 0;
+        var res = _dc.KnowledgeCollectionFileMeta.DeleteMany(x => x.Collection == collectionName &&
+        x.VectorStoreProvider == vectorStoreProvider);
+        return res > 0;
     }
 
     public PagedItems<KnowledgeDocMetaData> GetKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, KnowledgeFileFilter filter)
@@ -176,41 +172,35 @@ public partial class MongoRepository
             return new PagedItems<KnowledgeDocMetaData>();
         }
 
-        var builder = Builders<KnowledgeCollectionFileMetaDocument>.Filter;
-        var docFilters = new List<FilterDefinition<KnowledgeCollectionFileMetaDocument>>()
-        {
-            builder.Eq(x => x.Collection, collectionName),
-            builder.Eq(x => x.VectorStoreProvider, vectorStoreProvider)
-        };
-        
+        //todo：
         // Apply filters
-        if (filter != null)
-        {
-            if (!filter.FileIds.IsNullOrEmpty())
-            {
-                docFilters.Add(builder.In(x => x.FileId, filter.FileIds));
-            }
+        //if (filter != null)
+        //{
+        //    if (!filter.FileIds.IsNullOrEmpty())
+        //    {
+        //        docFilters.Add(builder.In(x => x.FileId, filter.FileIds));
+        //    }
 
-            if (!filter.FileNames.IsNullOrEmpty())
-            {
-                docFilters.Add(builder.In(x => x.FileName, filter.FileNames));
-            }
+        //    if (!filter.FileNames.IsNullOrEmpty())
+        //    {
+        //        docFilters.Add(builder.In(x => x.FileName, filter.FileNames));
+        //    }
 
-            if (!filter.FileSources.IsNullOrEmpty())
-            {
-                docFilters.Add(builder.In(x => x.FileSource, filter.FileSources));
-            }
+        //    if (!filter.FileSources.IsNullOrEmpty())
+        //    {
+        //        docFilters.Add(builder.In(x => x.FileSource, filter.FileSources));
+        //    }
 
-            if (!filter.ContentTypes.IsNullOrEmpty())
-            {
-                docFilters.Add(builder.In(x => x.ContentType, filter.ContentTypes));
-            }
-        }
+        //    if (!filter.ContentTypes.IsNullOrEmpty())
+        //    {
+        //        docFilters.Add(builder.In(x => x.ContentType, filter.ContentTypes));
+        //    }
+        //}
 
-        var filterDef = builder.And(docFilters);
-        var sortDef = Builders<KnowledgeCollectionFileMetaDocument>.Sort.Descending(x => x.CreateDate);
-        var docs = _dc.KnowledgeCollectionFileMeta.Find(filterDef).Sort(sortDef).Skip(filter.Offset).Limit(filter.Size).ToList();
-        var count = _dc.KnowledgeCollectionFileMeta.CountDocuments(filterDef);
+        var docs = _dc.KnowledgeCollectionFileMeta.Find(x => x.Collection == collectionName &&
+        x.VectorStoreProvider == vectorStoreProvider).OrderByDescending(x => x.CreateDate).Skip(filter.Offset).Take(filter.Size).ToList();
+        var count = _dc.KnowledgeCollectionFileMeta.Count(x => x.Collection == collectionName &&
+        x.VectorStoreProvider == vectorStoreProvider);
 
         var files = docs?.Select(x => new KnowledgeDocMetaData
         {

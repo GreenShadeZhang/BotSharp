@@ -10,7 +10,6 @@ public partial class MongoRepository : IBotSharpRepository
     private readonly LiteDBContext _dc;
     private readonly IServiceProvider _services;
     private readonly ILogger<MongoRepository> _logger;
-    private UpdateOptions _options;
 
     public MongoRepository(
         LiteDBContext dc,
@@ -20,10 +19,6 @@ public partial class MongoRepository : IBotSharpRepository
         _dc = dc;
         _services = services;
         _logger = logger;
-        _options = new UpdateOptions
-        {
-            IsUpsert = true,
-        };
     }
 
     private List<Agent> _agents = new List<Agent>();

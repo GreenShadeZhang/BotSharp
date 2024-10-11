@@ -9,12 +9,24 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId) || logs.IsNullOrEmpty()) return;
 
-        var filter = Builders<ExecutionLogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var update = Builders<ExecutionLogDocument>.Update
-                                                   .SetOnInsert(x => x.Id, Guid.NewGuid().ToString())
-                                                   .PushEach(x => x.Logs, logs);
+        var excutionLog = _dc.ExectionLogs.Query().Where(x => x.ConversationId == conversationId).FirstOrDefault();
 
-        _dc.ExectionLogs.UpdateOne(filter, update, _options);
+        if (excutionLog == null)
+        {
+            excutionLog = new ExecutionLogDocument
+            {
+                Id = Guid.NewGuid().ToString(),
+                ConversationId = conversationId,
+                Logs = logs
+            };
+
+            _dc.ExectionLogs.Insert(excutionLog);
+        }
+        else
+        {
+            excutionLog.Logs = logs;
+            _dc.ExectionLogs.Update(excutionLog);
+        }
     }
 
     public List<string> GetExecutionLogs(string conversationId)
@@ -22,8 +34,7 @@ public partial class MongoRepository
         var logs = new List<string>();
         if (string.IsNullOrEmpty(conversationId)) return logs;
 
-        var filter = Builders<ExecutionLogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var logCollection = _dc.ExectionLogs.Find(filter).FirstOrDefault();
+        var logCollection = _dc.ExectionLogs.Query().Where(x => x.ConversationId==conversationId).FirstOrDefault();
 
         logs = logCollection?.Logs ?? new List<string>();
         return logs;
@@ -47,12 +58,27 @@ public partial class MongoRepository
             CreateDateTime = log.CreateDateTime
         };
 
-        var filter = Builders<LlmCompletionLogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var update = Builders<LlmCompletionLogDocument>.Update
-                                                       .SetOnInsert(x => x.Id, Guid.NewGuid().ToString())
-                                                       .Push(x => x.Logs, logElement);
+        var llmCompletionLog = _dc.LlmCompletionLogs.Query().Where(x => x.ConversationId == conversationId).FirstOrDefault();
 
-        _dc.LlmCompletionLogs.UpdateOne(filter, update, _options);
+        if (llmCompletionLog == null)
+        {
+            llmCompletionLog = new LlmCompletionLogDocument
+            {
+                Id = Guid.NewGuid().ToString(),
+                ConversationId = conversationId,
+                Logs = new List<PromptLogMongoElement> { logElement }
+            };
+
+            _dc.LlmCompletionLogs.Insert(llmCompletionLog);
+        }
+        else
+        {
+            var found = llmCompletionLog.Logs.FirstOrDefault(x => x.MessageId == messageId);
+            if (found != null) return;
+
+            llmCompletionLog.Logs.Add(logElement);
+            _dc.LlmCompletionLogs.Update(llmCompletionLog);
+        }
     }
 
     #endregion
@@ -62,7 +88,7 @@ public partial class MongoRepository
     {
         if (log == null) return;
 
-        var found = _dc.Conversations.AsQueryable().FirstOrDefault(x => x.Id == log.ConversationId);
+        var found = _dc.Conversations.Query().Where(x => x.Id == log.ConversationId).FirstOrDefault();
         if (found == null) return;
 
         var logDoc = new ConversationContentLogDocument
@@ -77,14 +103,15 @@ public partial class MongoRepository
             CreateTime = log.CreateTime
         };
 
-        _dc.ContentLogs.InsertOne(logDoc);
+        _dc.ContentLogs.Insert(logDoc);
     }
 
     public List<ContentLogOutputModel> GetConversationContentLogs(string conversationId)
     {
         var logs = _dc.ContentLogs
-                      .AsQueryable()
+                      .Query()
                       .Where(x => x.ConversationId == conversationId)
+                      .OrderBy(x => x.CreateTime)
                       .Select(x => new ContentLogOutputModel
                       {
                           ConversationId = x.ConversationId,
@@ -95,8 +122,7 @@ public partial class MongoRepository
                           Source = x.Source,
                           Content = x.Content,
                           CreateTime = x.CreateTime
-                      })
-                      .OrderBy(x => x.CreateTime)
+                      })   
                       .ToList();
         return logs;
     }
@@ -107,7 +133,7 @@ public partial class MongoRepository
     {
         if (log == null) return;
 
-        var found = _dc.Conversations.AsQueryable().FirstOrDefault(x => x.Id == log.ConversationId);
+        var found = _dc.Conversations.Query().Where(x => x.Id == log.ConversationId).FirstOrDefault();
         if (found == null) return;
 
         var logDoc = new ConversationStateLogDocument
@@ -118,14 +144,15 @@ public partial class MongoRepository
             CreateTime = log.CreateTime
         };
 
-        _dc.StateLogs.InsertOne(logDoc);
+        _dc.StateLogs.Insert(logDoc);
     }
 
     public List<ConversationStateLogModel> GetConversationStateLogs(string conversationId)
     {
         var logs = _dc.StateLogs
-                      .AsQueryable()
+                      .Query()
                       .Where(x => x.ConversationId == conversationId)
+                      .OrderBy(x => x.CreateTime)
                       .Select(x => new ConversationStateLogModel
                       {
                           ConversationId = x.ConversationId,
@@ -133,7 +160,6 @@ public partial class MongoRepository
                           States = x.States,
                           CreateTime = x.CreateTime
                       })
-                      .OrderBy(x => x.CreateTime)
                       .ToList();
         return logs;
     }

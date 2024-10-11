@@ -71,76 +71,88 @@ public partial class MongoRepository
     {
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Name, name)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Name = name;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentDescription(string agentId, string description)
     {
         if (string.IsNullOrWhiteSpace(description)) return;
-
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Description, description)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
-
-        _dc.Agents.UpdateOne(filter, update);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent != null)
+        {
+            agent.Description = description;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentIsPublic(string agentId, bool isPublic)
     {
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.IsPublic, isPublic)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.IsPublic = isPublic;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentDisabled(string agentId, bool disabled)
     {
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Disabled, disabled)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Disabled = disabled;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentType(string agentId, string type)
     {
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Type, type)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Type = type;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentInheritAgentId(string agentId, string? inheritAgentId)
     {
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.InheritAgentId, inheritAgentId)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.InheritAgentId = inheritAgentId;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentProfiles(string agentId, List<string> profiles)
     {
         if (profiles == null) return;
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Profiles, profiles)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Profiles = profiles;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentRoutingRules(string agentId, List<RoutingRule> rules)
@@ -148,12 +160,15 @@ public partial class MongoRepository
         if (rules == null) return;
 
         var ruleElements = rules.Select(x => RoutingRuleMongoElement.ToMongoElement(x)).ToList();
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.RoutingRules, ruleElements)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
 
-        _dc.Agents.UpdateOne(filter, update);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+
+        if (agent != null)
+        {
+            agent.RoutingRules = ruleElements;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentInstructions(string agentId, string instruction, List<ChannelInstruction>? channelInstructions)
@@ -163,13 +178,15 @@ public partial class MongoRepository
         var instructionElements = channelInstructions?.Select(x => ChannelInstructionMongoElement.ToMongoElement(x))?
                                                       .ToList() ?? new List<ChannelInstructionMongoElement>();
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Instruction, instruction)
-            .Set(x => x.ChannelInstructions, instructionElements)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Instruction = instruction;
+            agent.ChannelInstructions = instructionElements;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentFunctions(string agentId, List<FunctionDef> functions)
@@ -177,12 +194,14 @@ public partial class MongoRepository
         if (functions == null) return;
 
         var functionsToUpdate = functions.Select(f => FunctionDefMongoElement.ToMongoElement(f)).ToList();
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Functions, functionsToUpdate)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Functions = functionsToUpdate;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentTemplates(string agentId, List<AgentTemplate> templates)
@@ -190,12 +209,15 @@ public partial class MongoRepository
         if (templates == null) return;
 
         var templatesToUpdate = templates.Select(t => AgentTemplateMongoElement.ToMongoElement(t)).ToList();
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Templates, templatesToUpdate)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
 
-        _dc.Agents.UpdateOne(filter, update);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+
+        if (agent != null)
+        {
+            agent.Templates = templatesToUpdate;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentResponses(string agentId, List<AgentResponse> responses)
@@ -203,79 +225,90 @@ public partial class MongoRepository
         if (responses == null) return;
 
         var responsesToUpdate = responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList();
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Responses, responsesToUpdate)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
 
-        _dc.Agents.UpdateOne(filter, update);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+
+        if (agent != null)
+        {
+            agent.Responses = responsesToUpdate;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentSamples(string agentId, List<string> samples)
     {
         if (samples == null) return;
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Samples, samples)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
-
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Samples = samples;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentUtilities(string agentId, List<string> utilities)
     {
         if (utilities == null) return;
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Utilities, utilities)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
-        _dc.Agents.UpdateOne(filter, update);
+        if (agent != null)
+        {
+            agent.Utilities = utilities;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentLlmConfig(string agentId, AgentLlmConfig? config)
     {
         var llmConfig = AgentLlmConfigMongoElement.ToMongoElement(config);
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.LlmConfig, llmConfig)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
 
-        _dc.Agents.UpdateOne(filter, update);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+
+        if (agent != null)
+        {
+            agent.LlmConfig = llmConfig;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
     }
 
     private void UpdateAgentAllFields(Agent agent)
     {
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agent.Id);
-        var update = Builders<AgentDocument>.Update
-            .Set(x => x.Name, agent.Name)
-            .Set(x => x.Description, agent.Description)
-            .Set(x => x.Disabled, agent.Disabled)
-            .Set(x => x.Type, agent.Type)
-            .Set(x => x.Profiles, agent.Profiles)
-            .Set(x => x.RoutingRules, agent.RoutingRules.Select(r => RoutingRuleMongoElement.ToMongoElement(r)).ToList())
-            .Set(x => x.Instruction, agent.Instruction)
-            .Set(x => x.ChannelInstructions, agent.ChannelInstructions.Select(i => ChannelInstructionMongoElement.ToMongoElement(i)).ToList())
-            .Set(x => x.Templates, agent.Templates.Select(t => AgentTemplateMongoElement.ToMongoElement(t)).ToList())
-            .Set(x => x.Functions, agent.Functions.Select(f => FunctionDefMongoElement.ToMongoElement(f)).ToList())
-            .Set(x => x.Responses, agent.Responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList())
-            .Set(x => x.Samples, agent.Samples)
-            .Set(x => x.Utilities, agent.Utilities)
-            .Set(x => x.LlmConfig, AgentLlmConfigMongoElement.ToMongoElement(agent.LlmConfig))
-            .Set(x => x.IsPublic, agent.IsPublic)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+        var agentData = _dc.Agents.Query().Where(x => x.Id == agent.Id).FirstOrDefault();
 
-        var res = _dc.Agents.UpdateOne(filter, update);
-        Console.WriteLine();
+        if (agentData != null)
+        {
+            agentData.Name = agent.Name;
+            agentData.Description = agent.Description;
+            agentData.Disabled = agent.Disabled;
+            agentData.Type = agent.Type;
+            agentData.Profiles = agent.Profiles;
+            agentData.RoutingRules = agent.RoutingRules.Select(r => RoutingRuleMongoElement.ToMongoElement(r)).ToList();
+            agentData.Instruction = agent.Instruction;
+            agentData.ChannelInstructions = agent.ChannelInstructions.Select(i => ChannelInstructionMongoElement.ToMongoElement(i)).ToList();
+            agentData.Templates = agent.Templates.Select(t => AgentTemplateMongoElement.ToMongoElement(t)).ToList();
+            agentData.Functions = agent.Functions.Select(f => FunctionDefMongoElement.ToMongoElement(f)).ToList();
+            agentData.Responses = agent.Responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList();
+            agentData.Samples = agent.Samples;
+            agentData.Utilities = agent.Utilities;
+            agentData.LlmConfig = AgentLlmConfigMongoElement.ToMongoElement(agent.LlmConfig);
+            agentData.IsPublic = agent.IsPublic;
+            agentData.UpdatedTime = DateTime.UtcNow;
+        }
+
+        _dc.Agents.Update(agentData);
     }
     #endregion
 
 
     public Agent? GetAgent(string agentId)
     {
-        var agent = _dc.Agents.AsQueryable().FirstOrDefault(x => x.Id == agentId);
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
         if (agent == null) return null;
 
         return TransformAgentDocument(agent);
@@ -284,46 +317,49 @@ public partial class MongoRepository
     public List<Agent> GetAgents(AgentFilter filter)
     {
         var agents = new List<Agent>();
-        var builder = Builders<AgentDocument>.Filter;
-        var filters = new List<FilterDefinition<AgentDocument>>() { builder.Empty };
+        var query = _dc.Agents.Query();
 
         if (!string.IsNullOrEmpty(filter.AgentName))
         {
-            filters.Add(builder.Eq(x => x.Name, filter.AgentName));
+            query = query.Where(x => x.Name == filter.AgentName);
         }
 
         if (filter.Disabled.HasValue)
         {
-            filters.Add(builder.Eq(x => x.Disabled, filter.Disabled.Value));
+            query = query.Where(x => x.Disabled == filter.Disabled.Value);
         }
 
         if (filter.Type != null)
         {
             var types = filter.Type.Split(",");
-            filters.Add(builder.In(x => x.Type, types));
+            query = query.Where(x => types.Contains(x.Type));
         }
 
         if (filter.IsPublic.HasValue)
         {
-            filters.Add(builder.Eq(x => x.IsPublic, filter.IsPublic.Value));
+            query = query.Where(x => x.IsPublic == filter.IsPublic.Value);
         }
 
         if (filter.AgentIds != null)
         {
-            filters.Add(builder.In(x => x.Id, filter.AgentIds));
+            query = query.Where(x => filter.AgentIds.Contains(x.Id));
         }
 
-        var agentDocs = _dc.Agents.Find(builder.And(filters)).ToList();
+        var agentDocs = query.ToList();
 
         return agentDocs.Select(x => TransformAgentDocument(x)).ToList();
     }
 
     public List<Agent> GetAgentsByUser(string userId)
     {
-        var agentIds = (from ua in _dc.UserAgents.AsQueryable()
-                        join u in _dc.Users.AsQueryable() on ua.UserId equals u.Id
-                        where ua.UserId == userId || u.ExternalId == userId
-                        select ua.AgentId).ToList();
+        var user = _dc.Users.Query().Where(x => x.Id == userId || x.ExternalId == userId).FirstOrDefault();
+
+        if (user == null)
+        {
+            return new List<Agent>();
+        }
+
+        var agentIds = _dc.UserAgents.Query().Where(x => x.UserId == user.Id).Select(ua => ua.Id).ToList();
 
         var filter = new AgentFilter
         {
@@ -336,7 +372,7 @@ public partial class MongoRepository
     public List<string> GetAgentResponses(string agentId, string prefix, string intent)
     {
         var responses = new List<string>();
-        var agent = _dc.Agents.AsQueryable().FirstOrDefault(x => x.Id == agentId);
+        var agent = _dc.Agents.FindOne(x => x.Id == agentId);
         if (agent == null) return responses;
 
         return agent.Responses.Where(x => x.Prefix == prefix && x.Intent == intent).Select(x => x.Content).ToList();
@@ -344,7 +380,7 @@ public partial class MongoRepository
 
     public string GetAgentTemplate(string agentId, string templateName)
     {
-        var agent = _dc.Agents.AsQueryable().FirstOrDefault(x => x.Id == agentId);
+        var agent = _dc.Agents.FindOne(x => x.Id == agentId);
         if (agent == null) return string.Empty;
 
         return agent.Templates?.FirstOrDefault(x => x.Name == templateName.ToLower())?.Content ?? string.Empty;
@@ -354,16 +390,15 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(agentId) || template == null) return false;
 
-        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-        var agent = _dc.Agents.Find(filter).FirstOrDefault();
+        var agent = _dc.Agents.FindOne(x => x.Id == agentId);
         if (agent == null || agent.Templates.IsNullOrEmpty()) return false;
 
         var foundTemplate = agent.Templates.FirstOrDefault(x => x.Name.IsEqualTo(template.Name));
         if (foundTemplate == null) return false;
 
         foundTemplate.Content = template.Content;
-        var update = Builders<AgentDocument>.Update.Set(x => x.Templates, agent.Templates);
-        _dc.Agents.UpdateOne(filter, update);
+        agent.Templates = agent.Templates;
+        _dc.Agents.Update(agent);
         return true;
     }
 
@@ -405,7 +440,7 @@ public partial class MongoRepository
             UpdatedTime = x.UpdatedDateTime
         }).ToList();
 
-        _dc.Agents.InsertMany(agentDocs);
+        _dc.Agents.InsertBulk(agentDocs);
     }
 
     public void BulkInsertUserAgents(List<UserAgent> userAgents)
@@ -422,15 +457,15 @@ public partial class MongoRepository
             UpdatedTime = x.UpdatedTime
         }).ToList();
 
-        _dc.UserAgents.InsertMany(userAgentDocs);
+        _dc.UserAgents.InsertBulk(userAgentDocs);
     }
 
     public bool DeleteAgents()
     {
         try
         {
-            _dc.UserAgents.DeleteMany(Builders<UserAgentDocument>.Filter.Empty);
-            _dc.Agents.DeleteMany(Builders<AgentDocument>.Filter.Empty);
+            _dc.UserAgents.DeleteAll();
+            _dc.Agents.DeleteAll();
             return true;
         }
         catch
@@ -445,13 +480,9 @@ public partial class MongoRepository
         {
             if (string.IsNullOrEmpty(agentId)) return false;
 
-            var agentFilter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
-            var agentUserFilter = Builders<UserAgentDocument>.Filter.Eq(x => x.AgentId, agentId);
-            var agentTaskFilter = Builders<AgentTaskDocument>.Filter.Eq(x => x.AgentId, agentId);
-
-            _dc.Agents.DeleteOne(agentFilter);
-            _dc.UserAgents.DeleteMany(agentUserFilter);
-            _dc.AgentTasks.DeleteMany(agentTaskFilter);
+            _dc.Agents.DeleteMany(x => x.Id == agentId);
+            _dc.UserAgents.DeleteMany(x => x.AgentId == agentId);
+            _dc.AgentTasks.DeleteMany(x => x.AgentId == agentId);
             return true;
         }
         catch
