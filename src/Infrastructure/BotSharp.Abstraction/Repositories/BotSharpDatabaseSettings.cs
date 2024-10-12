@@ -5,6 +5,7 @@ public class BotSharpDatabaseSettings : DatabaseBasicSettings
     public string[] Assemblies { get; set; }
     public string FileRepository { get; set; }
     public string BotSharpMongoDb { get; set; }
+    public string BotSharpLiteDB { get; set; }
     public string TablePrefix { get; set; }
     public DbConnectionSetting BotSharp { get; set; }
     public string Redis { get; set; }

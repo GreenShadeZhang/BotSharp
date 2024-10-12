@@ -2,50 +2,18 @@ using LiteDB;
 
 namespace BotSharp.Plugin.LiteDBStorage;
 
-public class LiteDBContext
+public class LiteDBContext: IDisposable
 {
     private readonly LiteDatabase _liteDBClient;
-    private readonly string _mongoDbDatabaseName;
     private readonly string _collectionPrefix;
 
     private const string DB_NAME_INDEX = "authSource";
 
     public LiteDBContext(BotSharpDatabaseSettings dbSettings)
     {
-        var mongoDbConnectionString = dbSettings.BotSharpMongoDb;
+        var mongoDbConnectionString = dbSettings.BotSharpLiteDB;
         _liteDBClient = new LiteDatabase(mongoDbConnectionString);
-        _mongoDbDatabaseName = GetDatabaseName(mongoDbConnectionString);
         _collectionPrefix = dbSettings.TablePrefix.IfNullOrEmptyAs("BotSharp");
-    }
-
-    private string GetDatabaseName(string mongoDbConnectionString)
-    {
-        var databaseName = mongoDbConnectionString.Substring(mongoDbConnectionString.LastIndexOf("/", StringComparison.InvariantCultureIgnoreCase) + 1);
-
-        var symbol = "?";
-        if (databaseName.Contains(symbol))
-        {
-            var markIdx = databaseName.IndexOf(symbol, StringComparison.InvariantCultureIgnoreCase);
-            var db = databaseName.Substring(0, markIdx);
-            if (!string.IsNullOrWhiteSpace(db))
-            {
-                return db;
-            }
-
-            var queryStr = databaseName.Substring(markIdx + 1);
-            var queries = queryStr.Split("&", StringSplitOptions.RemoveEmptyEntries).Select(x => new
-            {
-                Key = x.Split("=")[0],
-                Value = x.Split("=")[1]
-            }).ToList();
-
-            var source = queries.FirstOrDefault(x => x.Key.IsEqualTo(DB_NAME_INDEX));
-            if (source != null)
-            {
-                databaseName = source.Value;
-            }
-        }
-        return databaseName;
     }
 
     private LiteDatabase Database { get { return _liteDBClient; } }
@@ -85,6 +53,11 @@ public class LiteDBContext
         var collection = Database.GetCollection<ConversationStateLogDocument>($"{_collectionPrefix}_ConversationStateLogs");
         collection.EnsureIndex(x => x.CreateTime);
         return collection;
+    }
+
+    public void Dispose()
+    {
+        _liteDBClient?.Dispose();
     }
     #endregion
 

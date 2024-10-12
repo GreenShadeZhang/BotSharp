@@ -38,34 +38,26 @@ public partial class MongoRepository
             Breakpoints = new List<BreakpointMongoElement>()
         };
 
-        _dc.Conversations.InsertOne(convDoc);
-        _dc.ConversationDialogs.InsertOne(dialogDoc);
-        _dc.ConversationStates.InsertOne(stateDoc);
+        _dc.Conversations.Insert(convDoc);
+        _dc.ConversationDialogs.Insert(dialogDoc);
+        _dc.ConversationStates.Insert(stateDoc);
     }
 
     public bool DeleteConversations(IEnumerable<string> conversationIds)
     {
         if (conversationIds.IsNullOrEmpty()) return false;
 
-        var filterConv = Builders<ConversationDocument>.Filter.In(x => x.Id, conversationIds);
-        var filterDialog = Builders<ConversationDialogDocument>.Filter.In(x => x.ConversationId, conversationIds);
-        var filterSates = Builders<ConversationStateDocument>.Filter.In(x => x.ConversationId, conversationIds);
-        var filterExeLog = Builders<ExecutionLogDocument>.Filter.In(x => x.ConversationId, conversationIds);
-        var filterPromptLog = Builders<LlmCompletionLogDocument>.Filter.In(x => x.ConversationId, conversationIds);
-        var filterContentLog = Builders<ConversationContentLogDocument>.Filter.In(x => x.ConversationId, conversationIds);
-        var filterStateLog = Builders<ConversationStateLogDocument>.Filter.In(x => x.ConversationId, conversationIds);
+        var exeLogDeleted = _dc.ExectionLogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var promptLogDeleted = _dc.LlmCompletionLogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var contentLogDeleted = _dc.ContentLogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var stateLogDeleted = _dc.StateLogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var statesDeleted = _dc.ConversationStates.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var dialogDeleted = _dc.ConversationDialogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+        var convDeleted = _dc.Conversations.DeleteMany(x => conversationIds.Contains(x.Id));
 
-        var exeLogDeleted = _dc.ExectionLogs.DeleteMany(filterExeLog);
-        var promptLogDeleted = _dc.LlmCompletionLogs.DeleteMany(filterPromptLog);
-        var contentLogDeleted = _dc.ContentLogs.DeleteMany(filterContentLog);
-        var stateLogDeleted = _dc.StateLogs.DeleteMany(filterStateLog);
-        var statesDeleted = _dc.ConversationStates.DeleteMany(filterSates);
-        var dialogDeleted = _dc.ConversationDialogs.DeleteMany(filterDialog);
-        var convDeleted = _dc.Conversations.DeleteMany(filterConv);
-
-        return convDeleted.DeletedCount > 0 || dialogDeleted.DeletedCount > 0 || statesDeleted.DeletedCount > 0
-            || exeLogDeleted.DeletedCount > 0 || promptLogDeleted.DeletedCount > 0
-            || contentLogDeleted.DeletedCount > 0 || stateLogDeleted.DeletedCount > 0;
+        return convDeleted > 0 || dialogDeleted > 0 || statesDeleted > 0
+            || exeLogDeleted > 0 || promptLogDeleted > 0
+            || contentLogDeleted > 0 || stateLogDeleted > 0;
     }
 
     public List<DialogElement> GetConversationDialogs(string conversationId)
@@ -73,8 +65,7 @@ public partial class MongoRepository
         var dialogs = new List<DialogElement>();
         if (string.IsNullOrEmpty(conversationId)) return dialogs;
 
-        var filter = Builders<ConversationDialogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var foundDialog = _dc.ConversationDialogs.Find(filter).FirstOrDefault();
+        var foundDialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
         if (foundDialog == null) return dialogs;
 
         var formattedDialog = foundDialog.Dialogs?.Select(x => DialogMongoElement.ToDomainElement(x))?.ToList();
@@ -85,27 +76,35 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var filterConv = Builders<ConversationDocument>.Filter.Eq(x => x.Id, conversationId);
-        var filterDialog = Builders<ConversationDialogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
         var dialogElements = dialogs.Select(x => DialogMongoElement.ToMongoElement(x)).ToList();
-        var updateDialog = Builders<ConversationDialogDocument>.Update.PushEach(x => x.Dialogs, dialogElements);
-        var updateConv = Builders<ConversationDocument>.Update.Set(x => x.UpdatedTime, DateTime.UtcNow)
-                                                              .Inc(x => x.DialogCount, dialogs.Count);
 
-        _dc.ConversationDialogs.UpdateOne(filterDialog, updateDialog);
-        _dc.Conversations.UpdateOne(filterConv, updateConv);
+        var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
+        if (conv != null)
+        {
+            conv.DialogCount += dialogs.Count;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+        }
+
+        var dialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
+        if(dialog != null)
+        {
+            dialog.Dialogs.AddRange(dialogElements);
+            _dc.ConversationDialogs.Update(dialog);
+        }
     }
 
     public void UpdateConversationTitle(string conversationId, string title)
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var filterConv = Builders<ConversationDocument>.Filter.Eq(x => x.Id, conversationId);
-        var updateConv = Builders<ConversationDocument>.Update
-            .Set(x => x.UpdatedTime, DateTime.UtcNow)
-            .Set(x => x.Title, title);
-
-        _dc.Conversations.UpdateOne(filterConv, updateConv);
+        var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
+        if (conv != null)
+        {
+            conv.Title = title;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+        }
     }
 
     public void UpdateConversationBreakpoint(string conversationId, ConversationBreakpoint breakpoint)
@@ -119,10 +118,14 @@ public partial class MongoRepository
             CreatedTime = DateTime.UtcNow,
             Reason = breakpoint.Reason
         };
-        var filterState = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var updateState = Builders<ConversationStateDocument>.Update.Push(x => x.Breakpoints, newBreakpoint);
 
-        _dc.ConversationStates.UpdateOne(filterState, updateState);
+        var state = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
+
+        if (state != null)
+        {
+            state.Breakpoints.Add(newBreakpoint);
+            _dc.ConversationStates.Update(state);
+        }
     }
 
     public ConversationBreakpoint? GetConversationBreakpoint(string conversationId)
@@ -132,8 +135,7 @@ public partial class MongoRepository
             return null;
         }
 
-        var filter = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var state = _dc.ConversationStates.Find(filter).FirstOrDefault();
+        var state = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
         var leafNode = state?.Breakpoints?.LastOrDefault();
 
         if (leafNode == null)
@@ -155,8 +157,7 @@ public partial class MongoRepository
         var states = new ConversationState();
         if (string.IsNullOrEmpty(conversationId)) return states;
 
-        var filter = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var foundStates = _dc.ConversationStates.Find(filter).FirstOrDefault();
+        var foundStates = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
         if (foundStates == null || foundStates.States.IsNullOrEmpty()) return states;
 
         var savedStates = foundStates.States.Select(x => StateMongoElement.ToDomainElement(x)).ToList();
@@ -167,36 +168,36 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId) || states == null) return;
 
-        var filterStates = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
         var saveStates = states.Select(x => StateMongoElement.ToMongoElement(x)).ToList();
-        var updateStates = Builders<ConversationStateDocument>.Update.Set(x => x.States, saveStates);
+        var state = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
 
-        _dc.ConversationStates.UpdateOne(filterStates, updateStates);
+        if (state != null)
+        {
+            state.States = saveStates;
+            _dc.ConversationStates.Update(state);
+        }
     }
 
     public void UpdateConversationStatus(string conversationId, string status)
     {
         if (string.IsNullOrEmpty(conversationId) || string.IsNullOrEmpty(status)) return;
 
-        var filter = Builders<ConversationDocument>.Filter.Eq(x => x.Id, conversationId);
-        var update = Builders<ConversationDocument>.Update
-            .Set(x => x.Status, status)
-            .Set(x => x.UpdatedTime, DateTime.UtcNow);
-
-        _dc.Conversations.UpdateOne(filter, update);
+        var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
+        if (conv != null)
+        {
+            conv.Status = status;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+        }
     }
 
     public Conversation GetConversation(string conversationId)
     {
         if (string.IsNullOrEmpty(conversationId)) return null;
 
-        var filterConv = Builders<ConversationDocument>.Filter.Eq(x => x.Id, conversationId);
-        var filterDialog = Builders<ConversationDialogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var filterState = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-
-        var conv = _dc.Conversations.Find(filterConv).FirstOrDefault();
-        var dialog = _dc.ConversationDialogs.Find(filterDialog).FirstOrDefault();
-        var states = _dc.ConversationStates.Find(filterState).FirstOrDefault();
+        var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
+        var dialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
+        var states = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
 
         if (conv == null) return null;
 
@@ -225,83 +226,83 @@ public partial class MongoRepository
 
     public PagedItems<Conversation> GetConversations(ConversationFilter filter)
     {
-        var convBuilder = Builders<ConversationDocument>.Filter;
-        var convFilters = new List<FilterDefinition<ConversationDocument>>() { convBuilder.Empty };
-
+        var query = _dc.Conversations.Query();
         // Filter conversations
         if (!string.IsNullOrEmpty(filter?.Id))
         {
-            convFilters.Add(convBuilder.Eq(x => x.Id, filter.Id));
+            query = query.Where(x => x.Id == filter.Id);
         }
         if (!string.IsNullOrEmpty(filter?.Title))
         {
-            convFilters.Add(convBuilder.Regex(x => x.Title, new BsonRegularExpression(filter.Title, "i")));
+            query = query.Where(x => x.Title.Contains(filter.Title));
         }
         if (!string.IsNullOrEmpty(filter?.AgentId))
         {
-            convFilters.Add(convBuilder.Eq(x => x.AgentId, filter.AgentId));
+            query = query.Where(x => x.AgentId == filter.AgentId);
         }
         if (!string.IsNullOrEmpty(filter?.Status))
         {
-            convFilters.Add(convBuilder.Eq(x => x.Status, filter.Status));
+            query = query.Where(x => x.Status == filter.Status);
         }
         if (!string.IsNullOrEmpty(filter?.Channel))
         {
-            convFilters.Add(convBuilder.Eq(x => x.Channel, filter.Channel));
+            query = query.Where(x => x.Channel == filter.Channel);
         }
         if (!string.IsNullOrEmpty(filter?.UserId))
         {
-            convFilters.Add(convBuilder.Eq(x => x.UserId, filter.UserId));
+            query = query.Where(x => x.UserId == filter.UserId);
         }
         if (!string.IsNullOrEmpty(filter?.TaskId))
         {
-            convFilters.Add(convBuilder.Eq(x => x.TaskId, filter.TaskId));
+            query = query.Where(x => x.TaskId == filter.TaskId);
         }
         if (filter?.StartTime != null)
         {
-            convFilters.Add(convBuilder.Gte(x => x.CreatedTime, filter.StartTime.Value));
+            query = query.Where(x => x.CreatedTime >= filter.StartTime.Value);
         }
 
+        //todo: Filter states
         // Filter states
-        var stateFilters = new List<FilterDefinition<ConversationStateDocument>>();
-        if (filter != null && string.IsNullOrEmpty(filter.Id) && !filter.States.IsNullOrEmpty())
-        {
-            foreach (var pair in filter.States)
-            {
-                var elementFilters = new List<FilterDefinition<StateMongoElement>> { Builders<StateMongoElement>.Filter.Eq(x => x.Key, pair.Key) };
-                if (!string.IsNullOrEmpty(pair.Value))
-                {
-                    elementFilters.Add(Builders<StateMongoElement>.Filter.Eq("Values.Data", pair.Value));
-                }
-                stateFilters.Add(Builders<ConversationStateDocument>.Filter.ElemMatch(x => x.States, Builders<StateMongoElement>.Filter.And(elementFilters)));
-            }
+        //var stateFilters = new List<FilterDefinition<ConversationStateDocument>>();
+        //if (filter != null && string.IsNullOrEmpty(filter.Id) && !filter.States.IsNullOrEmpty())
+        //{
+        //    foreach (var pair in filter.States)
+        //    {
+        //        var elementFilters = new List<FilterDefinition<StateMongoElement>> { Builders<StateMongoElement>.Filter.Eq(x => x.Key, pair.Key) };
+        //        if (!string.IsNullOrEmpty(pair.Value))
+        //        {
+        //            elementFilters.Add(Builders<StateMongoElement>.Filter.Eq("Values.Data", pair.Value));
+        //        }
+        //        stateFilters.Add(Builders<ConversationStateDocument>.Filter.ElemMatch(x => x.States, Builders<StateMongoElement>.Filter.And(elementFilters)));
+        //    }
 
-            var targetConvIds = _dc.ConversationStates.Find(Builders<ConversationStateDocument>.Filter.And(stateFilters)).ToEnumerable().Select(x => x.ConversationId).Distinct().ToList();
-            convFilters.Add(convBuilder.In(x => x.Id, targetConvIds));
-        }
+        //    var targetConvIds = _dc.ConversationStates.Find(Builders<ConversationStateDocument>.Filter.And(stateFilters)).ToEnumerable().Select(x => x.ConversationId).Distinct().ToList();
+        //    convFilters.Add(convBuilder.In(x => x.Id, targetConvIds));
+        //}
 
         // Sort and paginate
-        var filterDef = convBuilder.And(convFilters);
-        var sortDef = Builders<ConversationDocument>.Sort.Descending(x => x.CreatedTime);
+        //var filterDef = convBuilder.And(convFilters);
+        //var sortDef = Builders<ConversationDocument>.Sort.Descending(x => x.CreatedTime);
         var pager = filter?.Pager ?? new Pagination();
 
+        // todo: Apply sorting based on sort and order fields
         // Apply sorting based on sort and order fields
-        if (!string.IsNullOrEmpty(pager?.Sort))
-        {
-            var sortField = ConvertSnakeCaseToPascalCase(pager.Sort);
+        //if (!string.IsNullOrEmpty(pager?.Sort))
+        //{
+        //    var sortField = ConvertSnakeCaseToPascalCase(pager.Sort);
 
-            if (pager.Order == "asc")
-            {
-                sortDef = Builders<ConversationDocument>.Sort.Ascending(sortField);
-            }
-            else if (pager.Order == "desc")
-            {
-                sortDef = Builders<ConversationDocument>.Sort.Descending(sortField);
-            }
-        }
+        //    if (pager.Order == "asc")
+        //    {
+        //        sortDef = Builders<ConversationDocument>.Sort.Ascending(sortField);
+        //    }
+        //    else if (pager.Order == "desc")
+        //    {
+        //        sortDef = Builders<ConversationDocument>.Sort.Descending(sortField);
+        //    }
+        //}
 
-        var conversationDocs = _dc.Conversations.Find(filterDef).Sort(sortDef).Skip(pager.Offset).Limit(pager.Size).ToList();
-        var count = _dc.Conversations.CountDocuments(filterDef);
+        var conversationDocs = query.OrderByDescending(x => x.CreatedTime).Skip(pager.Offset).Limit(pager.Size).ToList();
+        var count = query.Count();
 
         var conversations = conversationDocs.Select(x => new Conversation
         {
@@ -326,9 +327,11 @@ public partial class MongoRepository
 
     public List<Conversation> GetLastConversations()
     {
+        //todo: Group by user id and get the latest conversation
         var records = new List<Conversation>();
-        var conversations = _dc.Conversations.Aggregate()
-                                             .Group(c => c.UserId, g => g.First(x => x.CreatedTime == g.Select(y => y.CreatedTime).Max()))
+        var conversations = _dc.Conversations.Query()
+            .OrderByDescending(x => x.CreatedTime)
+                                             //.GroupBy(c => c.UserId, g => g.First(x => x.CreatedTime == g.Select(y => y.CreatedTime).Max()))
                                              .ToList();
         return conversations.Select(c => new Conversation()
         {
@@ -369,13 +372,13 @@ public partial class MongoRepository
         while (true)
         {
             var skip = (page - 1) * batchSize;
-            var candidates = _dc.Conversations.AsQueryable()
+            var candidates = _dc.Conversations.Query()
                                               .Where(x => !excludeAgentIds.Contains(x.AgentId) && x.DialogCount <= messageLimit && x.UpdatedTime <= utcNow.AddHours(-bufferHours))
                                               .Skip(skip)
-                                              .Take(batchSize)
-                                              .Select(x => x.Id)
-                                              .ToList();
-
+                                              .Limit(batchSize)
+                                              .ToList()
+                                              .Select(x => x.Id);
+                                              
             if (candidates.IsNullOrEmpty())
             {
                 break;
@@ -401,8 +404,7 @@ public partial class MongoRepository
             return deletedMessageIds;
         }
 
-        var dialogFilter = Builders<ConversationDialogDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var foundDialog = _dc.ConversationDialogs.Find(dialogFilter).FirstOrDefault();
+        var foundDialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
         if (foundDialog == null || foundDialog.Dialogs.IsNullOrEmpty())
         {
             return deletedMessageIds;
@@ -422,8 +424,8 @@ public partial class MongoRepository
 
         // Handle truncated states
         var refTime = foundDialog.Dialogs.ElementAt(foundIdx).MetaData.CreateTime;
-        var stateFilter = Builders<ConversationStateDocument>.Filter.Eq(x => x.ConversationId, conversationId);
-        var foundStates = _dc.ConversationStates.Find(stateFilter).FirstOrDefault();
+      
+        var foundStates = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
 
         if (foundStates != null)
         {
@@ -459,38 +461,27 @@ public partial class MongoRepository
             }
 
             // Update
-            _dc.ConversationStates.ReplaceOne(stateFilter, foundStates);
+            _dc.ConversationStates.Update(foundStates);
         }
 
         // Save dialogs
         foundDialog.Dialogs = truncatedDialogs;
-        _dc.ConversationDialogs.ReplaceOne(dialogFilter, foundDialog);
+        _dc.ConversationDialogs.Update(foundDialog);
 
         // Update conversation
-        var convFilter = Builders<ConversationDocument>.Filter.Eq(x => x.Id, conversationId);
-        var updateConv = Builders<ConversationDocument>.Update.Set(x => x.UpdatedTime, DateTime.UtcNow)
-                                                              .Set(x => x.DialogCount, truncatedDialogs.Count);
-        _dc.Conversations.UpdateOne(convFilter, updateConv);
+        var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
+        if (conv != null)
+        {
+            conv.UpdatedTime = DateTime.UtcNow;
+            conv.DialogCount = truncatedDialogs.Count;
+            _dc.Conversations.Update(conv);
+        }
 
         // Remove logs
         if (cleanLog)
         {
-            var contentLogBuilder = Builders<ConversationContentLogDocument>.Filter;
-            var stateLogBuilder = Builders<ConversationStateLogDocument>.Filter;
-
-            var contentLogFilters = new List<FilterDefinition<ConversationContentLogDocument>>()
-            {
-                contentLogBuilder.Eq(x => x.ConversationId, conversationId),
-                contentLogBuilder.Gte(x => x.CreateTime, refTime)
-            };
-            var stateLogFilters = new List<FilterDefinition<ConversationStateLogDocument>>()
-            {
-                stateLogBuilder.Eq(x => x.ConversationId, conversationId),
-                stateLogBuilder.Gte(x => x.CreateTime, refTime)
-            };
-
-            _dc.ContentLogs.DeleteMany(contentLogBuilder.And(contentLogFilters));
-            _dc.StateLogs.DeleteMany(stateLogBuilder.And(stateLogFilters));
+            _dc.ContentLogs.DeleteMany(x => x.ConversationId == conversationId && x.CreateTime >= refTime);
+            _dc.StateLogs.DeleteMany(x => x.ConversationId == conversationId && x.CreateTime >= refTime);
         }
 
         return deletedMessageIds;

@@ -10,9 +10,9 @@ namespace BotSharp.Plugin.LiteDBStorage;
 /// </summary>
 public class LiteDBStoragePlugin : IBotSharpPlugin
 {
-    public string Id => "058094a7-4ad3-4284-b94d-ac1373cf63d8";
-    public string Name => "MongoDB Storage";
-    public string Description => "MongoDB as the repository, store data in document DB. It is suitable for production-level systems.";
+    public string Id => "9c34e593-cc6d-49f7-b3c3-399f4c7f8421";
+    public string Name => "LiteDB Storage";
+    public string Description => "LiteDB";
     public string IconUrl => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrFrT-_0VYV4PraApwSUmsf4pBGWgvLTaLZGUd7942FxjErsA5iaL4n5Q7CplOmVtwEQ&usqp=CAU";
 
     public void RegisterDI(IServiceCollection services, IConfiguration config)
