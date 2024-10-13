@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     public IEnumerable<TranslationMemoryOutput> GetTranslationMemories(IEnumerable<TranslationMemoryQuery> queries)
     {
@@ -65,7 +65,7 @@ public partial class MongoRepository
                     continue;
                 }
 
-                var newItem = new TranslationMemoryMongoElement
+                var newItem = new TranslationMemoryLiteDBElement
                 {
                     TranslatedText = input.TranslatedText,
                     Language = input.Language
@@ -79,7 +79,7 @@ public partial class MongoRepository
                         Id = Guid.NewGuid().ToString(),
                         OriginalText = input.OriginalText,
                         HashText = input.HashText,
-                        Translations = new List<TranslationMemoryMongoElement> { newItem }
+                        Translations = new List<TranslationMemoryLiteDBElement> { newItem }
                     });
                 }
                 else
@@ -89,7 +89,7 @@ public partial class MongoRepository
 
                     if (foundMemory.Translations == null)
                     {
-                        foundMemory.Translations = new List<TranslationMemoryMongoElement> { newItem };
+                        foundMemory.Translations = new List<TranslationMemoryLiteDBElement> { newItem };
                     }
                     else
                     {

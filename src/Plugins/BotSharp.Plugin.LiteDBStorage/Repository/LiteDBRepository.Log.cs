@@ -2,7 +2,7 @@ using BotSharp.Abstraction.Loggers.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     #region Execution Log
     public void AddExecutionLogs(string conversationId, List<string> logs)
@@ -49,7 +49,7 @@ public partial class MongoRepository
         var conversationId = log.ConversationId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
         var messageId = log.MessageId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
 
-        var logElement = new PromptLogMongoElement
+        var logElement = new PromptLogLiteDBElement
         {
             MessageId = messageId,
             AgentId = log.AgentId,
@@ -66,7 +66,7 @@ public partial class MongoRepository
             {
                 Id = Guid.NewGuid().ToString(),
                 ConversationId = conversationId,
-                Logs = new List<PromptLogMongoElement> { logElement }
+                Logs = new List<PromptLogLiteDBElement> { logElement }
             };
 
             _dc.LlmCompletionLogs.Insert(llmCompletionLog);

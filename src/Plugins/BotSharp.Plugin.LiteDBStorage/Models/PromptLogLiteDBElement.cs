@@ -1,6 +1,6 @@
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class PromptLogMongoElement
+public class PromptLogLiteDBElement
 {
     public string MessageId { get; set; }
     public string AgentId { get; set; }

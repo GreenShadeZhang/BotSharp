@@ -2,7 +2,7 @@ using BotSharp.Abstraction.Routing.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class RoutingRuleMongoElement
+public class RoutingRuleLiteDBElement
 {
     public string Field { get; set; }
     public string Description { get; set; }
@@ -11,14 +11,14 @@ public class RoutingRuleMongoElement
     public string Type { get; set; }
     public string FieldType { get; set; }
 
-    public RoutingRuleMongoElement()
+    public RoutingRuleLiteDBElement()
     {
         
     }
 
-    public static RoutingRuleMongoElement ToMongoElement(RoutingRule routingRule)
+    public static RoutingRuleLiteDBElement ToMongoElement(RoutingRule routingRule)
     {
-        return new RoutingRuleMongoElement 
+        return new RoutingRuleLiteDBElement 
         {
             Field = routingRule.Field,
             Description = routingRule.Description,
@@ -29,7 +29,7 @@ public class RoutingRuleMongoElement
         };
     }
 
-    public static RoutingRule ToDomainElement(string agentId, string agentName, RoutingRuleMongoElement rule)
+    public static RoutingRule ToDomainElement(string agentId, string agentName, RoutingRuleLiteDBElement rule)
     {
         return new RoutingRule
         {

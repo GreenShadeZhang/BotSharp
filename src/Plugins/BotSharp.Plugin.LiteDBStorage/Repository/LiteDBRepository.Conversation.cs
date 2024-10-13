@@ -3,7 +3,7 @@ using BotSharp.Abstraction.Repositories.Filters;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     public void CreateNewConversation(Conversation conversation)
     {
@@ -27,15 +27,15 @@ public partial class MongoRepository
         {
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
-            Dialogs = new List<DialogMongoElement>()
+            Dialogs = new List<DialogLiteDBElement>()
         };
 
         var stateDoc = new ConversationStateDocument
         {
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
-            States = new List<StateMongoElement>(),
-            Breakpoints = new List<BreakpointMongoElement>()
+            States = new List<StateLiteDBElement>(),
+            Breakpoints = new List<BreakpointLiteDBElement>()
         };
 
         _dc.Conversations.Insert(convDoc);
@@ -68,7 +68,7 @@ public partial class MongoRepository
         var foundDialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
         if (foundDialog == null) return dialogs;
 
-        var formattedDialog = foundDialog.Dialogs?.Select(x => DialogMongoElement.ToDomainElement(x))?.ToList();
+        var formattedDialog = foundDialog.Dialogs?.Select(x => DialogLiteDBElement.ToDomainElement(x))?.ToList();
         return formattedDialog ?? new List<DialogElement>();
     }
 
@@ -76,7 +76,7 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var dialogElements = dialogs.Select(x => DialogMongoElement.ToMongoElement(x)).ToList();
+        var dialogElements = dialogs.Select(x => DialogLiteDBElement.ToMongoElement(x)).ToList();
 
         var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
         if (conv != null)
@@ -111,7 +111,7 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var newBreakpoint = new BreakpointMongoElement()
+        var newBreakpoint = new BreakpointLiteDBElement()
         {
             MessageId = breakpoint.MessageId,
             Breakpoint = breakpoint.Breakpoint,
@@ -160,7 +160,7 @@ public partial class MongoRepository
         var foundStates = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
         if (foundStates == null || foundStates.States.IsNullOrEmpty()) return states;
 
-        var savedStates = foundStates.States.Select(x => StateMongoElement.ToDomainElement(x)).ToList();
+        var savedStates = foundStates.States.Select(x => StateLiteDBElement.ToDomainElement(x)).ToList();
         return new ConversationState(savedStates);
     }
 
@@ -168,7 +168,7 @@ public partial class MongoRepository
     {
         if (string.IsNullOrEmpty(conversationId) || states == null) return;
 
-        var saveStates = states.Select(x => StateMongoElement.ToMongoElement(x)).ToList();
+        var saveStates = states.Select(x => StateLiteDBElement.ToMongoElement(x)).ToList();
         var state = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
 
         if (state != null)
@@ -201,7 +201,7 @@ public partial class MongoRepository
 
         if (conv == null) return null;
 
-        var dialogElements = dialog?.Dialogs?.Select(x => DialogMongoElement.ToDomainElement(x))?.ToList() ?? new List<DialogElement>();
+        var dialogElements = dialog?.Dialogs?.Select(x => DialogLiteDBElement.ToDomainElement(x))?.ToList() ?? new List<DialogElement>();
         var curStates = new Dictionary<string, string>();
         states.States.ForEach(x =>
         {
@@ -432,7 +432,7 @@ public partial class MongoRepository
             // Truncate states
             if (!foundStates.States.IsNullOrEmpty())
             {
-                var truncatedStates = new List<StateMongoElement>();
+                var truncatedStates = new List<StateLiteDBElement>();
                 foreach (var state in foundStates.States)
                 {
                     if (!state.Versioning)
@@ -455,7 +455,7 @@ public partial class MongoRepository
             // Truncate breakpoints
             if (!foundStates.Breakpoints.IsNullOrEmpty())
             {
-                var breakpoints = foundStates.Breakpoints ?? new List<BreakpointMongoElement>();
+                var breakpoints = foundStates.Breakpoints ?? new List<BreakpointLiteDBElement>();
                 var truncatedBreakpoints = breakpoints.Where(x => x.CreatedTime < refTime).ToList();
                 foundStates.Breakpoints = truncatedBreakpoints;
             }

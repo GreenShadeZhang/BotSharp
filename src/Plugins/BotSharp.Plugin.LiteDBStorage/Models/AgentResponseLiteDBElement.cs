@@ -2,15 +2,15 @@ using BotSharp.Abstraction.Agents.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class AgentResponseMongoElement
+public class AgentResponseLiteDBElement
 {
     public string Prefix { get; set; }
     public string Intent { get; set; }
     public string Content { get; set; }
 
-    public static AgentResponseMongoElement ToMongoElement(AgentResponse response)
+    public static AgentResponseLiteDBElement ToMongoElement(AgentResponse response)
     {
-        return new AgentResponseMongoElement
+        return new AgentResponseLiteDBElement
         {
             Prefix = response.Prefix,
             Intent = response.Intent,
@@ -18,7 +18,7 @@ public class AgentResponseMongoElement
         };
     }
 
-    public static AgentResponse ToDomainElement(AgentResponseMongoElement mongoResponse)
+    public static AgentResponse ToDomainElement(AgentResponseLiteDBElement mongoResponse)
     {
         return new AgentResponse
         {

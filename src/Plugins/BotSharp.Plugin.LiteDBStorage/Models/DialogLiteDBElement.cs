@@ -2,7 +2,7 @@ using BotSharp.Abstraction.Conversations.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class DialogMongoElement
+public class DialogLiteDBElement
 {
     public DialogMetaDataMongoElement MetaData { get; set; }
     public string Content { get; set; }
@@ -11,14 +11,14 @@ public class DialogMongoElement
     public string? SecondaryRichContent { get; set; }
     public string? Payload { get; set; }
 
-    public DialogMongoElement()
+    public DialogLiteDBElement()
     {
 
     }
 
-    public static DialogMongoElement ToMongoElement(DialogElement dialog)
+    public static DialogLiteDBElement ToMongoElement(DialogElement dialog)
     {
-        return new DialogMongoElement
+        return new DialogLiteDBElement
         {
             MetaData = DialogMetaDataMongoElement.ToMongoElement(dialog.MetaData),
             Content = dialog.Content,
@@ -29,7 +29,7 @@ public class DialogMongoElement
         };
     }
 
-    public static DialogElement ToDomainElement(DialogMongoElement dialog)
+    public static DialogElement ToDomainElement(DialogLiteDBElement dialog)
     {
         return new DialogElement
         {

@@ -2,15 +2,15 @@ using BotSharp.Abstraction.VectorStorage.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class KnowledgeEmbeddingConfigMongoModel
+public class KnowledgeEmbeddingConfigLiteDBModel
 {
     public string Provider { get; set; }
     public string Model { get; set; }
     public int Dimension { get; set; }
 
-    public static KnowledgeEmbeddingConfigMongoModel ToMongoModel(KnowledgeEmbeddingConfig model)
+    public static KnowledgeEmbeddingConfigLiteDBModel ToMongoModel(KnowledgeEmbeddingConfig model)
     {
-        return new KnowledgeEmbeddingConfigMongoModel
+        return new KnowledgeEmbeddingConfigLiteDBModel
         {
             Provider = model.Provider,
             Model = model.Model,
@@ -18,7 +18,7 @@ public class KnowledgeEmbeddingConfigMongoModel
         };
     }
 
-    public static KnowledgeEmbeddingConfig ToDomainModel(KnowledgeEmbeddingConfigMongoModel model)
+    public static KnowledgeEmbeddingConfig ToDomainModel(KnowledgeEmbeddingConfigLiteDBModel model)
     {
         return new KnowledgeEmbeddingConfig
         {

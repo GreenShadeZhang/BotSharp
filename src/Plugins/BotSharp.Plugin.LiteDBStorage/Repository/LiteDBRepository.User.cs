@@ -3,7 +3,7 @@ using BotSharp.Abstraction.Users.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     public User? GetUserByEmail(string email)
     {

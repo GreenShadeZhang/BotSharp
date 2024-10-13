@@ -3,7 +3,7 @@ using BotSharp.Abstraction.VectorStorage.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     #region Configs
     public bool AddKnowledgeCollectionConfigs(List<VectorCollectionConfig> configs, bool reset = false)
@@ -14,8 +14,8 @@ public partial class MongoRepository
                 Id = Guid.NewGuid().ToString(),
                 Name = x.Name,
                 Type = x.Type,
-                VectorStore = KnowledgeVectorStoreConfigMongoModel.ToMongoModel(x.VectorStore),
-                TextEmbedding = KnowledgeEmbeddingConfigMongoModel.ToMongoModel(x.TextEmbedding)
+                VectorStore = KnowledgeVectorStoreConfigLiteDBModel.ToMongoModel(x.VectorStore),
+                TextEmbedding = KnowledgeEmbeddingConfigLiteDBModel.ToMongoModel(x.TextEmbedding)
             })?.ToList() ?? new List<KnowledgeCollectionConfigDocument>();
 
         if (reset)
@@ -110,8 +110,8 @@ public partial class MongoRepository
         {
             Name = x.Name,
             Type = x.Type,
-            VectorStore = KnowledgeVectorStoreConfigMongoModel.ToDomainModel(x.VectorStore),
-            TextEmbedding = KnowledgeEmbeddingConfigMongoModel.ToDomainModel(x.TextEmbedding)
+            VectorStore = KnowledgeVectorStoreConfigLiteDBModel.ToDomainModel(x.VectorStore),
+            TextEmbedding = KnowledgeEmbeddingConfigLiteDBModel.ToDomainModel(x.TextEmbedding)
         });
     }
     #endregion
@@ -136,7 +136,7 @@ public partial class MongoRepository
             ContentType = metaData.ContentType,
             VectorStoreProvider = metaData.VectorStoreProvider,
             VectorDataIds = metaData.VectorDataIds,
-            RefData = KnowledgeFileMetaRefMongoModel.ToMongoModel(metaData.RefData),
+            RefData = KnowledgeFileMetaRefLiteDBModel.ToMongoModel(metaData.RefData),
             CreateDate = metaData.CreateDate,
             CreateUserId = metaData.CreateUserId
         };
@@ -211,7 +211,7 @@ public partial class MongoRepository
             ContentType = x.ContentType,
             VectorStoreProvider = x.VectorStoreProvider,
             VectorDataIds = x.VectorDataIds,
-            RefData = KnowledgeFileMetaRefMongoModel.ToDomainModel(x.RefData),
+            RefData = KnowledgeFileMetaRefLiteDBModel.ToDomainModel(x.RefData),
             CreateDate = x.CreateDate,
             CreateUserId = x.CreateUserId
         })?.ToList() ?? new();

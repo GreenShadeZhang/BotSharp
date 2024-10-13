@@ -2,7 +2,7 @@ using BotSharp.Abstraction.Plugins.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     #region Plugin
     public PluginConfig GetPluginConfig()

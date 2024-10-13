@@ -2,18 +2,18 @@ using BotSharp.Abstraction.Agents.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class AgentLlmConfigMongoElement
+public class AgentLlmConfigLiteDBElement
 {
     public string? Provider { get; set; }
     public string? Model { get; set; }
     public bool IsInherit { get; set; }
     public int MaxRecursionDepth { get; set; }
 
-    public static AgentLlmConfigMongoElement? ToMongoElement(AgentLlmConfig? config)
+    public static AgentLlmConfigLiteDBElement? ToMongoElement(AgentLlmConfig? config)
     {
         if (config == null) return null;
 
-        return new AgentLlmConfigMongoElement
+        return new AgentLlmConfigLiteDBElement
         {
             Provider = config.Provider,
             Model = config.Model,
@@ -22,7 +22,7 @@ public class AgentLlmConfigMongoElement
         };
     }
 
-    public static AgentLlmConfig? ToDomainElement(AgentLlmConfigMongoElement? config)
+    public static AgentLlmConfig? ToDomainElement(AgentLlmConfigLiteDBElement? config)
     {
         if (config == null) return null;
 

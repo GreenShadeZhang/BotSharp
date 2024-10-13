@@ -12,8 +12,8 @@ public class LiteDBStoragePlugin : IBotSharpPlugin
 {
     public string Id => "9c34e593-cc6d-49f7-b3c3-399f4c7f8421";
     public string Name => "LiteDB Storage";
-    public string Description => "LiteDB";
-    public string IconUrl => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrFrT-_0VYV4PraApwSUmsf4pBGWgvLTaLZGUd7942FxjErsA5iaL4n5Q7CplOmVtwEQ&usqp=CAU";
+    public string Description => "A .NET NoSQL Document Store in a single data file";
+    public string IconUrl => "https://www.litedb.org/images/logo_litedb.svg";
 
     public void RegisterDI(IServiceCollection services, IConfiguration config)
     {
@@ -28,7 +28,7 @@ public class LiteDBStoragePlugin : IBotSharpPlugin
                 return new LiteDBContext(dbSettings);
             });
 
-            services.AddScoped<IBotSharpRepository, MongoRepository>();
+            services.AddScoped<IBotSharpRepository, LiteDBRepository>();
         }
     }
 

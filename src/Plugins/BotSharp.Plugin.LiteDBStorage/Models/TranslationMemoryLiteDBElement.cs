@@ -1,20 +1,20 @@
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class TranslationMemoryMongoElement
+public class TranslationMemoryLiteDBElement
 {
     public string TranslatedText { get; set; }
     public string Language { get; set; }
 
-    public static TranslationMemoryMongoElement ToMongoElement(TranslationMemoryItem item)
+    public static TranslationMemoryLiteDBElement ToMongoElement(TranslationMemoryItem item)
     {
-        return new TranslationMemoryMongoElement
+        return new TranslationMemoryLiteDBElement
         {
             TranslatedText = item.TranslatedText,
             Language = item.Language
         };
     }
 
-    public static TranslationMemoryItem ToDomainElement(TranslationMemoryMongoElement element)
+    public static TranslationMemoryItem ToDomainElement(TranslationMemoryLiteDBElement element)
     {
         return new TranslationMemoryItem
         {

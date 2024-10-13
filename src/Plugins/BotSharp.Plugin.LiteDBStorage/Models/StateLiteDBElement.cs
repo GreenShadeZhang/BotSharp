@@ -2,16 +2,16 @@ using BotSharp.Abstraction.Conversations.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class StateMongoElement
+public class StateLiteDBElement
 {
     public string Key { get; set; }
     public bool Versioning { get; set; }
     public bool Readonly { get; set; }
     public List<StateValueMongoElement> Values { get; set; }
 
-    public static StateMongoElement ToMongoElement(StateKeyValue state)
+    public static StateLiteDBElement ToMongoElement(StateKeyValue state)
     {
-        return new StateMongoElement
+        return new StateLiteDBElement
         {
             Key = state.Key,
             Versioning = state.Versioning,
@@ -20,7 +20,7 @@ public class StateMongoElement
         };
     }
 
-    public static StateKeyValue ToDomainElement(StateMongoElement state)
+    public static StateKeyValue ToDomainElement(StateLiteDBElement state)
     {
         return new StateKeyValue
         {

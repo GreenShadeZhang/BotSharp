@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class FunctionDefMongoElement
+public class FunctionDefLiteDBElement
 {
     public string Name { get; set; }
     public string Description { get; set; }
@@ -12,14 +12,14 @@ public class FunctionDefMongoElement
     public string? Impact { get; set; }
     public FunctionParametersDefMongoElement Parameters { get; set; } = new FunctionParametersDefMongoElement();
 
-    public FunctionDefMongoElement()
+    public FunctionDefLiteDBElement()
     {
         
     }
 
-    public static FunctionDefMongoElement ToMongoElement(FunctionDef function)
+    public static FunctionDefLiteDBElement ToMongoElement(FunctionDef function)
     {
-        return new FunctionDefMongoElement
+        return new FunctionDefLiteDBElement
         {
             Name = function.Name,
             Description = function.Description,
@@ -35,7 +35,7 @@ public class FunctionDefMongoElement
         };
     }
 
-    public static FunctionDef ToDomainElement(FunctionDefMongoElement function)
+    public static FunctionDef ToDomainElement(FunctionDefLiteDBElement function)
     {
         return new FunctionDef
         {

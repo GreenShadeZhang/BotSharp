@@ -5,7 +5,7 @@ using BotSharp.Abstraction.Routing.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     public void UpdateAgent(Agent agent, AgentField field)
     {
@@ -159,7 +159,7 @@ public partial class MongoRepository
     {
         if (rules == null) return;
 
-        var ruleElements = rules.Select(x => RoutingRuleMongoElement.ToMongoElement(x)).ToList();
+        var ruleElements = rules.Select(x => RoutingRuleLiteDBElement.ToMongoElement(x)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -175,8 +175,8 @@ public partial class MongoRepository
     {
         if (string.IsNullOrWhiteSpace(agentId)) return;
 
-        var instructionElements = channelInstructions?.Select(x => ChannelInstructionMongoElement.ToMongoElement(x))?
-                                                      .ToList() ?? new List<ChannelInstructionMongoElement>();
+        var instructionElements = channelInstructions?.Select(x => ChannelInstructionLiteDBElement.ToMongoElement(x))?
+                                                      .ToList() ?? new List<ChannelInstructionLiteDBElement>();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -193,7 +193,7 @@ public partial class MongoRepository
     {
         if (functions == null) return;
 
-        var functionsToUpdate = functions.Select(f => FunctionDefMongoElement.ToMongoElement(f)).ToList();
+        var functionsToUpdate = functions.Select(f => FunctionDefLiteDBElement.ToMongoElement(f)).ToList();
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
         if (agent != null)
@@ -208,7 +208,7 @@ public partial class MongoRepository
     {
         if (templates == null) return;
 
-        var templatesToUpdate = templates.Select(t => AgentTemplateMongoElement.ToMongoElement(t)).ToList();
+        var templatesToUpdate = templates.Select(t => AgentTemplateLiteDBElement.ToMongoElement(t)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -224,7 +224,7 @@ public partial class MongoRepository
     {
         if (responses == null) return;
 
-        var responsesToUpdate = responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList();
+        var responsesToUpdate = responses.Select(r => AgentResponseLiteDBElement.ToMongoElement(r)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -265,7 +265,7 @@ public partial class MongoRepository
 
     private void UpdateAgentLlmConfig(string agentId, AgentLlmConfig? config)
     {
-        var llmConfig = AgentLlmConfigMongoElement.ToMongoElement(config);
+        var llmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(config);
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -288,15 +288,15 @@ public partial class MongoRepository
             agentData.Disabled = agent.Disabled;
             agentData.Type = agent.Type;
             agentData.Profiles = agent.Profiles;
-            agentData.RoutingRules = agent.RoutingRules.Select(r => RoutingRuleMongoElement.ToMongoElement(r)).ToList();
+            agentData.RoutingRules = agent.RoutingRules.Select(r => RoutingRuleLiteDBElement.ToMongoElement(r)).ToList();
             agentData.Instruction = agent.Instruction;
-            agentData.ChannelInstructions = agent.ChannelInstructions.Select(i => ChannelInstructionMongoElement.ToMongoElement(i)).ToList();
-            agentData.Templates = agent.Templates.Select(t => AgentTemplateMongoElement.ToMongoElement(t)).ToList();
-            agentData.Functions = agent.Functions.Select(f => FunctionDefMongoElement.ToMongoElement(f)).ToList();
-            agentData.Responses = agent.Responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList();
+            agentData.ChannelInstructions = agent.ChannelInstructions.Select(i => ChannelInstructionLiteDBElement.ToMongoElement(i)).ToList();
+            agentData.Templates = agent.Templates.Select(t => AgentTemplateLiteDBElement.ToMongoElement(t)).ToList();
+            agentData.Functions = agent.Functions.Select(f => FunctionDefLiteDBElement.ToMongoElement(f)).ToList();
+            agentData.Responses = agent.Responses.Select(r => AgentResponseLiteDBElement.ToMongoElement(r)).ToList();
             agentData.Samples = agent.Samples;
             agentData.Utilities = agent.Utilities;
-            agentData.LlmConfig = AgentLlmConfigMongoElement.ToMongoElement(agent.LlmConfig);
+            agentData.LlmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(agent.LlmConfig);
             agentData.IsPublic = agent.IsPublic;
             agentData.UpdatedTime = DateTime.UtcNow;
         }
@@ -414,17 +414,17 @@ public partial class MongoRepository
             Description = x.Description,
             Instruction = x.Instruction,
             ChannelInstructions = x.ChannelInstructions?
-                            .Select(i => ChannelInstructionMongoElement.ToMongoElement(i))?
-                            .ToList() ?? new List<ChannelInstructionMongoElement>(),
+                            .Select(i => ChannelInstructionLiteDBElement.ToMongoElement(i))?
+                            .ToList() ?? new List<ChannelInstructionLiteDBElement>(),
             Templates = x.Templates?
-                            .Select(t => AgentTemplateMongoElement.ToMongoElement(t))?
-                            .ToList() ?? new List<AgentTemplateMongoElement>(),
+                            .Select(t => AgentTemplateLiteDBElement.ToMongoElement(t))?
+                            .ToList() ?? new List<AgentTemplateLiteDBElement>(),
             Functions = x.Functions?
-                            .Select(f => FunctionDefMongoElement.ToMongoElement(f))?
-                            .ToList() ?? new List<FunctionDefMongoElement>(),
+                            .Select(f => FunctionDefLiteDBElement.ToMongoElement(f))?
+                            .ToList() ?? new List<FunctionDefLiteDBElement>(),
             Responses = x.Responses?
-                            .Select(r => AgentResponseMongoElement.ToMongoElement(r))?
-                            .ToList() ?? new List<AgentResponseMongoElement>(),
+                            .Select(r => AgentResponseLiteDBElement.ToMongoElement(r))?
+                            .ToList() ?? new List<AgentResponseLiteDBElement>(),
             Samples = x.Samples ?? new List<string>(),
             Utilities = x.Utilities ?? new List<string>(),
             IsPublic = x.IsPublic,
@@ -433,9 +433,9 @@ public partial class MongoRepository
             Disabled = x.Disabled,
             Profiles = x.Profiles,
             RoutingRules = x.RoutingRules?
-                            .Select(r => RoutingRuleMongoElement.ToMongoElement(r))?
-                            .ToList() ?? new List<RoutingRuleMongoElement>(),
-            LlmConfig = AgentLlmConfigMongoElement.ToMongoElement(x.LlmConfig),
+                            .Select(r => RoutingRuleLiteDBElement.ToMongoElement(r))?
+                            .ToList() ?? new List<RoutingRuleLiteDBElement>(),
+            LlmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(x.LlmConfig),
             CreatedTime = x.CreatedDateTime,
             UpdatedTime = x.UpdatedDateTime
         }).ToList();
@@ -503,21 +503,21 @@ public partial class MongoRepository
             Description = agentDoc.Description,
             Instruction = agentDoc.Instruction,
             ChannelInstructions = !agentDoc.ChannelInstructions.IsNullOrEmpty() ? agentDoc.ChannelInstructions
-                              .Select(i => ChannelInstructionMongoElement.ToDomainElement(i))
+                              .Select(i => ChannelInstructionLiteDBElement.ToDomainElement(i))
                               .ToList() : new List<ChannelInstruction>(),
             Templates = !agentDoc.Templates.IsNullOrEmpty() ? agentDoc.Templates
-                             .Select(t => AgentTemplateMongoElement.ToDomainElement(t))
+                             .Select(t => AgentTemplateLiteDBElement.ToDomainElement(t))
                              .ToList() : new List<AgentTemplate>(),
             Functions = !agentDoc.Functions.IsNullOrEmpty() ? agentDoc.Functions
-                             .Select(f => FunctionDefMongoElement.ToDomainElement(f))
+                             .Select(f => FunctionDefLiteDBElement.ToDomainElement(f))
                              .ToList() : new List<FunctionDef>(),
             Responses = !agentDoc.Responses.IsNullOrEmpty() ? agentDoc.Responses
-                             .Select(r => AgentResponseMongoElement.ToDomainElement(r))
+                             .Select(r => AgentResponseLiteDBElement.ToDomainElement(r))
                              .ToList() : new List<AgentResponse>(),
             RoutingRules = !agentDoc.RoutingRules.IsNullOrEmpty() ? agentDoc.RoutingRules
-                                .Select(r => RoutingRuleMongoElement.ToDomainElement(agentDoc.Id, agentDoc.Name, r))
+                                .Select(r => RoutingRuleLiteDBElement.ToDomainElement(agentDoc.Id, agentDoc.Name, r))
                                 .ToList() : new List<RoutingRule>(),
-            LlmConfig = AgentLlmConfigMongoElement.ToDomainElement(agentDoc.LlmConfig),
+            LlmConfig = AgentLlmConfigLiteDBElement.ToDomainElement(agentDoc.LlmConfig),
             Samples = agentDoc.Samples ?? new List<string>(),
             Utilities = agentDoc.Utilities ?? new List<string>(),
             IsPublic = agentDoc.IsPublic,

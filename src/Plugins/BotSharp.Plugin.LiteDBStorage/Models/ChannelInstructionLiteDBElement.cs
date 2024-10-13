@@ -2,21 +2,21 @@ using BotSharp.Abstraction.Agents.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class ChannelInstructionMongoElement
+public class ChannelInstructionLiteDBElement
 {
     public string Channel { get; set; }
     public string Instruction { get; set; }
 
-    public static ChannelInstructionMongoElement ToMongoElement(ChannelInstruction instruction)
+    public static ChannelInstructionLiteDBElement ToMongoElement(ChannelInstruction instruction)
     {
-        return new ChannelInstructionMongoElement
+        return new ChannelInstructionLiteDBElement
         {
             Channel = instruction.Channel,
             Instruction = instruction.Instruction
         };
     }
 
-    public static ChannelInstruction ToDomainElement(ChannelInstructionMongoElement instruction)
+    public static ChannelInstruction ToDomainElement(ChannelInstructionLiteDBElement instruction)
     {
         return new ChannelInstruction
         {

@@ -9,7 +9,7 @@ public class KnowledgeCollectionFileMetaDocument : LiteDBBase
     public string ContentType { get; set; }
     public string VectorStoreProvider { get; set; }
     public IEnumerable<string> VectorDataIds { get; set; } = new List<string>();
-    public KnowledgeFileMetaRefMongoModel? RefData { get; set; }
+    public KnowledgeFileMetaRefLiteDBModel? RefData { get; set; }
     public DateTime CreateDate { get; set; }
     public string CreateUserId { get; set; }
 }

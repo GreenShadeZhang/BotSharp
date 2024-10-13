@@ -2,19 +2,19 @@ using BotSharp.Abstraction.VectorStorage.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class KnowledgeVectorStoreConfigMongoModel
+public class KnowledgeVectorStoreConfigLiteDBModel
 {
     public string Provider { get; set; }
 
-    public static KnowledgeVectorStoreConfigMongoModel ToMongoModel(VectorStoreConfig model)
+    public static KnowledgeVectorStoreConfigLiteDBModel ToMongoModel(VectorStoreConfig model)
     {
-        return new KnowledgeVectorStoreConfigMongoModel
+        return new KnowledgeVectorStoreConfigLiteDBModel
         {
             Provider = model.Provider
         };
     }
 
-    public static VectorStoreConfig ToDomainModel(KnowledgeVectorStoreConfigMongoModel model)
+    public static VectorStoreConfig ToDomainModel(KnowledgeVectorStoreConfigLiteDBModel model)
     {
         return new VectorStoreConfig
         {

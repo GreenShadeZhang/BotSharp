@@ -5,16 +5,16 @@ using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository : IBotSharpRepository
+public partial class LiteDBRepository : IBotSharpRepository
 {
     private readonly LiteDBContext _dc;
     private readonly IServiceProvider _services;
-    private readonly ILogger<MongoRepository> _logger;
+    private readonly ILogger<LiteDBRepository> _logger;
 
-    public MongoRepository(
+    public LiteDBRepository(
         LiteDBContext dc,
         IServiceProvider services,
-        ILogger<MongoRepository> logger)
+        ILogger<LiteDBRepository> logger)
     {
         _dc = dc;
         _services = services;

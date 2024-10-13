@@ -3,7 +3,7 @@ using BotSharp.Abstraction.Users.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     public void Add<TTableInterface>(object entity)
     {
@@ -41,17 +41,17 @@ public partial class MongoRepository
                     Description = x.Description,
                     Instruction = x.Instruction,
                     ChannelInstructions = x.ChannelInstructions?
-                                 .Select(i => ChannelInstructionMongoElement.ToMongoElement(i))?
-                                 .ToList() ?? new List<ChannelInstructionMongoElement>(),
+                                 .Select(i => ChannelInstructionLiteDBElement.ToMongoElement(i))?
+                                 .ToList() ?? new List<ChannelInstructionLiteDBElement>(),
                     Templates = x.Templates?
-                                 .Select(t => AgentTemplateMongoElement.ToMongoElement(t))?
-                                 .ToList() ?? new List<AgentTemplateMongoElement>(),
+                                 .Select(t => AgentTemplateLiteDBElement.ToMongoElement(t))?
+                                 .ToList() ?? new List<AgentTemplateLiteDBElement>(),
                     Functions = x.Functions?
-                                 .Select(f => FunctionDefMongoElement.ToMongoElement(f))?
-                                 .ToList() ?? new List<FunctionDefMongoElement>(),
+                                 .Select(f => FunctionDefLiteDBElement.ToMongoElement(f))?
+                                 .ToList() ?? new List<FunctionDefLiteDBElement>(),
                     Responses = x.Responses?
-                                 .Select(r => AgentResponseMongoElement.ToMongoElement(r))?
-                                 .ToList() ?? new List<AgentResponseMongoElement>(),
+                                 .Select(r => AgentResponseLiteDBElement.ToMongoElement(r))?
+                                 .ToList() ?? new List<AgentResponseLiteDBElement>(),
                     Samples = x.Samples ?? new List<string>(),
                     Utilities = x.Utilities ?? new List<string>(),
                     IsPublic = x.IsPublic,
@@ -60,9 +60,9 @@ public partial class MongoRepository
                     Disabled = x.Disabled,
                     Profiles = x.Profiles,
                     RoutingRules = x.RoutingRules?
-                                    .Select(r => RoutingRuleMongoElement.ToMongoElement(r))?
-                                    .ToList() ?? new List<RoutingRuleMongoElement>(),
-                    LlmConfig = AgentLlmConfigMongoElement.ToMongoElement(x.LlmConfig),
+                                    .Select(r => RoutingRuleLiteDBElement.ToMongoElement(r))?
+                                    .ToList() ?? new List<RoutingRuleLiteDBElement>(),
+                    LlmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(x.LlmConfig),
                     CreatedTime = x.CreatedDateTime,
                     UpdatedTime = x.UpdatedDateTime
                 }).ToList();

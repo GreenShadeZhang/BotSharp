@@ -3,7 +3,7 @@ using BotSharp.Abstraction.Tasks.Models;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
-public partial class MongoRepository
+public partial class LiteDBRepository
 {
     #region Task
     public PagedItems<AgentTask> GetAgentTasks(AgentTaskFilter filter)

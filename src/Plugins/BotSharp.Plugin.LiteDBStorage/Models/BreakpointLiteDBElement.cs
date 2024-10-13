@@ -1,6 +1,6 @@
 namespace BotSharp.Plugin.LiteDBStorage.Models;
 
-public class BreakpointMongoElement
+public class BreakpointLiteDBElement
 {
     public string? MessageId { get; set; }
     public DateTime Breakpoint { get; set; }
