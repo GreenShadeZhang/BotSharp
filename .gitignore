@@ -295,3 +295,4 @@ appsettings.Production.json
 *.csproj.user
 env/
 FodyWeavers.*
+/src/WebStarter/MyData.db
