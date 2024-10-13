@@ -11,8 +11,12 @@ public class LiteDBContext: IDisposable
 
     public LiteDBContext(BotSharpDatabaseSettings dbSettings)
     {
-        var mongoDbConnectionString = dbSettings.BotSharpLiteDB;
-        _liteDBClient = new LiteDatabase(mongoDbConnectionString);
+        var dbConnectionString = dbSettings.BotSharpLiteDB;
+        var connectionString = new ConnectionString(dbConnectionString)
+        {
+            Connection = ConnectionType.Shared
+        };
+        _liteDBClient = new LiteDatabase(connectionString);
         _collectionPrefix = dbSettings.TablePrefix.IfNullOrEmptyAs("BotSharp");
     }
 
