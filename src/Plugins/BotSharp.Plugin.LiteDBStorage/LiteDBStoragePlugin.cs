@@ -24,8 +24,8 @@ public class LiteDBStoragePlugin : IBotSharpPlugin
         {
             services.AddScoped((IServiceProvider x) =>
             {
-                var dbSettings = x.GetRequiredService<BotSharpDatabaseSettings>();
-                return new LiteDBContext(dbSettings);
+                var dbSettingsFromIoc = x.GetRequiredService<BotSharpDatabaseSettings>();
+                return new LiteDBContext(dbSettingsFromIoc ?? dbSettings);
             });
 
             services.AddScoped<IBotSharpRepository, LiteDBRepository>();
