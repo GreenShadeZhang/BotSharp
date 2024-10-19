@@ -1,4 +1,5 @@
 using LiteDB;
+using System.Globalization;
 
 namespace BotSharp.Plugin.LiteDBStorage;
 
@@ -11,12 +12,26 @@ public class LiteDBContext: IDisposable
 
     public LiteDBContext(BotSharpDatabaseSettings dbSettings)
     {
+        var mapper = new BsonMapper();
+        mapper.RegisterType<DateTime>(
+            value => value.ToString("o", CultureInfo.InvariantCulture),
+            bson => DateTime.ParseExact
+            (bson, "o", CultureInfo.InvariantCulture, 
+            DateTimeStyles.RoundtripKind));
+
+        mapper.RegisterType<DateTimeOffset>(
+            value => value.ToString("o", CultureInfo.InvariantCulture),
+            bson => DateTimeOffset.ParseExact
+            (bson, "o", CultureInfo.InvariantCulture, 
+            DateTimeStyles.RoundtripKind));
+
         var dbConnectionString = dbSettings.BotSharpLiteDB;
         var connectionString = new ConnectionString(dbConnectionString)
         {
             Connection = ConnectionType.Shared
         };
-        _liteDBClient = new LiteDatabase(connectionString);
+        _liteDBClient = new LiteDatabase(connectionString, mapper);
+
         _collectionPrefix = dbSettings.TablePrefix.IfNullOrEmptyAs("BotSharp");
     }
 
