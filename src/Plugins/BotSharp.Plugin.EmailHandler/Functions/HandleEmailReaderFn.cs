@@ -7,7 +7,7 @@ namespace BotSharp.Plugin.EmailReader.Functions;
 
 public class HandleEmailReaderFn : IFunctionCallback
 {
-    public string Name => "handle_email_reader";
+    public string Name => "util-email-handle_email_reader";
     public readonly static string PROMPT_SUMMARY = "Provide a text summary of the following content.";
     public readonly static string RICH_CONTENT_SUMMARIZE = "is_email_summarize: true. messageId";
     public readonly static string RICH_CONTENT_READ_EMAIL = "Read the email by messageId";
@@ -67,9 +67,9 @@ public class HandleEmailReaderFn : IFunctionCallback
 
                     var llmProviderService = _services.GetRequiredService<ILlmProviderService>();
                     var provider = llmProviderService.GetProviders().FirstOrDefault(x => x == "openai");
-                    var model = llmProviderService.GetProviderModel(provider: provider, id: "gpt-4");
+                    var model = llmProviderService.GetProviderModel(provider: provider ?? "openai", id: "gpt-4");
                     var completion = CompletionProvider.GetChatCompletion(_services, provider: provider, model: model.Name);
-                    var convService = _services.GetService<IConversationService>();
+                    var convService = _services.GetRequiredService<IConversationService>();
                     var conversationId = convService.ConversationId;
                     var dialogs = convService.GetDialogHistory(fromBreakpoint: false);
                     var response = await completion.GetChatCompletions(agent, dialogs);

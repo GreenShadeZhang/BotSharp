@@ -1,8 +1,11 @@
 using BotSharp.Abstraction.Files;
 using BotSharp.Abstraction.Routing;
 using BotSharp.Core.Infrastructures;
+using BotSharp.Plugin.Twilio.Interfaces;
 using BotSharp.Plugin.Twilio.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 using System.Threading;
 using Task = System.Threading.Tasks.Task;
 
@@ -58,6 +61,16 @@ namespace BotSharp.Plugin.Twilio.Services
             using var scope = _serviceProvider.CreateScope();
             var sp = scope.ServiceProvider;
 
+            // Clean static HttpContext
+            var httpContext = sp.GetRequiredService<IHttpContextAccessor>();
+            httpContext.HttpContext = new DefaultHttpContext();
+            httpContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+            foreach (var header in message.RequestHeaders ?? [])
+            {
+                httpContext.HttpContext.Request.Headers[header.Key] = header.Value;
+            }
+            httpContext.HttpContext.Request.Headers["X-Twilio-BotSharp"] = "LOST";
+
             AssistantMessage reply = null;
             var inputMsg = new RoleDialogModel(AgentRole.User, message.Content);
             var conv = sp.GetRequiredService<IConversationService>();
@@ -66,23 +79,15 @@ namespace BotSharp.Plugin.Twilio.Services
             var sessionManager = sp.GetRequiredService<ITwilioSessionManager>();
             var progressService = sp.GetRequiredService<IConversationProgressService>();
             InitProgressService(message, sessionManager, progressService);
+            InitConversation(message, inputMsg, conv, routing);
 
-            routing.Context.SetMessageId(message.ConversationId, inputMsg.MessageId);
-            var states = new List<MessageState>
-            {
-                new MessageState("channel", ConversationChannel.Phone),
-                new MessageState("calling_phone", message.From)
-            };
+            // Need to consider Inbound and Outbound call
+            var conversation = await conv.GetConversation(message.ConversationId);
+            var agentId = string.IsNullOrWhiteSpace(conversation?.AgentId) ? config.AgentId : conversation.AgentId;
 
-            foreach (var kvp in message.States)
-            {
-                states.Add(new MessageState(kvp.Key, kvp.Value));
-            }
-            conv.SetConversationId(message.ConversationId, states);
-
-            var result = await conv.SendMessage(config.AgentId,
+            var result = await conv.SendMessage(agentId,
                 inputMsg,
-                replyMessage: null,
+                replyMessage: BuildPostbackMessageModel(conv, message),
                 async msg =>
                 {
                     reply = new AssistantMessage()
@@ -94,13 +99,51 @@ namespace BotSharp.Plugin.Twilio.Services
                     };
                 }
             );
+            reply.SpeechFileName = await GetReplySpeechFileName(message.ConversationId, reply, sp);
+            reply.Hints = GetHints(reply);
+            reply.Content = null;
+            await sessionManager.SetAssistantReplyAsync(message.ConversationId, message.SeqNumber, reply);
+        }
 
+        private PostbackMessageModel BuildPostbackMessageModel(IConversationService conv, CallerMessage message)
+        {
+            var messages = conv.GetDialogHistory(1);
+            if (!messages.Any()) return null;
+            var lastMessage = messages[0];
+            if (string.IsNullOrEmpty(lastMessage.PostbackFunctionName)) return null;
+            return new PostbackMessageModel
+            {
+                FunctionName = lastMessage.PostbackFunctionName,
+                ParentId = lastMessage.MessageId,
+                Payload = message.Digits
+            };
+        }
+
+        private static void InitConversation(CallerMessage message, RoleDialogModel inputMsg, IConversationService conv, IRoutingService routing)
+        {
+            routing.Context.SetMessageId(message.ConversationId, inputMsg.MessageId);
+            var states = new List<MessageState>
+            {
+                new("channel", ConversationChannel.Phone),
+                new("channel_id", message.From),
+                new("calling_phone", message.From)
+            };
+            states.AddRange(message.States.Select(kvp => new MessageState(kvp.Key, kvp.Value)));
+            conv.SetConversationId(message.ConversationId, states);
+        }
+
+        private static async Task<string> GetReplySpeechFileName(string conversationId, AssistantMessage reply, IServiceProvider sp)
+        {
             var completion = CompletionProvider.GetAudioCompletion(sp, "openai", "tts-1");
             var fileStorage = sp.GetRequiredService<IFileStorageService>();
             var data = await completion.GenerateAudioFromTextAsync(reply.Content);
             var fileName = $"reply_{reply.MessageId}.mp3";
-            fileStorage.SaveSpeechFile(message.ConversationId, fileName, data);
-            reply.SpeechFileName = fileName;
+            fileStorage.SaveSpeechFile(conversationId, fileName, data);
+            return fileName;
+        }
+
+        private static string GetHints(AssistantMessage reply)
+        {
             var phrases = reply.Content.Split(',', StringSplitOptions.RemoveEmptyEntries);
             int capcity = 100;
             var hints = new List<string>(capcity);
@@ -122,9 +165,7 @@ namespace BotSharp.Plugin.Twilio.Services
             }
             // add frequency short words
             hints.AddRange(["yes", "no", "correct", "right"]);
-            reply.Hints = string.Join(", ", hints.Select(x => x.ToLower()).Distinct().Reverse());
-            reply.Content = null;
-            await sessionManager.SetAssistantReplyAsync(message.ConversationId, message.SeqNumber, reply);
+            return string.Join(", ", hints.Select(x => x.ToLower()).Distinct().Reverse());
         }
 
         private static void InitProgressService(CallerMessage message, ITwilioSessionManager sessionManager, IConversationProgressService progressService)

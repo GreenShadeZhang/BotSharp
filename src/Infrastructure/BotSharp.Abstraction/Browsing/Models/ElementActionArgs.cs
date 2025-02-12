@@ -1,15 +1,26 @@
 using BotSharp.Abstraction.Browsing.Enums;
+using System.Diagnostics;
 
 namespace BotSharp.Abstraction.Browsing.Models;
 
+[DebuggerStepThrough]
 public class ElementActionArgs
 {
+    [JsonPropertyName("action")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public BroswerActionEnum Action { get; set; }
 
+    [JsonPropertyName("content")]
     public string? Content { get; set; }
 
     public ElementPosition? Position { get; set; }
 
+    /// <summary>
+    /// Delay milliseconds before pressing key
+    /// </summary>
+    public int DelayBeforePressingKey { get; set; }
+
+    [JsonPropertyName("press_key")]
     public string? PressKey { get; set; }
 
     /// <summary>

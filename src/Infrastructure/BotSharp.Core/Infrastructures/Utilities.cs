@@ -23,17 +23,23 @@ public static class Utilities
 
         var data = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
         var sb = new StringBuilder();
-        foreach(var c in data)
+        foreach (var c in data)
         {
             sb.Append(c.ToString("x2"));
         }
         return sb.ToString();
     }
 
-    public static (string, string) SplitAsTuple(this string str, string sep)
+    public static (string, string, string) SplitAsTuple(this string str, string sep)
     {
         var splits = str.Split(sep);
-        return (splits[0], splits[1]);
+
+        if (splits.Length == 2 || string.IsNullOrWhiteSpace(splits[2]))
+        {
+            return (splits[0], splits[1], "CN");
+        }
+
+        return (splits[0], splits[1], splits[2]);
     }
 
     /// <summary>
@@ -42,9 +48,39 @@ public static class Utilities
     public static void ClearCache()
     {
         // Clear whole cache.
-        if (new MemoryCacheAttribute(0).Cache is MemoryCache memcache)
-        {
-            memcache.Compact(100);
-        }
+        var sharpCache = new SharpCacheAttribute(0);
+        sharpCache.ClearCacheAsync().ConfigureAwait(false).GetAwaiter().GetResult();
     }
+
+    public static string HideMiddleDigits(string input, bool isEmail = false)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return input;
+        }
+
+        if (isEmail)
+        {
+            int atIndex = input.IndexOf('@');
+            if (atIndex > 1)
+            {
+                string localPart = input.Substring(0, atIndex);
+                if (localPart.Length > 2)
+                {
+                    string maskedLocalPart = $"{localPart[0]}{new string('*', localPart.Length - 2)}{localPart[^1]}";
+                    return $"{maskedLocalPart}@{input.Substring(atIndex + 1)}";
+                }
+            }
+        }
+        else
+        {
+            if (input.Length > 6)
+            {
+                return $"{input.Substring(0, 3)}{new string('*', input.Length - 6)}{input.Substring(input.Length - 3)}";
+            }
+        }
+
+        return input;
+    }
+
 }

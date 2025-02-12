@@ -31,10 +31,20 @@ public class AgentUpdateModel
     /// </summary>
     public List<string>? Samples { get; set; }
 
+    [JsonPropertyName("merge_utility")]
+    public bool MergeUtility { get; set; }
+
     /// <summary>
     /// Utilities
     /// </summary>
-    public List<string>? Utilities { get; set; }
+    public List<AgentUtility>? Utilities { get; set; }
+
+    /// <summary>
+    /// knowledge bases
+    /// </summary>
+    /// 
+    [JsonPropertyName("knowledge_bases")]
+    public List<AgentKnowledgeBase>? KnowledgeBases { get; set; }
 
     /// <summary>
     /// Functions
@@ -54,13 +64,21 @@ public class AgentUpdateModel
 
     public bool Disabled { get; set; }
 
+    [JsonPropertyName("max_message_count")]
+    public int? MaxMessageCount { get; set; }
+
     /// <summary>
     /// Profile by channel
     /// </summary>
     public List<string>? Profiles { get; set; }
 
+    public List<string>? Labels { get; set; }
+
     [JsonPropertyName("routing_rules")]
     public List<RoutingRuleUpdateModel>? RoutingRules { get; set; }
+
+    [JsonPropertyName("rules")]
+    public List<AgentRule>? Rules { get; set; }
 
     [JsonPropertyName("llm_config")]
     public AgentLlmConfig? LlmConfig { get; set; }
@@ -73,16 +91,21 @@ public class AgentUpdateModel
             Description = Description ?? string.Empty,
             IsPublic = IsPublic,
             Disabled = Disabled,
+            MergeUtility = MergeUtility,
+            MaxMessageCount = MaxMessageCount,
             Type = Type,
-            Profiles = Profiles ?? new List<string>(),
-            RoutingRules = RoutingRules?.Select(x => RoutingRuleUpdateModel.ToDomainElement(x))?.ToList() ?? new List<RoutingRule>(),
+            Profiles = Profiles ?? [],
+            Labels = Labels ?? [],
+            RoutingRules = RoutingRules?.Select(x => RoutingRuleUpdateModel.ToDomainElement(x))?.ToList() ?? [],
             Instruction = Instruction ?? string.Empty,
-            ChannelInstructions = ChannelInstructions ?? new List<ChannelInstruction>(),
-            Templates = Templates ?? new List<AgentTemplate>(),
-            Functions = Functions ?? new List<FunctionDef>(),
-            Responses = Responses ?? new List<AgentResponse>(),
-            Utilities = Utilities ?? new List<string>(),
-            LlmConfig = LlmConfig
+            ChannelInstructions = ChannelInstructions ?? [],
+            Templates = Templates ?? [],
+            Functions = Functions ?? [],
+            Responses = Responses ?? [],
+            Utilities = Utilities ?? [],
+            KnowledgeBases = KnowledgeBases ?? [],
+            Rules = Rules ?? [],
+            LlmConfig = LlmConfig ?? new()
         };
 
         return agent;

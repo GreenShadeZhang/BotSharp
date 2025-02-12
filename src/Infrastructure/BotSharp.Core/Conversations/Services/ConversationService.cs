@@ -50,6 +50,27 @@ public partial class ConversationService : IConversationService
         var conversation = db.GetConversation(id);
         return conversation;
     }
+
+    public async Task<Conversation> UpdateConversationTitleAlias(string id, string titleAlias)
+    {
+        var db = _services.GetRequiredService<IBotSharpRepository>();
+        db.UpdateConversationTitleAlias(id, titleAlias);
+        var conversation = db.GetConversation(id);
+        return conversation;
+    }
+
+    public async Task<bool> UpdateConversationTags(string conversationId, List<string> tags)
+    {
+        var db = _services.GetRequiredService<IBotSharpRepository>();
+        return db.UpdateConversationTags(conversationId, tags);
+    }
+
+    public async Task<bool> UpdateConversationMessage(string conversationId, UpdateMessageRequest request)
+    {
+        var db = _services.GetRequiredService<IBotSharpRepository>();
+        return db.UpdateConversationMessage(conversationId, request);
+    }
+
     public async Task<Conversation> GetConversation(string id)
     {
         var db = _services.GetRequiredService<IBotSharpRepository>();
@@ -85,11 +106,13 @@ public partial class ConversationService : IConversationService
         var record = sess;
         record.Id = sess.Id.IfNullOrEmptyAs(Guid.NewGuid().ToString());
         record.UserId = sess.UserId.IfNullOrEmptyAs(foundUserId);
-        record.Title = "New Conversation";
+        record.Tags = sess.Tags;
+        record.Title = string.IsNullOrEmpty(record.Title) ? "New Conversation" : record.Title;
 
         db.CreateNewConversation(record);
 
-        var hooks = _services.GetServices<IConversationHook>().ToList();
+        var hooks = _services.GetServices<IConversationHook>();
+
         foreach (var hook in hooks)
         {
             // If user connect agent first time
@@ -128,6 +151,7 @@ public partial class ConversationService : IConversationService
         {
             var db = _services.GetRequiredService<IBotSharpRepository>();
             var breakpoint = db.GetConversationBreakpoint(_conversationId);
+
             if (breakpoint != null)
             {
                 dialogs = dialogs.Where(x => x.CreatedAt >= breakpoint.Breakpoint).ToList();
@@ -138,15 +162,16 @@ public partial class ConversationService : IConversationService
             }
         }
 
-        return dialogs
-            .TakeLast(lastCount)
-            .ToList();
+        var agentMsgCount = GetAgentMessageCount();
+        var count = agentMsgCount.HasValue && agentMsgCount.Value > 0 ? agentMsgCount.Value : lastCount;
+
+        return dialogs.TakeLast(count).ToList();
     }
 
     public void SetConversationId(string conversationId, List<MessageState> states, bool isReadOnly = false)
     {
         _conversationId = conversationId;
-        _state.Load(_conversationId);
+        _state.Load(_conversationId, isReadOnly);
         states.ForEach(x => _state.SetState(x.Key, x.Value, activeRounds: x.ActiveRounds, source: StateSource.External));
     }
 
@@ -159,11 +184,15 @@ public partial class ConversationService : IConversationService
         {
             var state = _services.GetRequiredService<IConversationStateService>();
             var channel = state.GetState("channel");
+            var channelId = state.GetState("channel_id");
+            var userId = state.GetState("current_user_id");
             var sess = new Conversation
             {
                 Id = _conversationId,
                 Channel = channel,
-                AgentId = agentId
+                ChannelId = channelId,
+                AgentId = agentId,
+                UserId = userId,
             };
             converation = await NewConversation(sess);
         }
@@ -174,5 +203,36 @@ public partial class ConversationService : IConversationService
     public bool IsConversationMode()
     {
         return !string.IsNullOrWhiteSpace(_conversationId);
+    }
+
+
+    private int? GetAgentMessageCount()
+    {
+        var db = _services.GetRequiredService<IBotSharpRepository>();
+        var routingCtx = _services.GetRequiredService<IRoutingContext>();
+
+        if (string.IsNullOrEmpty(routingCtx.EntryAgentId)) return null;
+
+        var agent = db.GetAgent(routingCtx.EntryAgentId, basicsOnly: true);
+        return agent?.MaxMessageCount;
+    }
+
+    public void SaveStates()
+    {
+        _state.Save();
+    }
+
+    public async Task<List<string>> GetConversationStateSearhKeys(string query, int convlimit = 100, int keyLimit = 10, bool preLoad = false)
+    {
+        var keys = new List<string>();
+        if (!preLoad && string.IsNullOrWhiteSpace(query))
+        {
+            return keys;
+        }
+
+        var db = _services.GetRequiredService<IBotSharpRepository>();
+        keys = db.GetConversationStateSearchKeys(convUpperlimit: convlimit);
+        keys = preLoad ? keys : keys.Where(x => x.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+        return keys.OrderBy(x => x).Take(keyLimit).ToList();
     }
 }

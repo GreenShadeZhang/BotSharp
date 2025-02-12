@@ -8,6 +8,11 @@ public partial class FileRepository
     #region Task
     public PagedItems<AgentTask> GetAgentTasks(AgentTaskFilter filter)
     {
+        if (filter == null)
+        {
+            filter = AgentTaskFilter.Empty();
+        }
+
         var tasks = new List<AgentTask>();
         var pager = filter.Pager ?? new Pagination();
         var skipCount = 0;
@@ -43,6 +48,11 @@ public partial class FileRepository
                 if (filter?.Enabled != null)
                 {
                     matched = matched && task.Enabled == filter.Enabled;
+                }
+
+                if (!string.IsNullOrEmpty(filter?.Status))
+                {
+                    matched = matched && task.Status == filter.Status;
                 }
 
                 if (!matched) continue;
@@ -114,12 +124,11 @@ public partial class FileRepository
 
         var fileName = $"{Guid.NewGuid()}.liquid";
         var taskFile = Path.Combine(taskDir, fileName);
-        var metaData = new AgentTaskMetaData
+        var metaData = new AgentTask
         {
             Name = task.Name,
             Description = task.Description,
             Enabled = task.Enabled,
-            DirectAgentId = task.DirectAgentId,
             CreatedDateTime = DateTime.UtcNow,
             UpdatedDateTime = DateTime.UtcNow
         };
@@ -149,12 +158,11 @@ public partial class FileRepository
         var parsedTask = ParseAgentTask(taskFile);
         if (parsedTask == null) return;
 
-        var metaData = new AgentTaskMetaData
+        var metaData = new AgentTask
         {
             Name = parsedTask.Name,
             Description = parsedTask.Description,
             Enabled = parsedTask.Enabled,
-            DirectAgentId = parsedTask.DirectAgentId,
             CreatedDateTime = parsedTask.CreatedDateTime,
             UpdatedDateTime = DateTime.UtcNow
         };
@@ -171,9 +179,6 @@ public partial class FileRepository
             case AgentTaskField.Enabled:
                 metaData.Enabled = task.Enabled;
                 break;
-            case AgentTaskField.DirectAgentId:
-                metaData.DirectAgentId = task.DirectAgentId;
-                break;
             case AgentTaskField.Content:
                 content = task.Content;
                 break;
@@ -181,7 +186,6 @@ public partial class FileRepository
                 metaData.Name = task.Name;
                 metaData.Description = task.Description;
                 metaData.Enabled = task.Enabled;
-                metaData.DirectAgentId = task.DirectAgentId;
                 content = task.Content;
                 break;
         }
@@ -230,7 +234,7 @@ public partial class FileRepository
         return taskFile;
     }
 
-    private string BuildAgentTaskFileContent(AgentTaskMetaData metaData, string taskContent)
+    private string BuildAgentTaskFileContent(AgentTask metaData, string taskContent)
     {
         return $"{AGENT_TASK_PREFIX}\n{JsonSerializer.Serialize(metaData, _options)}\n{AGENT_TASK_SUFFIX}\n\n{taskContent}";
     }

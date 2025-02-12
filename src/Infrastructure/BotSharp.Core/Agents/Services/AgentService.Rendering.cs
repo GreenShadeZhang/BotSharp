@@ -9,13 +9,21 @@ public partial class AgentService
     public string RenderedInstruction(Agent agent)
     {
         var render = _services.GetRequiredService<ITemplateRender>();
-        // update states
         var conv = _services.GetRequiredService<IConversationService>();
+
+        // merge instructions
+        var instructions = new List<string> { agent.Instruction };
+        var secondaryInstructions = agent.SecondaryInstructions?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? [];
+        instructions.AddRange(secondaryInstructions);
+
+        // update states
         foreach (var t in conv.States.GetStates())
         {
             agent.TemplateDict[t.Key] = t.Value;
         }
-        return render.Render(agent.Instruction, agent.TemplateDict);
+
+        var res = render.Render(string.Join("\r\n", instructions), agent.TemplateDict);
+        return res;
     }
 
     public bool RenderFunction(Agent agent, FunctionDef def)
@@ -103,21 +111,23 @@ public partial class AgentService
 
         parameterDef.Properties = JsonSerializer.Deserialize<JsonDocument>(clonedRoot.ToString());
         parameterDef.Required = required;
-        return parameterDef; ;
+        return parameterDef;
     }
 
     public string RenderedTemplate(Agent agent, string templateName)
     {
-        // render liquid template
-        var render = _services.GetRequiredService<ITemplateRender>();
-        var template = agent.Templates.First(x => x.Name == templateName).Content;
-        // update states
         var conv = _services.GetRequiredService<IConversationService>();
+        var render = _services.GetRequiredService<ITemplateRender>();
+
+        var template = agent.Templates.First(x => x.Name == templateName).Content;
+
+        // update states
         foreach (var t in conv.States.GetStates())
         {
             agent.TemplateDict[t.Key] = t.Value;
         }
 
+        // render liquid template
         var content = render.Render(template, agent.TemplateDict);
 
         HookEmitter.Emit<IContentGeneratingHook>(_services, async hook =>

@@ -58,18 +58,27 @@ public class UserIdentity : IUserIdentity
     }
 
     [JsonPropertyName("user_language")]
-    public string? UserLanguage
+    public string UserLanguage
     {
         get
         {
             _contextAccessor.HttpContext.Request.Headers.TryGetValue("User-Language", out var languages);
-            return languages.FirstOrDefault();
+            return languages.FirstOrDefault() ?? "en-US";
         }
     }
 
     [JsonPropertyName("phone")]
     public string? Phone => _claims?.FirstOrDefault(x => x.Type == "phone")?.Value;
 
-    [JsonPropertyName("affiliateId")]
-    public string? AffiliateId => _claims?.FirstOrDefault(x => x.Type == "affiliateId")?.Value;
+    [JsonPropertyName("type")]
+    public string? Type => _claims?.FirstOrDefault(x => x.Type == "type")?.Value;
+
+    [JsonPropertyName("role")]
+    public string? Role => _claims?.FirstOrDefault(x => x.Type == ClaimTypes.Role)?.Value;
+
+    /// <summary>
+    /// US, CA, etc.
+    /// </summary>
+    [JsonPropertyName("region_code")]
+    public string? RegionCode => _claims?.FirstOrDefault(x => x.Type == "region_code")?.Value;
 }

@@ -87,18 +87,43 @@ public class Agent
     /// <summary>
     /// Profile by channel
     /// </summary>
-    public List<string> Profiles { get; set; }
-        = new List<string>();
+    public List<string> Profiles { get; set; } = new();
+
+    /// <summary>
+    /// Agent labels
+    /// </summary>
+    public List<string> Labels { get; set; } = new();
+
+    /// <summary>
+    /// Merge utilities from entry agent
+    /// </summary>
+    public bool MergeUtility { get; set; }
 
     /// <summary>
     /// Agent utilities
     /// </summary>
-    public List<string> Utilities { get; set; } = new();
+    public List<AgentUtility> Utilities { get; set; } = new();
+
+    /// <summary>
+    /// Agent rules
+    /// </summary>
+    public List<AgentRule> Rules { get; set; } = new();
+
+    /// <summary>
+    /// Agent knowledge bases
+    /// </summary>
+    public List<AgentKnowledgeBase> KnowledgeBases { get; set; } = [];
 
     /// <summary>
     /// Inherit from agent
     /// </summary>
     public string? InheritAgentId { get; set; }
+
+    /// <summary>
+    /// Maximum message count when load conversation
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaxMessageCount { get; set; }
 
     public List<RoutingRule> RoutingRules { get; set; } = new();
 
@@ -107,6 +132,12 @@ public class Agent
     /// </summary>
     [JsonIgnore]
     public Dictionary<string, object> TemplateDict { get; set; } = new();
+
+    [JsonIgnore]
+    public List<FunctionDef> SecondaryFunctions { get; set; } = [];
+
+    [JsonIgnore]
+    public List<string> SecondaryInstructions { get; set; } = [];
 
     public override string ToString()
         => $"{Name} {Id}";
@@ -129,9 +160,14 @@ public class Agent
             Knowledges = agent.Knowledges,
             IsPublic = agent.IsPublic,
             Disabled = agent.Disabled,
+            MergeUtility = agent.MergeUtility,
+            MaxMessageCount = agent.MaxMessageCount,
             Profiles = agent.Profiles,
+            Labels = agent.Labels,
             RoutingRules = agent.RoutingRules,
+            Rules = agent.Rules,
             LlmConfig = agent.LlmConfig,
+            KnowledgeBases = agent.KnowledgeBases,
             CreatedDateTime = agent.CreatedDateTime,
             UpdatedDateTime = agent.UpdatedDateTime,
         };
@@ -145,43 +181,49 @@ public class Agent
 
     public Agent SetChannelInstructions(List<ChannelInstruction> instructions)
     {
-        ChannelInstructions = instructions ?? new List<ChannelInstruction>();
+        ChannelInstructions = instructions ?? [];
         return this;
     }
 
     public Agent SetTemplates(List<AgentTemplate> templates)
     {
-        Templates = templates ?? new List<AgentTemplate>();
+        Templates = templates ?? [];
         return this;
     }
 
     public Agent SetTasks(List<AgentTask> tasks)
     {
-        Tasks = tasks ?? new List<AgentTask>();
+        Tasks = tasks ?? [];
         return this;
     }
 
     public Agent SetFunctions(List<FunctionDef> functions)
     {
-        Functions = functions ?? new List<FunctionDef>();
+        Functions = functions ?? [];
         return this;
     }
 
     public Agent SetSamples(List<string> samples)
     {
-        Samples = samples ?? new List<string>();
+        Samples = samples ?? [];
         return this;
     }
 
-    public Agent SetUtilities(List<string> utilities)
+    public Agent SetUtilities(List<AgentUtility> utilities)
     {
-        Utilities = utilities ?? new List<string>();
+        Utilities = utilities ?? [];
+        return this;
+    }
+
+    public Agent SetKnowledgeBases(List<AgentKnowledgeBase> knowledgeBases)
+    {
+        knowledgeBases = knowledgeBases ?? [];
         return this;
     }
 
     public Agent SetResponses(List<AgentResponse> responses)
     {
-        Responses = responses ?? new List<AgentResponse>(); ;
+        Responses = responses ?? [];
         return this;
     }
 
@@ -215,6 +257,12 @@ public class Agent
         return this;
     }
 
+    public Agent SetMergeUtility(bool merge)
+    {
+        MergeUtility = merge;
+        return this;
+    }
+
     public Agent SetAgentType(string type)
     {
         Type = type;
@@ -223,13 +271,25 @@ public class Agent
 
     public Agent SetProfiles(List<string> profiles)
     {
-        Profiles = profiles ?? new List<string>();
+        Profiles = profiles ?? [];
+        return this;
+    }
+
+    public Agent SetLabels(List<string> labels)
+    {
+        Labels = labels ?? [];
         return this;
     }
 
     public Agent SetRoutingRules(List<RoutingRule> rules)
     {
-        RoutingRules = rules ?? new List<RoutingRule>();
+        RoutingRules = rules ?? [];
+        return this;
+    }
+
+    public Agent SetRules(List<AgentRule> rules)
+    {
+        Rules = rules ?? [];
         return this;
     }
 

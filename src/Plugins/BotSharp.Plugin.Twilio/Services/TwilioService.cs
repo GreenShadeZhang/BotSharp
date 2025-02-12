@@ -1,5 +1,7 @@
 using BotSharp.Abstraction.Utilities;
+using BotSharp.Plugin.Twilio.Models;
 using Twilio.Jwt.AccessToken;
+using Twilio.TwiML.Messaging;
 using Token = Twilio.Jwt.AccessToken.Token;
 
 namespace BotSharp.Plugin.Twilio.Services;
@@ -58,7 +60,10 @@ public class TwilioService
                 Gather.InputEnum.Speech,
                 Gather.InputEnum.Dtmf
             },
-            Action = new Uri($"{_settings.CallbackHost}/twilio/voice/{twilioSetting.AgentId}")
+            Action = new Uri($"{_settings.CallbackHost}/twilio/voice/{twilioSetting.AgentId}"),
+            Enhanced = true,
+            SpeechModel = Gather.SpeechModelEnum.PhoneCall,
+            SpeechTimeout = "auto"
         };
 
         gather.Say(message);
@@ -66,7 +71,7 @@ public class TwilioService
         return response;
     }
 
-    public VoiceResponse ReturnInstructions(List<string> speechPaths, string callbackPath, bool actionOnEmptyResult, int timeout = 3, string hints = null)
+    public VoiceResponse ReturnInstructions(ConversationalVoiceResponse conversationalVoiceResponse)
     {
         var response = new VoiceResponse();
         var gather = new Gather()
@@ -76,17 +81,18 @@ public class TwilioService
                 Gather.InputEnum.Speech,
                 Gather.InputEnum.Dtmf
             },
-            Action = new Uri($"{_settings.CallbackHost}/{callbackPath}"),
+            Action = new Uri($"{_settings.CallbackHost}/{conversationalVoiceResponse.CallbackPath}"),
+            Enhanced = true,
             SpeechModel = Gather.SpeechModelEnum.PhoneCall,
             SpeechTimeout = "auto", // timeout > 0 ? timeout.ToString() : "3",
-            Timeout = timeout > 0 ? timeout : 3,
-            ActionOnEmptyResult = actionOnEmptyResult,
-            Hints = hints
+            Timeout = conversationalVoiceResponse.Timeout > 0 ? conversationalVoiceResponse.Timeout : 3,
+            ActionOnEmptyResult = conversationalVoiceResponse.ActionOnEmptyResult,
+            Hints = conversationalVoiceResponse.Hints
         };
 
-        if (!speechPaths.IsNullOrEmpty())
+        if (!conversationalVoiceResponse.SpeechPaths.IsNullOrEmpty())
         {
-            foreach (var speechPath in speechPaths)
+            foreach (var speechPath in conversationalVoiceResponse.SpeechPaths)
             {
                 gather.Play(new Uri($"{_settings.CallbackHost}/{speechPath}"));
             }
@@ -95,12 +101,13 @@ public class TwilioService
         return response;
     }
 
-    public VoiceResponse ReturnNoninterruptedInstructions(List<string> speechPaths, string callbackPath, bool actionOnEmptyResult, int timeout = 3)
+    public VoiceResponse ReturnNoninterruptedInstructions(ConversationalVoiceResponse conversationalVoiceResponse)
     {
         var response = new VoiceResponse();
-        if (speechPaths != null && speechPaths.Any())
+        response.Pause(2);
+        if (conversationalVoiceResponse.SpeechPaths != null && conversationalVoiceResponse.SpeechPaths.Any())
         {
-            foreach (var speechPath in speechPaths)
+            foreach (var speechPath in conversationalVoiceResponse.SpeechPaths)
             {
                 response.Play(new Uri($"{_settings.CallbackHost}/{speechPath}"));
             }
@@ -112,11 +119,12 @@ public class TwilioService
                 Gather.InputEnum.Speech,
                 Gather.InputEnum.Dtmf
             },
-            Action = new Uri($"{_settings.CallbackHost}/{callbackPath}"),
+            Action = new Uri($"{_settings.CallbackHost}/{conversationalVoiceResponse.CallbackPath}"),
+            Enhanced = true,
             SpeechModel = Gather.SpeechModelEnum.PhoneCall,
-            SpeechTimeout = timeout > 0 ? timeout.ToString() : "3",
-            Timeout = timeout > 0 ? timeout : 3,
-            ActionOnEmptyResult = actionOnEmptyResult
+            SpeechTimeout = "auto", // conversationalVoiceResponse.Timeout > 0 ? conversationalVoiceResponse.Timeout.ToString() : "3",
+            Timeout = conversationalVoiceResponse.Timeout > 0 ? conversationalVoiceResponse.Timeout : 3,
+            ActionOnEmptyResult = conversationalVoiceResponse.ActionOnEmptyResult
         };
         response.Append(gather);
         return response;
@@ -151,8 +159,8 @@ public class TwilioService
         var response = new VoiceResponse();
         var gather = new Gather()
         {
-            Input = new List<Gather.InputEnum>() 
-            { 
+            Input = new List<Gather.InputEnum>()
+            {
                 Gather.InputEnum.Speech,
                 Gather.InputEnum.Dtmf
             },
@@ -166,6 +174,29 @@ public class TwilioService
         }
         gather.Pause(interval);
         response.Append(gather);
+        return response;
+    }
+
+    /// <summary>
+    /// Bidirectional Media Streams
+    /// </summary>
+    /// <param name="conversationalVoiceResponse"></param>
+    /// <returns></returns>
+    public VoiceResponse ReturnBidirectionalMediaStreamsInstructions(string conversationId, ConversationalVoiceResponse conversationalVoiceResponse)
+    {
+        var response = new VoiceResponse();
+        if (conversationalVoiceResponse.SpeechPaths != null && conversationalVoiceResponse.SpeechPaths.Any())
+        {
+            foreach (var speechPath in conversationalVoiceResponse.SpeechPaths)
+            {
+                response.Play(new Uri($"{_settings.CallbackHost}/{speechPath}"));
+            }
+        }
+        var connect = new Connect();
+        var host = _settings.CallbackHost.Split("://").Last();
+        connect.Stream(url: $"wss://{host}/twilio/stream/{conversationId}");
+        response.Append(connect);
+
         return response;
     }
 }

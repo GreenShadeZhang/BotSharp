@@ -1,6 +1,9 @@
 using BotSharp.Abstraction.Agents.Enums;
 using BotSharp.Abstraction.Conversations.Enums;
 using BotSharp.Abstraction.Repositories.Filters;
+using BotSharp.Abstraction.Statistics.Enums;
+using BotSharp.Abstraction.Statistics.Models;
+using BotSharp.Abstraction.Statistics.Services;
 using BotSharp.Abstraction.Users;
 
 namespace BotSharp.Logger.Hooks;
@@ -34,7 +37,7 @@ public class RateLimitConversationHook : ConversationHookBase
         }
 
         // Check message sending frequency
-        var userSents = _dialogs.Where(x => x.Role == AgentRole.User)
+        var userSents = Dialogs.Where(x => x.Role == AgentRole.User)
             .TakeLast(2).ToList();
 
         if (userSents.Count > 1)
@@ -52,7 +55,7 @@ public class RateLimitConversationHook : ConversationHookBase
         var channel = states.GetState("channel");
 
         // Check the number of conversations
-        if (channel != ConversationChannel.Phone && channel != ConversationChannel.Email)
+        if (channel != ConversationChannel.Phone && channel != ConversationChannel.Email && channel != ConversationChannel.Database)
         {
             var user = _services.GetRequiredService<IUserIdentity>();
             var convService = _services.GetRequiredService<IConversationService>();

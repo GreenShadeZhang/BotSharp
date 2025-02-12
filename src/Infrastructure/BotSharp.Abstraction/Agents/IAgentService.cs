@@ -18,7 +18,7 @@ public interface IAgentService
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    Task<Agent> LoadAgent(string id);
+    Task<Agent> LoadAgent(string id, bool loadUtility = true);
 
     /// <summary>
     /// Inherit from an agent
@@ -55,9 +55,7 @@ public interface IAgentService
     string GetDataDir();
     string GetAgentDataDir(string agentId);
 
-    List<Agent> GetAgentsByUser(string userId);
+    Task<List<UserAgent>> GetUserAgents(string userId);
 
     PluginDef GetPlugin(string agentId);
-
-    IEnumerable<string> GetAgentUtilities();
 }

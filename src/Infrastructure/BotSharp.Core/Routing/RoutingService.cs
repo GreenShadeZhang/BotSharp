@@ -1,6 +1,4 @@
-using BotSharp.Abstraction.Infrastructures.Enums;
 using BotSharp.Abstraction.Routing.Models;
-using BotSharp.Abstraction.Routing.Planning;
 using BotSharp.Abstraction.Routing.Settings;
 
 namespace BotSharp.Core.Routing;
@@ -16,12 +14,8 @@ public partial class RoutingService : IRoutingService
     public IRoutingContext Context => _context;
     public Agent Router => _router;
 
-    public void ResetRecursiveCounter()
-    {
-        _currentRecursionDepth = 0;
-    }
-
-    public RoutingService(IServiceProvider services,
+    public RoutingService(
+        IServiceProvider services,
         RoutingSettings settings,
         IRoutingContext context,
         ILogger<RoutingService> logger)
@@ -43,6 +37,7 @@ public partial class RoutingService : IRoutingService
         storage.Append(conv.ConversationId, message);
 
         var dialogs = conv.GetDialogHistory();
+        Context.SetDialogs(dialogs);
         handler.SetDialogs(dialogs);
 
         var inst = new FunctionCallFromLlm
@@ -64,97 +59,12 @@ public partial class RoutingService : IRoutingService
         return response;
     }
 
-    public async Task<RoleDialogModel> InstructLoop(RoleDialogModel message, List<RoleDialogModel> dialogs)
-    {
-        RoleDialogModel response = default;
-
-        var agentService = _services.GetRequiredService<IAgentService>();
-        var convService = _services.GetRequiredService<IConversationService>();
-        var storage = _services.GetRequiredService<IConversationStorage>();
-
-        _router = await agentService.LoadAgent(message.CurrentAgentId);
-
-        var states = _services.GetRequiredService<IConversationStateService>();
-        var executor = _services.GetRequiredService<IExecutor>();
-
-        var planner = GetPlanner(_router);
-
-        _context.Push(_router.Id);
-
-        // Handle multi-language for input
-        var agentSettings = _services.GetRequiredService<AgentSettings>();
-        if (agentSettings.EnableTranslator)
-        {
-            var translator = _services.GetRequiredService<ITranslationService>();
-
-            var language = states.GetState(StateConst.LANGUAGE, LanguageType.ENGLISH);
-            if (language != LanguageType.ENGLISH)
-            {
-                message.SecondaryContent = message.Content;
-                message.Content = await translator.Translate(_router, message.MessageId, message.Content,
-                    language: LanguageType.ENGLISH,
-                    clone: false);
-            }
-        }
-
-        dialogs.Add(message);
-        storage.Append(convService.ConversationId, message);
-
-        // Get first instruction
-        _router.TemplateDict["conversation"] = await GetConversationContent(dialogs);
-        var inst = await planner.GetNextInstruction(_router, message.MessageId, dialogs);
-
-        int loopCount = 1;
-        while (true)
-        {
-            await HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-                await hook.OnRoutingInstructionReceived(inst, message)
-            );
-
-            // Save states
-            states.SaveStateByArgs(inst.Arguments);
-
-#if DEBUG
-            Console.WriteLine($"*** Next Instruction *** {inst}");
-#else
-            _logger.LogInformation($"*** Next Instruction *** {inst}");
-#endif
-            await planner.AgentExecuting(_router, inst, message, dialogs);
-
-            // Handover to Task Agent
-            if (inst.HandleDialogsByPlanner)
-            {
-                var dialogWithoutContext = planner.BeforeHandleContext(inst, message, dialogs);
-                response = await executor.Execute(this, inst, message, dialogWithoutContext);
-                planner.AfterHandleContext(dialogs, dialogWithoutContext);
-            }
-            else
-            {
-                response = await executor.Execute(this, inst, message, dialogs);
-            }
-
-            await planner.AgentExecuted(_router, inst, response, dialogs);
-
-            if (loopCount >= planner.MaxLoopCount || _context.IsEmpty)
-            {
-                break;
-            }
-
-            // Get next instruction from Planner
-            _router.TemplateDict["conversation"] = await GetConversationContent(dialogs);
-            inst = await planner.GetNextInstruction(_router, message.MessageId, dialogs);
-            loopCount++;
-        }
-
-        return response;
-    }
-
     public List<RoutingHandlerDef> GetHandlers(Agent router)
     {
-        var planer = GetPlanner(router);
+        var reasoner = GetReasoner(router);
 
         return _services.GetServices<IRoutingHandler>()
-            .Where(x => x.Planers == null || x.Planers.Contains(planer.GetType().Name))
+            .Where(x => x.Planers == null || x.Planers.Contains(reasoner.GetType().Name))
             .Where(x => !string.IsNullOrEmpty(x.Description))
             .Select((x, i) => new RoutingHandlerDef
             {
@@ -165,7 +75,7 @@ public partial class RoutingService : IRoutingService
     }
 
 #if !DEBUG
-    [MemoryCache(10 * 60)]
+    [SharpCache(10)]
 #endif
     protected RoutingRule[] GetRoutingRecords()
     {
@@ -173,11 +83,10 @@ public partial class RoutingService : IRoutingService
 
         var filter = new AgentFilter
         {
-            Disabled = false,
-            Type = AgentType.Task
+            Disabled = false
         };
         var agents = db.GetAgents(filter);
-        var records = agents.SelectMany(x =>
+        var records = agents.Where(x => x.Type == AgentType.Task || x.Type == AgentType.Planning).SelectMany(x =>
         {
             x.RoutingRules.ForEach(r =>
             {
@@ -191,7 +100,7 @@ public partial class RoutingService : IRoutingService
     }
 
 #if !DEBUG
-    [MemoryCache(10 * 60)]
+    [SharpCache(10)]
 #endif
     public RoutableAgent[] GetRoutableAgents(List<string> profiles)
     {
@@ -199,16 +108,16 @@ public partial class RoutingService : IRoutingService
 
         var filter = new AgentFilter
         {
-            Disabled = false,
-            Type = AgentType.Task
+            Disabled = false
         };
 
         var agents = db.GetAgents(filter);
-        var routableAgents = agents.Select(x => new RoutableAgent
+        var routableAgents = agents.Where(x => x.Type == AgentType.Task || x.Type == AgentType.Planning).Select(x => new RoutableAgent
         {
             AgentId = x.Id,
             Description = x.Description,
             Name = x.Name,
+            Type = x.Type,
             Profiles = x.Profiles,
             RequiredFields = x.RoutingRules
                 .Where(p => p.Required)

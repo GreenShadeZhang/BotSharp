@@ -1,6 +1,6 @@
 namespace BotSharp.Core.Conversations.Services;
 
-public partial class ConversationService : IConversationService
+public partial class ConversationService
 {
     public async Task<bool> TruncateConversation(string conversationId, string messageId, string? newMessageId = null)
     {
@@ -9,7 +9,7 @@ public partial class ConversationService : IConversationService
         var deleteMessageIds = db.TruncateConversation(conversationId, messageId, cleanLog: true);
         fileStorage.DeleteMessageFiles(conversationId, deleteMessageIds, messageId, newMessageId);
 
-        var hooks = _services.GetServices<IConversationHook>().ToList();
+        var hooks = _services.GetServices<IConversationHook>();
         foreach (var hook in hooks)
         {
             await hook.OnMessageDeleted(conversationId, messageId);

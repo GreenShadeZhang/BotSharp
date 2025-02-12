@@ -18,9 +18,9 @@ public partial class RoutingService
         var clonedMessage = RoleDialogModel.From(message);
         clonedMessage.FunctionName = name;
 
-        var hooks = _services.GetServices<IConversationHook>()
-            .OrderBy(x => x.Priority)
-            .ToList();
+        var hooks = _services
+            .GetRequiredService<ConversationHookProvider>()
+            .HooksOrderByPriority;
 
         var progressService = _services.GetService<IConversationProgressService>();
 
@@ -49,10 +49,12 @@ public partial class RoutingService
             }
 
             // Set result to original message
-            message.Role = clonedMessage.Role;
+            message.Role = AgentRole.Function;
             message.PostbackFunctionName = clonedMessage.PostbackFunctionName;
             message.CurrentAgentId = clonedMessage.CurrentAgentId;
             message.Content = clonedMessage.Content;
+            // Don't copy payload
+            // message.Payload = clonedMessage.Payload;
             message.StopCompletion = clonedMessage.StopCompletion;
             message.RichContent = clonedMessage.RichContent;
             message.Data = clonedMessage.Data;

@@ -12,6 +12,9 @@ public interface IConversationService
     Task<Conversation> GetConversation(string id);
     Task<PagedItems<Conversation>> GetConversations(ConversationFilter filter);
     Task<Conversation> UpdateConversationTitle(string id, string title);
+    Task<Conversation> UpdateConversationTitleAlias(string id, string titleAlias);
+    Task<bool> UpdateConversationTags(string conversationId, List<string> tags);
+    Task<bool> UpdateConversationMessage(string conversationId, UpdateMessageRequest request);
     Task<List<Conversation>> GetLastConversations();
     Task<List<string>> GetIdleConversations(int batchSize, int messageLimit, int bufferHours, IEnumerable<string> excludeAgentIds);
     Task<bool> DeleteConversations(IEnumerable<string> ids);
@@ -58,4 +61,15 @@ public interface IConversationService
     Task<Conversation> GetConversationRecordOrCreateNew(string agentId);
 
     bool IsConversationMode();
+
+    void SaveStates();
+
+    /// <summary>
+    /// Get conversation keys for searching
+    /// </summary>
+    /// <param name="query">search query</param>
+    /// <param name="convLimit">conversation limit</param>
+    /// <param name="preLoad">if pre-loading, then keys are not filter by the search query</param>
+    /// <returns></returns>
+    Task<List<string>> GetConversationStateSearhKeys(string query, int convlimit = 100, int keyLimit = 10, bool preLoad = false);
 }

@@ -1,5 +1,4 @@
 using BotSharp.Abstraction.Routing.Settings;
-using BotSharp.Abstraction.Utilities;
 
 namespace BotSharp.Core.Routing;
 
@@ -10,6 +9,8 @@ public class RoutingContext : IRoutingContext
     private string[] _routerAgentIds;
     private string _conversationId;
     private string _messageId;
+    private int _currentRecursionDepth = 0;
+    private List<RoleDialogModel> _dialogs = [];
 
     public RoutingContext(IServiceProvider services, RoutingSettings setting)
     {
@@ -20,9 +21,9 @@ public class RoutingContext : IRoutingContext
     public int AgentCount => _stack.Count;
     public string ConversationId => _conversationId;
     public string MessageId => _messageId;
+    public int CurrentRecursionDepth => _currentRecursionDepth;
 
-    private Stack<string> _stack { get; set; }
-        = new Stack<string>();
+    private Stack<string> _stack { get; set; } = new();
 
     /// <summary>
     /// Intent name
@@ -41,12 +42,23 @@ public class RoutingContext : IRoutingContext
                 var agentService = _services.GetRequiredService<IAgentService>();
                 _routerAgentIds = agentService.GetAgents(new AgentFilter
                 {
-                    Type = AgentType.Routing
-                }).Result.Items
-                .Select(x => x.Id).ToArray();
+                    Types = [AgentType.Routing],
+                    Pager = new Pagination { Size = 100 }
+                }).Result.Items.Select(x => x.Id).ToArray();
             }
 
-            return _stack.Where(x => !_routerAgentIds.Contains(x)).Last();
+            return _stack.Where(x => !_routerAgentIds.Contains(x)).LastOrDefault() ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Entry agent
+    /// </summary>
+    public string EntryAgentId
+    {
+        get
+        {
+            return _stack.LastOrDefault() ?? string.Empty;
         }
     }
 
@@ -75,7 +87,7 @@ public class RoutingContext : IRoutingContext
             var agentService = _services.GetRequiredService<IAgentService>();
             agentId = agentService.GetAgents(new AgentFilter
             {
-                AgentName = agentId
+                AgentNames = [agentId]
             }).Result.Items.First().Id;
         }
 
@@ -208,5 +220,59 @@ public class RoutingContext : IRoutingContext
     {
         _conversationId = conversationId;
         _messageId = messageId;
+    }
+
+    public int GetRecursiveCounter()
+    {
+        return _currentRecursionDepth;
+    }
+
+    public void IncreaseRecursiveCounter()
+    {
+        _currentRecursionDepth++;
+    }
+
+    public void SetRecursiveCounter(int counter)
+    {
+        _currentRecursionDepth = counter;
+    }
+
+    public void ResetRecursiveCounter()
+    {
+        _currentRecursionDepth = 0;
+    }
+
+    public Stack<string> GetAgentStack()
+    {
+        var copy = _stack.ToList();
+        copy.Reverse();
+        return new Stack<string>(copy);
+    }
+
+    public void SetAgentStack(Stack<string> stack)
+    {
+        var copy = stack.ToList();
+        copy.Reverse();
+        _stack = new Stack<string>(copy);
+    }
+
+    public void ResetAgentStack()
+    {
+        _stack.Clear();
+    }
+
+    public void SetDialogs(List<RoleDialogModel> dialogs)
+    {
+        _dialogs = dialogs ?? [];
+    }
+
+    public List<RoleDialogModel> GetDialogs()
+    {
+        return _dialogs ?? [];
+    }
+
+    public void ResetDialogs()
+    {
+        _dialogs = [];
     }
 }

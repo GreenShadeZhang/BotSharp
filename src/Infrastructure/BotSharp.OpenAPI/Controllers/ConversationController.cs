@@ -1,6 +1,7 @@
 using Azure;
 using BotSharp.Abstraction.Files.Constants;
 using BotSharp.Abstraction.Files.Enums;
+using BotSharp.Abstraction.Files.Utilities;
 using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.Routing;
 using BotSharp.Abstraction.Users.Enums;
@@ -35,6 +36,7 @@ public class ConversationController : ControllerBase
         {
             AgentId = agentId,
             Channel = channel == default ? ConversationChannel.OpenAPI : channel.Value,
+            Tags = config.Tags ?? new(),
             TaskId = config.TaskId
         };
         conv = await service.NewConversation(conv);
@@ -54,7 +56,7 @@ public class ConversationController : ControllerBase
             return new PagedItems<ConversationViewModel>();
         }
 
-        filter.UserId = user.Role != UserRole.Admin ? user.Id : filter.UserId;
+        filter.UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : filter.UserId;
         var conversations = await convService.GetConversations(filter);
         var agentService = _services.GetRequiredService<IAgentService>();
         var list = conversations.Items.Select(x => ConversationViewModel.FromSession(x)).ToList();
@@ -78,7 +80,7 @@ public class ConversationController : ControllerBase
     public async Task<IEnumerable<ChatResponseModel>> GetDialogs([FromRoute] string conversationId)
     {
         var conv = _services.GetRequiredService<IConversationService>();
-        conv.SetConversationId(conversationId, new List<MessageState>());
+        conv.SetConversationId(conversationId, new List<MessageState>(), isReadOnly: true);
         var history = conv.GetDialogHistory(fromBreakpoint: false);
 
         var userService = _services.GetRequiredService<IUserService>();
@@ -145,7 +147,7 @@ public class ConversationController : ControllerBase
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = user.Role != UserRole.Admin ? user.Id : null
+            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
         };
         var conversations = await service.GetConversations(filter);
         if (conversations.Items.IsNullOrEmpty())
@@ -202,6 +204,29 @@ public class ConversationController : ControllerBase
     public async Task<bool> UpdateConversationTitle([FromRoute] string conversationId, [FromBody] UpdateConversationTitleModel newTile)
     {
         var userService = _services.GetRequiredService<IUserService>();
+        var conv = _services.GetRequiredService<IConversationService>();
+
+        var user = await userService.GetUser(_user.Id);
+        var filter = new ConversationFilter
+        {
+            Id = conversationId,
+            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
+        };
+        var conversations = await conv.GetConversations(filter);
+
+        if (conversations.Items.IsNullOrEmpty())
+        {
+            return false;
+        }
+
+        var response = await conv.UpdateConversationTitle(conversationId, newTile.NewTitle);
+        return response != null;
+    }
+
+    [HttpPut("/conversation/{conversationId}/update-title-alias")]
+    public async Task<bool> UpdateConversationTitleAlias([FromRoute] string conversationId, [FromBody] UpdateConversationTitleAliasModel newTile)
+    {
+        var userService = _services.GetRequiredService<IUserService>();
         var conversationService = _services.GetRequiredService<IConversationService>();
 
         var user = await userService.GetUser(_user.Id);
@@ -217,9 +242,40 @@ public class ConversationController : ControllerBase
             return false;
         }
 
-        var response = await conversationService.UpdateConversationTitle(conversationId, newTile.NewTitle);
+        var response = await conversationService.UpdateConversationTitleAlias(conversationId, newTile.NewTitleAlias);
         return response != null;
     }
+
+
+    [HttpPut("/conversation/{conversationId}/update-tags")]
+    public async Task<bool> UpdateConversationTags([FromRoute] string conversationId, [FromBody] UpdateConversationRequest request)
+    {
+        var conv = _services.GetRequiredService<IConversationService>();
+        return await conv.UpdateConversationTags(conversationId, request.Tags);
+    }
+
+    [HttpPut("/conversation/{conversationId}/update-message")]
+    public async Task<bool> UpdateConversationMessage([FromRoute] string conversationId, [FromBody] UpdateMessageModel model)
+    {
+        var conversationService = _services.GetRequiredService<IConversationService>();
+        var request = new UpdateMessageRequest
+        {
+            Message = new DialogElement
+            {
+                MetaData = new DialogMetaData
+                {
+                    MessageId = model.Message.MessageId,
+                    Role = model.Message.Sender?.Role
+                },
+                Content = model.Message.Text,
+                RichContent = JsonSerializer.Serialize(model.Message.RichContent, _jsonOptions),
+            },
+            InnderIndex = model.InnerIndex
+        };
+
+        return await conversationService.UpdateConversationMessage(conversationId, request);
+    }
+
 
     [HttpDelete("/conversation/{conversationId}")]
     public async Task<bool> DeleteConversation([FromRoute] string conversationId)
@@ -231,7 +287,7 @@ public class ConversationController : ControllerBase
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = user.Role != UserRole.Admin ? user.Id : null
+            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
         };
         var conversations = await conversationService.GetConversations(filter);
 
@@ -456,6 +512,54 @@ public class ConversationController : ControllerBase
             return NotFound();
         }
         return BuildFileResult(file);
+    }
+
+    [HttpGet("/conversation/{conversationId}/message/{messageId}/{source}/file/{index}/{fileName}/download")]
+    public IActionResult DownloadMessageFile([FromRoute] string conversationId, [FromRoute] string messageId, [FromRoute] string source, [FromRoute] string index, [FromRoute] string fileName)
+    {
+        var fileStorage = _services.GetRequiredService<IFileStorageService>();
+        var file = fileStorage.GetMessageFile(conversationId, messageId, source, index, fileName);
+        if (string.IsNullOrEmpty(file))
+        {
+            return NotFound();
+        }
+
+        var fName = file.Split(Path.DirectorySeparatorChar).Last();
+        var contentType = FileUtility.GetFileContentType(fName);
+        var stream = System.IO.File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var bytes = new byte[stream.Length];
+        stream.Read(bytes, 0, (int)stream.Length);
+        stream.Position = 0;
+
+        return new FileStreamResult(stream, contentType) { FileDownloadName = fName };
+    }
+    #endregion
+
+    #region Dashboard
+    [HttpPut("/agent/{agentId}/conversation/{conversationId}/dashboard")]
+    public async Task<bool> PinConversationToDashboard([FromRoute] string agentId, [FromRoute] string conversationId)
+    {
+        var userService = _services.GetRequiredService<IUserService>();
+        var pinned = await userService.AddDashboardConversation(conversationId);
+        return pinned;
+    }
+
+    [HttpDelete("/agent/{agentId}/conversation/{conversationId}/dashboard")]
+    public async Task<bool> UnpinConversationFromDashboard([FromRoute] string agentId, [FromRoute] string conversationId)
+    {
+        var userService = _services.GetRequiredService<IUserService>();
+        var unpinned = await userService.RemoveDashboardConversation(conversationId);
+        return unpinned;
+    }
+    #endregion
+
+    #region Search state keys
+    [HttpGet("/conversation/state/keys")]
+    public async Task<List<string>> GetConversationStateKeys([FromQuery] string query, [FromQuery] int keyLimit = 10, [FromQuery] bool preLoad = false)
+    {
+        var convService = _services.GetRequiredService<IConversationService>();
+        var keys = await convService.GetConversationStateSearhKeys(query, keyLimit: keyLimit, preLoad: preLoad);
+        return keys;
     }
     #endregion
 

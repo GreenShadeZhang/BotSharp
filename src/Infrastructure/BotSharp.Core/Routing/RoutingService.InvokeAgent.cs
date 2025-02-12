@@ -4,14 +4,13 @@ namespace BotSharp.Core.Routing;
 
 public partial class RoutingService
 {
-    private int _currentRecursionDepth = 0;
     public async Task<bool> InvokeAgent(string agentId, List<RoleDialogModel> dialogs)
     {
         var agentService = _services.GetRequiredService<IAgentService>();
         var agent = await agentService.LoadAgent(agentId);
 
-        _currentRecursionDepth++;
-        if (_currentRecursionDepth > agent.LlmConfig.MaxRecursionDepth)
+        Context.IncreaseRecursiveCounter();
+        if (Context.CurrentRecursionDepth > agent.LlmConfig.MaxRecursionDepth)
         {
             _logger.LogWarning($"Current recursive call depth greater than {agent.LlmConfig.MaxRecursionDepth}, which will cause unexpected result.");
             return false;
@@ -36,8 +35,7 @@ public partial class RoutingService
 
         if (response.Role == AgentRole.Function)
         {
-            message = RoleDialogModel.From(message,
-                    role: AgentRole.Function);
+            message = RoleDialogModel.From(message, role: AgentRole.Function);
             if (response.FunctionName != null && response.FunctionName.Contains("/"))
             {
                 response.FunctionName = response.FunctionName.Split("/").Last();
@@ -45,6 +43,7 @@ public partial class RoutingService
             message.ToolCallId = response.ToolCallId;
             message.FunctionName = response.FunctionName;
             message.FunctionArgs = response.FunctionArgs;
+            message.Indication = response.Indication;
             message.CurrentAgentId = agent.Id;
 
             await InvokeFunction(message, dialogs);
@@ -57,11 +56,10 @@ public partial class RoutingService
                 response.Content = "Apologies, I'm not quite sure I understand. Could you please provide additional clarification or context?";
             }
 
-            message = RoleDialogModel.From(message,
-                    role: AgentRole.Assistant,
-                    content: response.Content);
+            message = RoleDialogModel.From(message, role: AgentRole.Assistant, content: response.Content);
             message.CurrentAgentId = agent.Id;
             dialogs.Add(message);
+            Context.SetDialogs(dialogs);
         }
 
         return true;
@@ -89,6 +87,7 @@ public partial class RoutingService
                 dialogs.Add(RoleDialogModel.From(message,
                     role: AgentRole.Assistant,
                     content: responseTemplate));
+                Context.SetDialogs(dialogs);
             }
             else
             {
@@ -98,6 +97,7 @@ public partial class RoutingService
                     content: message.Content);
 
                 dialogs.Add(msg);
+                Context.SetDialogs(dialogs);
 
                 // Send to Next LLM
                 var agentId = routing.Context.GetCurrentAgentId();
@@ -109,6 +109,7 @@ public partial class RoutingService
             dialogs.Add(RoleDialogModel.From(message,
                 role: AgentRole.Assistant,
                 content: message.Content));
+            Context.SetDialogs(dialogs);
         }
 
         return true;

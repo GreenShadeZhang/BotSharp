@@ -12,7 +12,11 @@ public class ConversationViewModel
     [JsonPropertyName("agent_name")]
     public string AgentName { get; set; }
 
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("title_alias")]
+    public string TitleAlias { get; set; } = string.Empty;
 
     public UserViewModel User {  get; set; } = new UserViewModel();
 
@@ -28,6 +32,8 @@ public class ConversationViewModel
 
     public string Status { get; set; }
     public Dictionary<string, string> States { get; set; }
+
+    public List<string> Tags { get; set; } = new();
 
     [JsonPropertyName("updated_time")]
     public DateTime UpdatedTime { get; set; } = DateTime.UtcNow;
@@ -45,9 +51,11 @@ public class ConversationViewModel
             },
             AgentId = sess.AgentId,
             Title = sess.Title,
+            TitleAlias = sess.TitleAlias,
             Channel = sess.Channel,
             Status = sess.Status,
             TaskId = sess.TaskId,
+            Tags = sess.Tags ?? new(),
             CreatedTime = sess.CreatedTime,
             UpdatedTime = sess.UpdatedTime
         };

@@ -9,7 +9,8 @@ public enum AgentField
     Disabled,
     Type,
     InheritAgentId,
-    Profiles,
+    Profile,
+    Label,
     RoutingRule,
     Instruction,
     Function,
@@ -17,7 +18,10 @@ public enum AgentField
     Response,
     Sample,
     LlmConfig,
-    Utility
+    Utility,
+    KnowledgeBase,
+    Rule,
+    MaxMessageCount
 }
 
 public enum AgentTaskField
@@ -27,5 +31,5 @@ public enum AgentTaskField
     Description,
     Enabled,
     Content,
-    DirectAgentId
+    Status
 }

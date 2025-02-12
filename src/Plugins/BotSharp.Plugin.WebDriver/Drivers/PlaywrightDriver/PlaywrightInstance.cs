@@ -1,3 +1,4 @@
+using Azure;
 using System.IO;
 
 namespace BotSharp.Plugin.WebDriver.Drivers.PlaywrightDriver;
@@ -9,7 +10,6 @@ public class PlaywrightInstance : IDisposable
     public IServiceProvider Services => _services;
     Dictionary<string, IBrowserContext> _contexts = new Dictionary<string, IBrowserContext>();
     Dictionary<string, List<IPage>> _pages = new Dictionary<string, List<IPage>>();
-    IPage? _activePage = null;
 
     /// <summary>
     /// ContextId and BrowserContext
@@ -26,33 +26,17 @@ public class PlaywrightInstance : IDisposable
         _services = services;
     }
 
-    public IPage? GetPage(string contextId, string? pattern = null)
+    public IPage? GetPage(string contextId)
     {
-        if (string.IsNullOrEmpty(pattern))
-        {
-            return _activePage ?? _contexts[contextId].Pages.LastOrDefault();
-        }
-
-        foreach (var page in _contexts[contextId].Pages)
-        {
-            if (page.Url.ToLower() == pattern.ToLower())
-            {
-                _activePage = page;
-                page.BringToFrontAsync().Wait();
-                return page;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(pattern))
-        {
-            return null;
-        }
-
         return _contexts[contextId].Pages.LastOrDefault();
     }
 
     public async Task<IBrowserContext> GetContext(string ctxId)
     {
+        if (!_contexts.ContainsKey(ctxId))
+        {
+            await InitContext(ctxId, new BrowserActionArgs());
+        }
         return _contexts[ctxId];
     }
 
@@ -66,33 +50,40 @@ public class PlaywrightInstance : IDisposable
             _playwright = await Playwright.CreateAsync();
         }
 
-        string tempFolderPath = $"{Path.GetTempPath()}\\playwright\\{ctxId}";
-
-        _contexts[ctxId] = await _playwright.Chromium.LaunchPersistentContextAsync(tempFolderPath, new BrowserTypeLaunchPersistentContextOptions
+        if (!string.IsNullOrEmpty(args.RemoteHostUrl))
         {
-            Headless = args.Headless,
-            Channel = "chrome",
-            ViewportSize = new ViewportSize
+            var browser = await _playwright.Chromium.ConnectOverCDPAsync(args.RemoteHostUrl);
+            _contexts[ctxId] = browser.Contexts[0];
+        }
+        else
+        {
+            string userDataDir = args.UserDataDir ?? $"{Path.GetTempPath()}\\playwright\\{ctxId}";
+            _contexts[ctxId] = await _playwright.Chromium.LaunchPersistentContextAsync(userDataDir, new BrowserTypeLaunchPersistentContextOptions
             {
-                Width = 1600,
-                Height = 900
-            },
-            IgnoreDefaultArgs =
-            [
-                "--enable-automation",
-            ],
-            Args =
-            [
-                "--disable-infobars",
-                "--test-type"
-                // "--start-maximized"
-            ]
-        });
+                Headless = args.Headless,
+                Channel = "chrome",
+                ViewportSize = new ViewportSize
+                {
+                    Width = 1600,
+                    Height = 900
+                },
+                IgnoreDefaultArgs =
+                [
+                    "--enable-automation",
+                ],
+                Args =
+                [
+                    "--disable-infobars",
+                    "--test-type"
+                    // "--start-maximized"
+                ]
+            });
+        }
+
         _pages[ctxId] = new List<IPage>();
 
         _contexts[ctxId].Page += async (sender, page) =>
         {
-            _activePage = page;
             _pages[ctxId].Add(page);
             page.Close += async (sender, e) =>
             {
@@ -122,12 +113,7 @@ public class PlaywrightInstance : IDisposable
         return _contexts[ctxId];
     }
 
-    public async Task<IPage> NewPage(MessageInfo message, 
-        bool enableResponseCallback = false, 
-        bool responseInMemory = false,
-        List<WebPageResponseData>? responseContainer = null,
-        string[]? excludeResponseUrls = null, 
-        string[]? includeResponseUrls = null)
+    public async Task<IPage> NewPage(MessageInfo message, PageActionArgs args)
     {
         var context = await GetContext(message.ContextId);
         var page = await context.NewPageAsync();
@@ -137,64 +123,88 @@ public class PlaywrightInstance : IDisposable
         var js = @"Object.defineProperties(navigator, {webdriver:{get:()=>false}});";
         await page.AddInitScriptAsync(js);
 
-        if (!enableResponseCallback)
+        if (!args.EnableResponseCallback)
         {
             return page;
         }
 
+        page.Request += async (sender, e) =>
+        {
+            await HandleFetchRequest(e, message, args);
+        };
+
         page.Response += async (sender, e) =>
         {
-            if (e.Status != 204 &&
-                e.Headers.ContainsKey("content-type") &&
-                e.Headers["content-type"].Contains("application/json") &&
-                (e.Request.ResourceType == "fetch" || e.Request.ResourceType == "xhr") &&
-                (excludeResponseUrls == null || !excludeResponseUrls.Any(url => e.Url.ToLower().Contains(url))) &&
-                (includeResponseUrls == null || includeResponseUrls.Any(url => e.Url.ToLower().Contains(url))))
-            {
-                Serilog.Log.Information($"{e.Request.Method}: {e.Url}");
-                JsonElement? json = null;
-                try
-                {
-                    if (e.Status == 200 && e.Ok)
-                    {
-                        json = await e.JsonAsync();
-                    }
-                    else
-                    {
-                        Serilog.Log.Warning($"Response status: {e.Status} {e.StatusText}, OK: {e.Ok}");
-                    }
-
-                    var result = new WebPageResponseData
-                    {
-                        Url = e.Url.ToLower(),
-                        PostData = e.Request?.PostData ?? string.Empty,
-                        ResponseData = JsonSerializer.Serialize(json),
-                        ResponseInMemory = responseInMemory
-                    };
-
-                    if (responseContainer != null && responseInMemory)
-                    {
-                        responseContainer.Add(result);
-                    }
-
-                    var webPageResponseHooks = _services.GetServices<IWebPageResponseHook>();
-                    foreach (var hook in webPageResponseHooks)
-                    {
-                        hook.OnDataFetched(message, result);
-                    }
-                }
-                catch (ObjectDisposedException ex)
-                {
-                    Serilog.Log.Information(ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    Serilog.Log.Error($"{e.Url}\r\n" + ex.ToString());
-                }
-            }
+            await HandleFetchResponse(e, message, args);
         };
 
         return page;
+    }
+
+    public async Task HandleFetchRequest(IRequest request, MessageInfo message, PageActionArgs args)
+    {
+        if (request.ResourceType == "fetch" || request.ResourceType == "xhr")
+        {
+        }
+    }
+
+    public async Task HandleFetchResponse(IResponse response, MessageInfo message, PageActionArgs args)
+    {
+        if (response.Status != 204 &&
+                        response.Headers.ContainsKey("content-type") &&
+                        (response.Request.ResourceType == "fetch" || response.Request.ResourceType == "xhr") &&
+                        (args.ExcludeResponseUrls == null || !args.ExcludeResponseUrls.Any(url => response.Url.ToLower().Contains(url))) &&
+                        (args.IncludeResponseUrls == null || args.IncludeResponseUrls.Any(url => response.Url.ToLower().Contains(url))))
+        {
+            Serilog.Log.Information($"{response.Request.Method}: {response.Url}");
+
+            try
+            {
+                var result = new WebPageResponseData
+                {
+                    Url = response.Url.ToLower(),
+                    PostData = response.Request?.PostData ?? string.Empty,
+                    ResponseInMemory = args.ResponseInMemory
+                };
+
+                var html = await response.TextAsync();
+                if (response.Headers["content-type"].Contains("application/json"))
+                {
+                    if (response.Status == 200 && response.Ok)
+                    {                        
+                        if (!string.IsNullOrWhiteSpace(html))
+                        {
+                            var json = await response.JsonAsync();
+                            result.ResponseData = JsonSerializer.Serialize(json);
+                        }
+                    }
+                }
+                else
+                {
+                    result.ResponseData = html;
+                }
+
+                if (args.ResponseContainer != null && args.ResponseInMemory)
+                {
+                    args.ResponseContainer.Add(result);
+                }
+
+                Serilog.Log.Warning($"Response status: {response.Status} {response.StatusText}, OK: {response.Ok}");
+                var webPageResponseHooks = _services.GetServices<IWebPageResponseHook>();
+                foreach (var hook in webPageResponseHooks)
+                {
+                    hook.OnDataFetched(message, result);
+                }
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Serilog.Log.Information(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error($"{response.Url}\r\n" + ex.ToString());
+            }
+        }
     }
 
     /// <summary>
@@ -229,6 +239,11 @@ public class PlaywrightInstance : IDisposable
 
     public async Task CloseCurrentPage(string ctxId)
     {
+        if (!_pages.ContainsKey(ctxId))
+        {
+            return;
+        }
+
         var pages = _pages[ctxId].ToArray();
         for (var i = 0; i < pages.Length; i++)
         {
@@ -236,7 +251,6 @@ public class PlaywrightInstance : IDisposable
             if (page != null)
             {
                 await page.CloseAsync();
-                _activePage = _pages[ctxId].LastOrDefault();
             }
         }
     }

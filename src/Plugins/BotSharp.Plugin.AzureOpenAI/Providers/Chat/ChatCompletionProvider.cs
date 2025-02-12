@@ -160,6 +160,8 @@ public class ChatCompletionProvider : IChatCompletion
             var funcContextIn = new RoleDialogModel(AgentRole.Function, text)
             {
                 CurrentAgentId = agent.Id,
+                MessageId = conversations.LastOrDefault()?.MessageId ?? string.Empty,
+                ToolCallId = toolCall?.Id,
                 FunctionName = toolCall?.FunctionName,
                 FunctionArgs = toolCall?.FunctionArguments?.ToString()
             };
@@ -223,14 +225,18 @@ public class ChatCompletionProvider : IChatCompletion
         var messages = new List<ChatMessage>();
 
         var temperature = float.Parse(state.GetState("temperature", "0.0"));
-        var maxTokens = int.Parse(state.GetState("max_tokens", "1024"));
+        var maxTokens = int.TryParse(state.GetState("max_tokens"), out var tokens)
+                            ? tokens
+                            : agent.LlmConfig?.MaxOutputTokens ?? LlmConstant.DEFAULT_MAX_OUTPUT_TOKEN;
+
         var options = new ChatCompletionOptions()
         {
             Temperature = temperature,
             MaxOutputTokenCount = maxTokens
         };
 
-        foreach (var function in agent.Functions)
+        var functions = agent.Functions.Concat(agent.SecondaryFunctions ?? []);
+        foreach (var function in functions)
         {
             if (!agentService.RenderFunction(agent, function)) continue;
 
@@ -242,7 +248,7 @@ public class ChatCompletionProvider : IChatCompletion
                 functionParameters: BinaryData.FromObjectAsJson(property)));
         }
 
-        if (!string.IsNullOrEmpty(agent.Instruction))
+        if (!string.IsNullOrEmpty(agent.Instruction) || !agent.SecondaryInstructions.IsNullOrEmpty())
         {
             var instruction = agentService.RenderedInstruction(agent);
             messages.Add(new SystemChatMessage(instruction));
@@ -290,20 +296,20 @@ public class ChatCompletionProvider : IChatCompletion
                         if (!string.IsNullOrEmpty(file.FileData))
                         {
                             var (contentType, bytes) = FileUtility.GetFileInfoFromData(file.FileData);
-                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Low);
+                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Auto);
                             contentParts.Add(contentPart);
                         }
                         else if (!string.IsNullOrEmpty(file.FileStorageUrl))
                         {
                             var contentType = FileUtility.GetFileContentType(file.FileStorageUrl);
                             var bytes = fileStorage.GetFileBytes(file.FileStorageUrl);
-                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Low);
+                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Auto);
                             contentParts.Add(contentPart);
                         }
                         else if (!string.IsNullOrEmpty(file.FileUrl))
                         {
                             var uri = new Uri(file.FileUrl);
-                            var contentPart = ChatMessageContentPart.CreateImagePart(uri, ChatImageDetailLevel.Low);
+                            var contentPart = ChatMessageContentPart.CreateImagePart(uri, ChatImageDetailLevel.Auto);
                             contentParts.Add(contentPart);
                         }
                     }

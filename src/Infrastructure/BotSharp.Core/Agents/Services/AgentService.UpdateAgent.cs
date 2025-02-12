@@ -1,6 +1,6 @@
 using BotSharp.Abstraction.Repositories.Enums;
-using BotSharp.Abstraction.Routing.Models;
 using BotSharp.Abstraction.Users.Enums;
+using BotSharp.Abstraction.Users.Models;
 using System.IO;
 
 namespace BotSharp.Core.Agents.Services;
@@ -9,13 +9,16 @@ public partial class AgentService
 {
     public async Task UpdateAgent(Agent agent, AgentField updateField)
     {
-        var userService = _services.GetRequiredService<IUserService>();
-        var user = await userService.GetUser(_user.Id);
-        var userAgents = GetAgentsByUser(user?.Id);
-        var editable = userAgents?.Select(x => x.Id)?.Contains(agent.Id) ?? false;
-        if (user?.Role != UserRole.Admin && !editable) return;
-
         if (agent == null || string.IsNullOrEmpty(agent.Id)) return;
+
+        var userService = _services.GetRequiredService<IUserService>();
+        var auth = await userService.GetUserAuthorizations(new List<string> { agent.Id });
+        var allowEdit = auth.IsAgentActionAllowed(agent.Id, UserAction.Edit);
+
+        if (!allowEdit)
+        {
+            return;
+        }
 
         var record = _db.GetAgent(agent.Id);
         if (record == null) return;
@@ -24,16 +27,21 @@ public partial class AgentService
         record.Description = agent.Description ?? string.Empty;
         record.IsPublic = agent.IsPublic;
         record.Disabled = agent.Disabled;
+        record.MergeUtility = agent.MergeUtility;
+        record.MaxMessageCount = agent.MaxMessageCount;
         record.Type = agent.Type;
-        record.Profiles = agent.Profiles ?? new List<string>();
-        record.RoutingRules = agent.RoutingRules ?? new List<RoutingRule>();
+        record.Profiles = agent.Profiles ?? [];
+        record.Labels = agent.Labels ?? [];
+        record.RoutingRules = agent.RoutingRules ?? [];
         record.Instruction = agent.Instruction ?? string.Empty;
-        record.ChannelInstructions = agent.ChannelInstructions ?? new List<ChannelInstruction>();
-        record.Functions = agent.Functions ?? new List<FunctionDef>();
-        record.Templates = agent.Templates ?? new List<AgentTemplate>();
-        record.Responses = agent.Responses ?? new List<AgentResponse>();
-        record.Samples = agent.Samples ?? new List<string>();
-        record.Utilities = agent.Utilities ?? new List<string>();
+        record.ChannelInstructions = agent.ChannelInstructions ?? [];
+        record.Functions = agent.Functions ?? [];
+        record.Templates = agent.Templates ?? [];
+        record.Responses = agent.Responses ?? [];
+        record.Samples = agent.Samples ?? [];
+        record.Utilities = agent.Utilities ?? [];
+        record.KnowledgeBases = agent.KnowledgeBases ?? [];
+        record.Rules = agent.Rules ?? [];
         if (agent.LlmConfig != null && !agent.LlmConfig.IsInherit)
         {
             record.LlmConfig = agent.LlmConfig;
@@ -86,8 +94,10 @@ public partial class AgentService
                        .SetDescription(foundAgent.Description)
                        .SetIsPublic(foundAgent.IsPublic)
                        .SetDisabled(foundAgent.Disabled)
+                       .SetMergeUtility(foundAgent.MergeUtility)
                        .SetAgentType(foundAgent.Type)
                        .SetProfiles(foundAgent.Profiles)
+                       .SetLabels(foundAgent.Labels)
                        .SetRoutingRules(foundAgent.RoutingRules)
                        .SetInstruction(foundAgent.Instruction)
                        .SetChannelInstructions(foundAgent.ChannelInstructions)
@@ -96,6 +106,8 @@ public partial class AgentService
                        .SetResponses(foundAgent.Responses)
                        .SetSamples(foundAgent.Samples)
                        .SetUtilities(foundAgent.Utilities)
+                       .SetKnowledgeBases(foundAgent.KnowledgeBases)
+                       .SetRules(foundAgent.Rules)
                        .SetLlmConfig(foundAgent.LlmConfig);
 
             _db.UpdateAgent(clonedAgent, AgentField.All);

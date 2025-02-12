@@ -2,7 +2,7 @@ using BotSharp.Abstraction.Infrastructures.Enums;
 
 namespace BotSharp.Core.Conversations.Services;
 
-public partial class ConversationService : IConversationService
+public partial class ConversationService
 {
     public async Task UpdateBreakpoint(bool resetStates = false, string? reason = null, params string[] excludedStates)
     {
@@ -31,9 +31,9 @@ public partial class ConversationService : IConversationService
             states.CleanStates(excludedStates);
         }
 
-        var hooks = _services.GetServices<IConversationHook>()
-            .OrderBy(x => x.Priority)
-            .ToList();
+        var hooks = _services
+            .GetRequiredService<ConversationHookProvider>()
+            .HooksOrderByPriority;
 
         // Before executing functions
         foreach (var hook in hooks)

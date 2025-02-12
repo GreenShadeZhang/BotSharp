@@ -2,7 +2,7 @@ namespace BotSharp.Plugin.KnowledgeBase.Functions;
 
 public class KnowledgeRetrievalFn : IFunctionCallback
 {
-    public string Name => "knowledge_retrieval";
+    public string Name => "util-knowledge-knowledge_retrieval";
 
     public string Indication => "searching my brain";
 
@@ -24,7 +24,7 @@ public class KnowledgeRetrievalFn : IFunctionCallback
         var knowledges = new List<string>();
         foreach (var hook in hooks)
         {
-            var k = await hook.GetRelevantKnowledges(message, args.Question);
+            var k = await hook.GetDomainKnowledges(message, args.Question);
             knowledges.AddRange(k);
         }
         knowledges = knowledges.Distinct().ToList();

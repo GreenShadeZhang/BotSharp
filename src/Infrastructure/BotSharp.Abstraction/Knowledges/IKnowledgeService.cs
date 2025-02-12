@@ -9,7 +9,7 @@ public interface IKnowledgeService
     Task<bool> ExistVectorCollection(string collectionName);
     Task<bool> CreateVectorCollection(string collectionName, string collectionType, int dimension, string provider, string model);
     Task<bool> DeleteVectorCollection(string collectionName);
-    Task<IEnumerable<string>> GetVectorCollections(string type);
+    Task<IEnumerable<VectorCollectionConfig>> GetVectorCollections(string? type = null);
     Task<IEnumerable<VectorSearchResult>> SearchVectorKnowledge(string query, string collectionName, VectorSearchOptions options);
     Task<StringIdPagedItems<VectorSearchResult>> GetPagedVectorCollectionData(string collectionName, VectorFilter filter);
     Task<bool> DeleteVectorCollectionData(string collectionName, string id);
@@ -30,7 +30,7 @@ public interface IKnowledgeService
     /// <param name="collectionName"></param>
     /// <param name="files"></param>
     /// <returns></returns>
-    Task<UploadKnowledgeResponse> UploadDocumentsToKnowledge(string collectionName, IEnumerable<ExternalFileModel> files);
+    Task<UploadKnowledgeResponse> UploadDocumentsToKnowledge(string collectionName, IEnumerable<ExternalFileModel> files, ChunkOption? option = null);
     /// <summary>
     /// Save document content to knowledgebase without saving the document
     /// </summary>
@@ -40,7 +40,8 @@ public interface IKnowledgeService
     /// <param name="contents"></param>
     /// <param name="refData"></param>
     /// <returns></returns>
-    Task<bool> ImportDocumentContentToKnowledge(string collectionName, string fileName, string fileSource, IEnumerable<string> contents, DocMetaRefData? refData = null);
+    Task<bool> ImportDocumentContentToKnowledge(string collectionName, string fileName, string fileSource, IEnumerable<string> contents,
+        DocMetaRefData? refData = null, Dictionary<string, object>? payload = null);
     /// <summary>
     /// Delete one document and its related knowledge in the collection
     /// </summary>

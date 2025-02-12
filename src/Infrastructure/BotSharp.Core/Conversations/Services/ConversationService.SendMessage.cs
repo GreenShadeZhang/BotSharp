@@ -1,7 +1,6 @@
 using BotSharp.Abstraction.Messaging;
 using BotSharp.Abstraction.Messaging.Models.RichContent;
 using BotSharp.Abstraction.Routing.Settings;
-using BotSharp.Core.Routing.Planning;
 
 namespace BotSharp.Core.Conversations.Services;
 
@@ -29,7 +28,7 @@ public partial class ConversationService
         var dialogs = conv.GetDialogHistory();
 
         var statistics = _services.GetRequiredService<ITokenStatistics>();
-        var hooks = _services.GetServices<IConversationHook>().ToList();
+        var hookProvider = _services.GetRequiredService<ConversationHookProvider>();
 
         RoleDialogModel response = message;
         bool stopCompletion = false;
@@ -45,8 +44,7 @@ public partial class ConversationService
             message.Payload = replyMessage.Payload;
         }
 
-        // Before chat completion hook
-        foreach (var hook in hooks)
+        foreach (var hook in hookProvider.HooksOrderByPriority)
         {
             hook.SetAgent(agent)
                 .SetConversation(conversation);
@@ -89,7 +87,7 @@ public partial class ConversationService
                 response = await routing.InstructDirect(agent, message);
             }
 
-            routing.ResetRecursiveCounter();
+            routing.Context.ResetRecursiveCounter();
         }
 
         await HandleAssistantMessage(response, onMessageReceived);

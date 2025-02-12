@@ -1,5 +1,20 @@
+/*****************************************************************************
+  Copyright 2024 Written by Jicheng Lu. All Rights Reserved.
+ 
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+******************************************************************************/
+
 using BotSharp.Abstraction.Conversations.Enums;
-using BotSharp.Abstraction.Users.Enums;
 
 namespace BotSharp.Core.Conversations.Services;
 
@@ -21,13 +36,14 @@ public class ConversationStateService : IConversationStateService, IDisposable
     /// </summary>
     private ConversationState _historyStates;
 
-    public ConversationStateService(ILogger<ConversationStateService> logger,
+    public ConversationStateService(
         IServiceProvider services,
-        IBotSharpRepository db)
+        IBotSharpRepository db,
+        ILogger<ConversationStateService> logger)
     {
-        _logger = logger;
         _services = services;
         _db = db;
+        _logger = logger;
         _curStates = new ConversationState();
         _historyStates = new ConversationState();
     }
@@ -120,22 +136,25 @@ public class ConversationStateService : IConversationStateService, IDisposable
     public Dictionary<string, string> Load(string conversationId, bool isReadOnly = false)
     {
         _conversationId = !isReadOnly ? conversationId : null;
+        Reset();
 
         var routingCtx = _services.GetRequiredService<IRoutingContext>();
         var curMsgId = routingCtx.MessageId;
 
         _historyStates = _db.GetConversationStates(conversationId);
+
+        var endNodes = new Dictionary<string, string>();
+
+        if (_historyStates.IsNullOrEmpty()) return endNodes;
+
         var dialogs = _db.GetConversationDialogs(conversationId);
-        var userDialogs = dialogs.Where(x => x.MetaData?.Role == AgentRole.User || x.MetaData?.Role == UserRole.User)
+        var userDialogs = dialogs.Where(x => x.MetaData?.Role == AgentRole.User)
                                  .GroupBy(x => x.MetaData?.MessageId)
                                  .Select(g => g.First())
                                  .OrderBy(x => x.MetaData?.CreateTime)
                                  .ToList();
         var curMsgIndex = userDialogs.FindIndex(x => !string.IsNullOrEmpty(curMsgId) && x.MetaData?.MessageId == curMsgId);
         curMsgIndex = curMsgIndex < 0 ? userDialogs.Count() : curMsgIndex;
-
-        var endNodes = new Dictionary<string, string>();
-        if (_historyStates.IsNullOrEmpty()) return endNodes;
 
         foreach (var state in _historyStates)
         {
@@ -193,11 +212,11 @@ public class ConversationStateService : IConversationStateService, IDisposable
     {
         if (_conversationId == null)
         {
+            Reset();
             return;
         }
 
         var states = new List<StateKeyValue>();
-
         foreach (var pair in _curStates)
         {
             var key = pair.Key;
@@ -226,6 +245,7 @@ public class ConversationStateService : IConversationStateService, IDisposable
         }
 
         _db.UpdateConversationStates(_conversationId, states);
+        Reset();
         _logger.LogInformation($"Saved states of conversation {_conversationId}");
     }
 
@@ -372,10 +392,10 @@ public class ConversationStateService : IConversationStateService, IDisposable
     private bool CheckArgType(string name, string value)
     {
         var agentTypes = AgentService.AgentParameterTypes.SelectMany(p => p.Value).ToList();
-        var filed = agentTypes.FirstOrDefault(t => t.Key == name); 
-        if (filed.Key != null)
+        var found = agentTypes.FirstOrDefault(t => t.Key == name); 
+        if (found.Key != null)
         {
-            return filed.Value switch
+            return found.Value switch
             {
                 "boolean" => bool.TryParse(value, out _),
                 "number" => long.TryParse(value, out _),
@@ -383,5 +403,30 @@ public class ConversationStateService : IConversationStateService, IDisposable
             };
         }
         return true;
+    }
+
+    public ConversationState GetCurrentState()
+    {
+        var values = _curStates.Values.ToList();
+        var copy = JsonSerializer.Deserialize<List<StateKeyValue>>(JsonSerializer.Serialize(values));
+        return new ConversationState(copy ?? new());
+    }
+
+    public void SetCurrentState(ConversationState state)
+    {
+        var values = _curStates.Values.ToList();
+        var copy = JsonSerializer.Deserialize<List<StateKeyValue>>(JsonSerializer.Serialize(values));
+        _curStates = new ConversationState(copy ?? new());
+    }
+
+    public void ResetCurrentState()
+    {
+        _curStates.Clear();
+    }
+
+    private void Reset()
+    {
+        _curStates.Clear();
+        _historyStates.Clear();
     }
 }

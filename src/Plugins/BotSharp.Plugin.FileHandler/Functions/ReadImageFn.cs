@@ -1,8 +1,10 @@
+using BotSharp.Abstraction.Routing;
+
 namespace BotSharp.Plugin.FileHandler.Functions;
 
 public class ReadImageFn : IFunctionCallback
 {
-    public string Name => "read_image";
+    public string Name => "util-file-read_image";
     public string Indication => "Reading images";
 
     private readonly IServiceProvider _services;
@@ -20,25 +22,36 @@ public class ReadImageFn : IFunctionCallback
     {
         var args = JsonSerializer.Deserialize<LlmContextIn>(message.FunctionArgs);
         var conv = _services.GetRequiredService<IConversationService>();
+        var routingCtx = _services.GetRequiredService<IRoutingContext>();
         var agentService = _services.GetRequiredService<IAgentService>();
 
-        var wholeDialogs = conv.GetDialogHistory();
-        var dialogs = AssembleFiles(conv.ConversationId, wholeDialogs);
-        var agent = await agentService.LoadAgent(BuiltInAgentId.UtilityAssistant);
-        var fileAgent = new Agent
+        Agent? fromAgent = null;
+        if (!string.IsNullOrEmpty(message.CurrentAgentId))
         {
-            Id = agent?.Id ?? Guid.Empty.ToString(),
-            Name = agent?.Name ?? "Unkown",
-            Instruction = !string.IsNullOrWhiteSpace(args?.UserRequest) ? args.UserRequest : "Please describe the image(s).",
+            fromAgent = await agentService.LoadAgent(message.CurrentAgentId);
+        }
+
+        var agent = new Agent
+        {
+            Id = BuiltInAgentId.UtilityAssistant,
+            Name = "Utility Agent",
+            Instruction = fromAgent?.Instruction ?? args.UserRequest ?? "Please describe the image(s).",
             TemplateDict = new Dictionary<string, object>()
         };
 
-        var response = await GetChatCompletion(fileAgent, dialogs);
+        var wholeDialogs = routingCtx.GetDialogs();
+        if (wholeDialogs.IsNullOrEmpty())
+        {
+            wholeDialogs = conv.GetDialogHistory();
+        }
+
+        var dialogs = AssembleFiles(conv.ConversationId, args?.ImageUrls, wholeDialogs);
+        var response = await GetChatCompletion(agent, dialogs);
         message.Content = response;
         return true;
     }
 
-    private List<RoleDialogModel> AssembleFiles(string conversationId, List<RoleDialogModel> dialogs)
+    private List<RoleDialogModel> AssembleFiles(string conversationId, IEnumerable<string>? imageUrls, List<RoleDialogModel> dialogs)
     {
         if (dialogs.IsNullOrEmpty())
         {
@@ -64,6 +77,18 @@ public class ReadImageFn : IFunctionCallback
                 FileUrl = x.FileUrl,
                 FileStorageUrl = x.FileStorageUrl
             }).ToList();
+        }
+
+        if (!imageUrls.IsNullOrEmpty())
+        {
+            var lastDialog = dialogs.LastOrDefault(x => x.Role == AgentRole.User) ?? dialogs.Last();
+            var files = lastDialog.Files ?? [];
+            var addnFiles = imageUrls.Select(x => x?.Trim())
+                                     .Where(x => !string.IsNullOrWhiteSpace(x))
+                                     .Select(x => new BotSharpFile { FileUrl = x }).ToList();
+            
+            files.AddRange(addnFiles);
+            lastDialog.Files = files;
         }
 
         return dialogs;

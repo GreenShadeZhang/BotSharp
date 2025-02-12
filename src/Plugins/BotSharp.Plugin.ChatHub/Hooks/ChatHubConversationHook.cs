@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.SideCar;
 using Microsoft.AspNetCore.SignalR;
 
 namespace BotSharp.Plugin.ChatHub.Hooks;
@@ -28,10 +29,13 @@ public class ChatHubConversationHook : ConversationHookBase
         _chatHub = chatHub;
         _user = user;
         _options = options;
+        Priority = -1; // Make sure this hook is the top one.
     }
 
     public override async Task OnConversationInitialized(Conversation conversation)
     {
+        if (!AllowSendingMessage()) return;
+
         var userService = _services.GetRequiredService<IUserService>();
         var conv = ConversationViewModel.FromSession(conversation);
 
@@ -44,16 +48,18 @@ public class ChatHubConversationHook : ConversationHookBase
 
     public override async Task OnMessageReceived(RoleDialogModel message)
     {
+        if (!AllowSendingMessage()) return;
+
         var conv = _services.GetRequiredService<IConversationService>();
         var userService = _services.GetRequiredService<IUserService>();
         var sender = await userService.GetMyProfile();
 
         // Update console conversation UI for CSR
-        
         var model = new ChatResponseModel()
         {
             ConversationId = conv.ConversationId,
             MessageId = message.MessageId,
+            Payload = message.Payload,
             Text = !string.IsNullOrEmpty(message.SecondaryContent) ? message.SecondaryContent : message.Content,
             Sender = UserViewModel.FromUser(sender)
         };
@@ -89,6 +95,8 @@ public class ChatHubConversationHook : ConversationHookBase
 
     public override async Task OnResponseGenerated(RoleDialogModel message)
     {
+        if (!AllowSendingMessage()) return;
+
         var conv = _services.GetRequiredService<IConversationService>();
         var json = JsonSerializer.Serialize(new ChatResponseModel()
         {
@@ -155,6 +163,12 @@ public class ChatHubConversationHook : ConversationHookBase
     }
 
     #region Private methods
+    private bool AllowSendingMessage()
+    {
+        var sidecar = _services.GetService<IConversationSideCar>();
+        return sidecar == null || !sidecar.IsEnabled();
+    }
+
     private async Task InitClientConversation(ConversationViewModel conversation)
     {
         await _chatHub.Clients.User(_user.Id).SendAsync(INIT_CLIENT_CONVERSATION, conversation);

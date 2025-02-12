@@ -4,7 +4,7 @@ using BotSharp.Abstraction.Repositories;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Abstraction.Routing;
 using BotSharp.Abstraction.Routing.Settings;
-using BotSharp.Core.Routing.Planning;
+using BotSharp.Core.Routing.Reasoning;
 
 namespace BotSharp.Core.Routing.Handlers;
 
@@ -27,7 +27,7 @@ public class ContinueExecuteTaskRoutingHandler : RoutingHandlerBase//, IRoutingH
 
     public List<string> Planers => new List<string>
     {
-        nameof(HFPlanner)
+        nameof(HFReasoner)
     };
 
     public ContinueExecuteTaskRoutingHandler(IServiceProvider services, ILogger<ContinueExecuteTaskRoutingHandler> logger, RoutingSettings settings) 
@@ -38,7 +38,7 @@ public class ContinueExecuteTaskRoutingHandler : RoutingHandlerBase//, IRoutingH
     public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message)
     {
         var db = _services.GetRequiredService<IBotSharpRepository>();
-        var filter = new AgentFilter { AgentName = inst.AgentName };
+        var filter = new AgentFilter { AgentNames = [inst.AgentName] };
         var record = db.GetAgents(filter).FirstOrDefault();
 
         message.FunctionName = inst.Function;

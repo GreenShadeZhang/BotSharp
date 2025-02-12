@@ -8,6 +8,7 @@ public class ConversationFilter
     /// </summary>
     public string? Id { get; set; }
     public string? Title { get; set; }
+    public string? TitleAlias { get; set; }
     public string? AgentId { get; set; }
     public string? Status { get; set; }
     public string? Channel { get; set; }
@@ -22,5 +23,12 @@ public class ConversationFilter
     /// <summary>
     /// Check whether each key in the list is in the conversation states and its value equals to target value if not empty 
     /// </summary>
-    public IEnumerable<KeyValue> States { get; set; } = new List<KeyValue>();
+    public IEnumerable<KeyValue>? States { get; set; } = [];
+
+    public IEnumerable<string>? Tags { get; set; } = [];
+
+    public static ConversationFilter Empty()
+    {
+        return new ConversationFilter();
+    }
 }

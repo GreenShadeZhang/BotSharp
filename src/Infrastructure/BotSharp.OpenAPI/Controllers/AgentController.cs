@@ -1,4 +1,4 @@
-using BotSharp.Abstraction.Users.Enums;
+using BotSharp.Abstraction.Agents.Models;
 
 namespace BotSharp.OpenAPI.Controllers;
 
@@ -10,7 +10,10 @@ public class AgentController : ControllerBase
     private readonly IUserIdentity _user;
     private readonly IServiceProvider _services;
 
-    public AgentController(IAgentService agentService, IUserIdentity user, IServiceProvider services)
+    public AgentController(
+        IAgentService agentService,
+        IUserIdentity user,
+        IServiceProvider services)
     {
         _agentService = agentService;
         _user = user;
@@ -57,25 +60,38 @@ public class AgentController : ControllerBase
             rule.RedirectToAgentName = found.Name;
         }
 
-        var editable = true;
         var userService = _services.GetRequiredService<IUserService>();
-        var user = await userService.GetUser(_user.Id);
-        if (user?.Role != UserRole.Admin)
-        {
-            var userAgents = _agentService.GetAgentsByUser(user?.Id);
-            editable = userAgents?.Select(x => x.Id)?.Contains(targetAgent.Id) ?? false;
-        }
-
-        targetAgent.Editable = editable;
+        var auth = await userService.GetUserAuthorizations(new List<string> { targetAgent.Id });
+        targetAgent.Actions = auth.GetAllowedAgentActions(targetAgent.Id);
         return targetAgent;
     }
 
     [HttpGet("/agents")]
-    public async Task<PagedItems<AgentViewModel>> GetAgents([FromQuery] AgentFilter filter)
+    public async Task<PagedItems<AgentViewModel>> GetAgents([FromQuery] AgentFilter filter, [FromQuery] bool checkAuth = false)
     {
         var agentSetting = _services.GetRequiredService<AgentSettings>();
+        var userService = _services.GetRequiredService<IUserService>();
+
+        List<AgentViewModel> agents;
         var pagedAgents = await _agentService.GetAgents(filter);
-        var agents = pagedAgents?.Items?.Select(x => AgentViewModel.FromAgent(x))?.ToList() ?? new List<AgentViewModel>();
+
+        if (!checkAuth)
+        {
+            agents = pagedAgents?.Items?.Select(x => AgentViewModel.FromAgent(x))?.ToList() ?? [];
+            return new PagedItems<AgentViewModel>
+            {
+                Items = agents,
+                Count = pagedAgents?.Count ?? 0
+            };
+        }
+
+        var auth = await userService.GetUserAuthorizations(pagedAgents.Items.Select(x => x.Id));
+        agents = pagedAgents?.Items?.Select(x =>
+        {
+            var model = AgentViewModel.FromAgent(x);
+            model.Actions = auth.GetAllowedAgentActions(x.Id);
+            return model;
+        })?.ToList() ?? [];
 
         return new PagedItems<AgentViewModel>
         {
@@ -133,9 +149,31 @@ public class AgentController : ControllerBase
         return await _agentService.DeleteAgent(agentId);
     }
 
-    [HttpGet("/agent/utilities")]
-    public IEnumerable<string> GetAgentUtilities()
+    [HttpGet("/agent/utility/options")]
+    public IEnumerable<AgentUtility> GetAgentUtilityOptions()
     {
-        return _agentService.GetAgentUtilities();
+        var utilities = new List<AgentUtility>();
+        var hooks = _services.GetServices<IAgentUtilityHook>();
+        foreach (var hook in hooks)
+        {
+            hook.AddUtilities(utilities);
+        }
+        return utilities.Where(x => !string.IsNullOrWhiteSpace(x.Name)).OrderBy(x => x.Name).ToList();
+    }
+
+    [HttpGet("/agent/labels")]
+    public async Task<IEnumerable<string>> GetAgentLabels()
+    {
+        var agentService = _services.GetRequiredService<IAgentService>();
+        var agents = await agentService.GetAgents(new AgentFilter
+        {
+            Pager = new Pagination { Size = 1000 }
+        });
+
+        var labels = agents.Items?.SelectMany(x => x.Labels)
+                                  .Distinct()
+                                  .OrderBy(x => x)
+                                  .ToList() ?? [];
+        return labels;
     }
 }

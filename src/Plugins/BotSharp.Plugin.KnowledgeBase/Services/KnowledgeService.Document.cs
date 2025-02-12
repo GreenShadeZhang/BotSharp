@@ -10,7 +10,8 @@ namespace BotSharp.Plugin.KnowledgeBase.Services;
 
 public partial class KnowledgeService
 {
-    public async Task<UploadKnowledgeResponse> UploadDocumentsToKnowledge(string collectionName, IEnumerable<ExternalFileModel> files)
+    public async Task<UploadKnowledgeResponse> UploadDocumentsToKnowledge(string collectionName,
+        IEnumerable<ExternalFileModel> files, ChunkOption? option = null)
     {
         var res = new UploadKnowledgeResponse
         {
@@ -48,7 +49,7 @@ public partial class KnowledgeService
             {
                 // Get document info
                 var (contentType, bytes) = await GetFileInfo(file);
-                var contents = await GetFileContent(contentType, bytes);
+                var contents = await GetFileContent(contentType, bytes, option ?? ChunkOption.Default());
                 
                 // Save document
                 var fileId = Guid.NewGuid();
@@ -112,7 +113,7 @@ public partial class KnowledgeService
 
 
     public async Task<bool> ImportDocumentContentToKnowledge(string collectionName, string fileName, string fileSource,
-        IEnumerable<string> contents, DocMetaRefData? refData = null)
+        IEnumerable<string> contents, DocMetaRefData? refData = null, Dictionary<string, object>? payload = null)
     {
         if (string.IsNullOrWhiteSpace(collectionName)
             || string.IsNullOrWhiteSpace(fileName)
@@ -132,20 +133,26 @@ public partial class KnowledgeService
             var fileId = Guid.NewGuid();
             var contentType = FileUtility.GetFileContentType(fileName);
 
-            var payload = new Dictionary<string, object>()
+            var innerPayload = new Dictionary<string, object>();
+            if (payload != null)
             {
-                { KnowledgePayloadName.DataSource, VectorDataSource.File },
-                { KnowledgePayloadName.FileId, fileId.ToString() },
-                { KnowledgePayloadName.FileName, fileName },
-                { KnowledgePayloadName.FileSource, fileSource }
-            };
+                foreach (var item in payload)
+                {
+                    innerPayload[item.Key] = item.Value;
+                }
+            }
+
+            innerPayload[KnowledgePayloadName.DataSource] = VectorDataSource.File;
+            innerPayload[KnowledgePayloadName.FileId] = fileId.ToString();
+            innerPayload[KnowledgePayloadName.FileName] = fileName;
+            innerPayload[KnowledgePayloadName.FileSource] = fileSource;
 
             if (!string.IsNullOrWhiteSpace(refData?.Url))
             {
-                payload[KnowledgePayloadName.FileUrl] = refData.Url;
+                innerPayload[KnowledgePayloadName.FileUrl] = refData.Url;
             }
 
-            var dataIds = await SaveToVectorDb(collectionName, contents, payload);
+            var dataIds = await SaveToVectorDb(collectionName, contents, innerPayload);
             db.SaveKnolwedgeBaseFileMeta(new KnowledgeDocMetaData
             {
                 Collection = collectionName,
@@ -363,13 +370,13 @@ public partial class KnowledgeService
     }
 
     #region Read doc content
-    private async Task<IEnumerable<string>> GetFileContent(string contentType, byte[] bytes)
+    private async Task<IEnumerable<string>> GetFileContent(string contentType, byte[] bytes, ChunkOption option)
     {
         IEnumerable<string> results = new List<string>();
 
         if (contentType.IsEqualTo(MediaTypeNames.Text.Plain))
         {
-            results = await ReadTxt(bytes);
+            results = await ReadTxt(bytes, option);
         }
         else if (contentType.IsEqualTo(MediaTypeNames.Application.Pdf))
         {
@@ -379,7 +386,7 @@ public partial class KnowledgeService
         return results;
     }
 
-    private async Task<IEnumerable<string>> ReadTxt(byte[] bytes)
+    private async Task<IEnumerable<string>> ReadTxt(byte[] bytes, ChunkOption option)
     {
         using var stream = new MemoryStream(bytes);
         using var reader = new StreamReader(stream);
@@ -387,12 +394,7 @@ public partial class KnowledgeService
         reader.Close();
         stream.Close();
 
-        var lines = TextChopper.Chop(content, new ChunkOption
-        {
-            Size = 1024,
-            Conjunction = 12,
-            SplitByWord = true,
-        });
+        var lines = TextChopper.Chop(content, option);
         return lines;
     }
 
