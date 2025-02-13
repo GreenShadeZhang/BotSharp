@@ -124,4 +124,15 @@ public class LiteDBContext: IDisposable
 
     public ILiteCollection<KnowledgeCollectionFileMetaDocument> KnowledgeCollectionFileMeta
         => Database.GetCollection<KnowledgeCollectionFileMetaDocument>($"{_collectionPrefix}_KnowledgeCollectionFileMeta");
+    public ILiteCollection<RoleDocument> Roles
+    => Database.GetCollection<RoleDocument>($"{_collectionPrefix}_Roles");
+
+    public ILiteCollection<RoleAgentDocument> RoleAgents
+        => Database.GetCollection<RoleAgentDocument>($"{_collectionPrefix}_RoleAgents");
+
+    public ILiteCollection<CrontabItemDocument> CrontabItems
+        => Database.GetCollection<CrontabItemDocument>($"{_collectionPrefix}_CronTabItems");
+
+    public ILiteCollection<GlobalStatisticsDocument> GlobalStatistics
+        => Database.GetCollection<GlobalStatisticsDocument>($"{_collectionPrefix}_GlobalStatistics");
 }

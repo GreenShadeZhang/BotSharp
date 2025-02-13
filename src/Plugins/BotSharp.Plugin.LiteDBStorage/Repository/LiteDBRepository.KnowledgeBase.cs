@@ -14,8 +14,8 @@ public partial class LiteDBRepository
                 Id = Guid.NewGuid().ToString(),
                 Name = x.Name,
                 Type = x.Type,
-                VectorStore = KnowledgeVectorStoreConfigLiteDBModel.ToMongoModel(x.VectorStore),
-                TextEmbedding = KnowledgeEmbeddingConfigLiteDBModel.ToMongoModel(x.TextEmbedding)
+                VectorStore = KnowledgeVectorStoreConfigLiteDBModel.ToLiteDBModel(x.VectorStore),
+                TextEmbedding = KnowledgeEmbeddingConfigLiteDBModel.ToLiteDBModel(x.TextEmbedding)
             })?.ToList() ?? new List<KnowledgeCollectionConfigDocument>();
 
         if (reset)
@@ -136,7 +136,7 @@ public partial class LiteDBRepository
             ContentType = metaData.ContentType,
             VectorStoreProvider = metaData.VectorStoreProvider,
             VectorDataIds = metaData.VectorDataIds,
-            RefData = KnowledgeFileMetaRefLiteDBModel.ToMongoModel(metaData.RefData),
+            RefData = KnowledgeFileMetaRefLiteDBModel.ToLiteDBModel(metaData.RefData),
             CreateDate = metaData.CreateDate,
             CreateUserId = metaData.CreateUserId
         };

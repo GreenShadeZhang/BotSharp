@@ -17,11 +17,17 @@ public class UserDocument : LiteDBBase
     public string Type { get; set; } = UserType.Client;
     public string Role { get; set; } = null!;
     public string? VerificationCode { get; set; }
+    public DateTime? VerificationCodeExpireAt { get; set; }
     public bool Verified { get; set; }
+    public string? RegionCode { get; set; }
     public string? AffiliateId { get; set; }
+    public string? EmployeeId { get; set; }
     public bool IsDisabled { get; set; }
+    public IEnumerable<string> Permissions { get; set; } = [];
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }
+
+    public Dashboard? Dashboard { get; set; }
 
     public User ToUser()
     {
@@ -40,9 +46,15 @@ public class UserDocument : LiteDBBase
             Type = Type,
             Role = Role,
             AffiliateId = AffiliateId,
+            EmployeeId = EmployeeId,
             IsDisabled = IsDisabled,
             VerificationCode = VerificationCode,
+            VerificationCodeExpireAt = VerificationCodeExpireAt,
             Verified = Verified,
+            RegionCode = RegionCode,
+            Permissions = Permissions,
+            CreatedTime = CreatedTime,
+            UpdatedTime = UpdatedTime,
         };
     }
 }

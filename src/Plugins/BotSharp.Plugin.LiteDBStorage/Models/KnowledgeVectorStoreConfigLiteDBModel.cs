@@ -6,7 +6,7 @@ public class KnowledgeVectorStoreConfigLiteDBModel
 {
     public string Provider { get; set; }
 
-    public static KnowledgeVectorStoreConfigLiteDBModel ToMongoModel(VectorStoreConfig model)
+    public static KnowledgeVectorStoreConfigLiteDBModel ToLiteDBModel(VectorStoreConfig model)
     {
         return new KnowledgeVectorStoreConfigLiteDBModel
         {

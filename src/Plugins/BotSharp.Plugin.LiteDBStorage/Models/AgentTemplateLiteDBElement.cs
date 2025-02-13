@@ -7,7 +7,7 @@ public class AgentTemplateLiteDBElement
     public string Name { get; set; }
     public string Content { get; set; }
 
-    public static AgentTemplateLiteDBElement ToMongoElement(AgentTemplate template)
+    public static AgentTemplateLiteDBElement ToLiteDBElement(AgentTemplate template)
     {
         return new AgentTemplateLiteDBElement
         {

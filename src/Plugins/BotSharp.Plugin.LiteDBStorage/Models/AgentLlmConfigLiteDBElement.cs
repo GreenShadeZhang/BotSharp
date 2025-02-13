@@ -9,7 +9,7 @@ public class AgentLlmConfigLiteDBElement
     public bool IsInherit { get; set; }
     public int MaxRecursionDepth { get; set; }
 
-    public static AgentLlmConfigLiteDBElement? ToMongoElement(AgentLlmConfig? config)
+    public static AgentLlmConfigLiteDBElement? ToLiteDBElement(AgentLlmConfig? config)
     {
         if (config == null) return null;
 

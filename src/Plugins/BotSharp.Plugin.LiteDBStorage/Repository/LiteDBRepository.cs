@@ -25,5 +25,7 @@ public partial class LiteDBRepository : IBotSharpRepository
     private List<User> _users = new List<User>();
     private List<UserAgent> _userAgents = new List<UserAgent>();
     private List<Conversation> _conversations = new List<Conversation>();
-    List<string> _changedTableNames = new List<string>();    
+    List<string> _changedTableNames = new List<string>();
+
+    public IServiceProvider ServiceProvider => _services;
 }

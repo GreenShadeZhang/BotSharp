@@ -8,7 +8,7 @@ public class AgentResponseLiteDBElement
     public string Intent { get; set; }
     public string Content { get; set; }
 
-    public static AgentResponseLiteDBElement ToMongoElement(AgentResponse response)
+    public static AgentResponseLiteDBElement ToLiteDBElement(AgentResponse response)
     {
         return new AgentResponseLiteDBElement
         {

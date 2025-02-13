@@ -7,7 +7,7 @@ public class ChannelInstructionLiteDBElement
     public string Channel { get; set; }
     public string Instruction { get; set; }
 
-    public static ChannelInstructionLiteDBElement ToMongoElement(ChannelInstruction instruction)
+    public static ChannelInstructionLiteDBElement ToLiteDBElement(ChannelInstruction instruction)
     {
         return new ChannelInstructionLiteDBElement
         {

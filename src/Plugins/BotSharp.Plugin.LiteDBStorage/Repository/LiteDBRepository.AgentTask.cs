@@ -27,18 +27,11 @@ public partial class LiteDBRepository
         var agentIds = taskDocs.Select(x => x.AgentId).Distinct().ToList();
         var agents = GetAgents(new AgentFilter { AgentIds = agentIds });
 
-        var tasks = taskDocs.Select(x => new AgentTask
+        var tasks = taskDocs.Select(x =>
         {
-            Id = x.Id,
-            Name = x.Name,
-            Description = x.Description,
-            Enabled = x.Enabled,
-            AgentId = x.AgentId,
-            DirectAgentId = x.DirectAgentId,
-            Content = x.Content,
-            CreatedDateTime = x.CreatedTime,
-            UpdatedDateTime = x.UpdatedTime,
-            Agent = agents.FirstOrDefault(a => a.Id == x.AgentId)
+            var task = AgentTaskDocument.ToDomainModel(x);
+            task.Agent = agents.FirstOrDefault(a => a.Id == x.AgentId);
+            return task;
         }).ToList();
 
         return new PagedItems<AgentTask>
@@ -58,37 +51,16 @@ public partial class LiteDBRepository
         var agentDoc = _dc.Agents.Query().Where(x => x.Id == taskDoc.AgentId).FirstOrDefault();
         var agent = TransformAgentDocument(agentDoc);
 
-        var task = new AgentTask
-        {
-            Id = taskDoc.Id,
-            Name = taskDoc.Name,
-            Description = taskDoc.Description,
-            Enabled = taskDoc.Enabled,
-            AgentId = taskDoc.AgentId,
-            DirectAgentId = taskDoc.DirectAgentId,
-            Content = taskDoc.Content,
-            CreatedDateTime = taskDoc.CreatedTime,
-            UpdatedDateTime = taskDoc.UpdatedTime,
-            Agent = agent
-        };
+        var task = AgentTaskDocument.ToDomainModel(taskDoc);
+        task.Agent = agent;
 
         return task;
     }
 
     public void InsertAgentTask(AgentTask task)
     {
-        var taskDoc = new AgentTaskDocument
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = task.Name,
-            Description = task.Description,
-            Enabled = task.Enabled,
-            AgentId = task.AgentId,
-            DirectAgentId = task.DirectAgentId,
-            Content = task.Content,
-            CreatedTime = DateTime.UtcNow,
-            UpdatedTime = DateTime.UtcNow
-        };
+        var taskDoc = AgentTaskDocument.ToLiteDBModel(task);
+        taskDoc.Id = Guid.NewGuid().ToString();
 
         _dc.AgentTasks.Insert(taskDoc);
     }
@@ -97,17 +69,11 @@ public partial class LiteDBRepository
     {
         if (tasks.IsNullOrEmpty()) return;
 
-        var taskDocs = tasks.Select(x => new AgentTaskDocument
+        var taskDocs = tasks.Select(x =>
         {
-            Id = string.IsNullOrEmpty(x.Id) ? Guid.NewGuid().ToString() : x.Id,
-            Name = x.Name,
-            Description = x.Description,
-            Enabled = x.Enabled,
-            AgentId = x.AgentId,
-            DirectAgentId = x.DirectAgentId,
-            Content = x.Content,
-            CreatedTime = x.CreatedDateTime,
-            UpdatedTime = x.UpdatedDateTime
+            var task = AgentTaskDocument.ToLiteDBModel(x);
+            task.Id = !string.IsNullOrEmpty(x.Id) ? x.Id : Guid.NewGuid().ToString();
+            return task;
         }).ToList();
 
         _dc.AgentTasks.InsertBulk(taskDocs);
@@ -134,15 +100,15 @@ public partial class LiteDBRepository
             case AgentTaskField.Content:
                 taskDoc.Content = task.Content;
                 break;
-            case AgentTaskField.DirectAgentId:
-                taskDoc.DirectAgentId = task.DirectAgentId;
+            case AgentTaskField.Status:
+                taskDoc.Status = task.Status;
                 break;
             case AgentTaskField.All:
                 taskDoc.Name = task.Name;
                 taskDoc.Description = task.Description;
                 taskDoc.Enabled = task.Enabled;
                 taskDoc.Content = task.Content;
-                taskDoc.DirectAgentId = task.DirectAgentId;
+                taskDoc.Status = task.Status;
                 break;
         }
 

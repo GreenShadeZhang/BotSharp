@@ -10,7 +10,7 @@ public class KnowledgeFileMetaRefLiteDBModel
     public string Url { get; set; }
     public IDictionary<string, string>? Data { get; set; }
 
-    public static KnowledgeFileMetaRefLiteDBModel? ToMongoModel(DocMetaRefData? model)
+    public static KnowledgeFileMetaRefLiteDBModel? ToLiteDBModel(DocMetaRefData? model)
     {
         if (model == null) return null;
 

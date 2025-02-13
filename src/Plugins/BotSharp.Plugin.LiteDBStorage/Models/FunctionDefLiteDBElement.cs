@@ -17,7 +17,7 @@ public class FunctionDefLiteDBElement
         
     }
 
-    public static FunctionDefLiteDBElement ToMongoElement(FunctionDef function)
+    public static FunctionDefLiteDBElement ToLiteDBElement(FunctionDef function)
     {
         return new FunctionDefLiteDBElement
         {

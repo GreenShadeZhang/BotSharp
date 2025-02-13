@@ -8,7 +8,7 @@ public class KnowledgeEmbeddingConfigLiteDBModel
     public string Model { get; set; }
     public int Dimension { get; set; }
 
-    public static KnowledgeEmbeddingConfigLiteDBModel ToMongoModel(KnowledgeEmbeddingConfig model)
+    public static KnowledgeEmbeddingConfigLiteDBModel ToLiteDBModel(KnowledgeEmbeddingConfig model)
     {
         return new KnowledgeEmbeddingConfigLiteDBModel
         {

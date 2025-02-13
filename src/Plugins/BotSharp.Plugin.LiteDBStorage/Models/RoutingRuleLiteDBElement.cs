@@ -16,7 +16,7 @@ public class RoutingRuleLiteDBElement
         
     }
 
-    public static RoutingRuleLiteDBElement ToMongoElement(RoutingRule routingRule)
+    public static RoutingRuleLiteDBElement ToLiteDBElement(RoutingRule routingRule)
     {
         return new RoutingRuleLiteDBElement 
         {

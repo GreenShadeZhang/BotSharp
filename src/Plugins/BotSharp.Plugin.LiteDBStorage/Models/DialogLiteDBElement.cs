@@ -16,11 +16,11 @@ public class DialogLiteDBElement
 
     }
 
-    public static DialogLiteDBElement ToMongoElement(DialogElement dialog)
+    public static DialogLiteDBElement ToLiteDBElement(DialogElement dialog)
     {
         return new DialogLiteDBElement
         {
-            MetaData = DialogMetaDataMongoElement.ToMongoElement(dialog.MetaData),
+            MetaData = DialogMetaDataMongoElement.ToLiteDBElement(dialog.MetaData),
             Content = dialog.Content,
             SecondaryContent = dialog.SecondaryContent,
             RichContent = dialog.RichContent,
@@ -72,7 +72,7 @@ public class DialogMetaDataMongoElement
         };
     }
 
-    public static DialogMetaDataMongoElement ToMongoElement(DialogMetaData meta)
+    public static DialogMetaDataMongoElement ToLiteDBElement(DialogMetaData meta)
     {
         return new DialogMetaDataMongoElement
         { 

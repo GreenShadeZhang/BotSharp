@@ -1,5 +1,6 @@
 using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Repositories.Filters;
+using BotSharp.Abstraction.SideCar.Attributes;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
@@ -17,8 +18,10 @@ public partial class LiteDBRepository
             UserId = !string.IsNullOrEmpty(conversation.UserId) ? conversation.UserId : string.Empty,
             Title = conversation.Title,
             Channel = conversation.Channel,
+            ChannelId = conversation.ChannelId,
             TaskId = conversation.TaskId,
             Status = conversation.Status,
+            Tags = conversation.Tags ?? new(),
             CreatedTime = utcNow,
             UpdatedTime = utcNow
         };
@@ -27,15 +30,19 @@ public partial class LiteDBRepository
         {
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
-            Dialogs = new List<DialogLiteDBElement>()
+            AgentId = conversation.AgentId,
+            Dialogs = [],
+            UpdatedTime = utcNow
         };
 
         var stateDoc = new ConversationStateDocument
         {
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
-            States = new List<StateLiteDBElement>(),
-            Breakpoints = new List<BreakpointLiteDBElement>()
+            AgentId = conversation.AgentId,
+            States = [],
+            Breakpoints = [],
+            UpdatedTime = utcNow
         };
 
         _dc.Conversations.Insert(convDoc);
@@ -53,11 +60,12 @@ public partial class LiteDBRepository
         var stateLogDeleted = _dc.StateLogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
         var statesDeleted = _dc.ConversationStates.DeleteMany(x => conversationIds.Contains(x.ConversationId));
         var dialogDeleted = _dc.ConversationDialogs.DeleteMany(x => conversationIds.Contains(x.ConversationId));
+		var cronDeleted = _dc.CrontabItems.DeleteMany(x => conversationIds.Contains(x.ConversationId));
         var convDeleted = _dc.Conversations.DeleteMany(x => conversationIds.Contains(x.Id));
 
         return convDeleted > 0 || dialogDeleted > 0 || statesDeleted > 0
             || exeLogDeleted > 0 || promptLogDeleted > 0
-            || contentLogDeleted > 0 || stateLogDeleted > 0;
+            || contentLogDeleted > 0 || stateLogDeleted > 0 || convDeleted > 0;
     }
 
     public List<DialogElement> GetConversationDialogs(string conversationId)
@@ -72,11 +80,12 @@ public partial class LiteDBRepository
         return formattedDialog ?? new List<DialogElement>();
     }
 
+    [SideCar]
     public void AppendConversationDialogs(string conversationId, List<DialogElement> dialogs)
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var dialogElements = dialogs.Select(x => DialogLiteDBElement.ToMongoElement(x)).ToList();
+        var dialogElements = dialogs.Select(x => DialogLiteDBElement.ToLiteDBElement(x)).ToList();
 
         var conv = _dc.Conversations.FindOne(x => x.Id == conversationId);
         if (conv != null)
@@ -106,7 +115,89 @@ public partial class LiteDBRepository
             _dc.Conversations.Update(conv);
         }
     }
+	
+  public void UpdateConversationTitleAlias(string conversationId, string titleAlias)
+    {
+        if (string.IsNullOrEmpty(conversationId)) return;
 
+        var conv = _dc.Conversations.FindById(conversationId);
+        if (conv != null)
+        {
+            conv.TitleAlias = titleAlias;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+        }
+    }
+
+    public bool UpdateConversationTags(string conversationId, List<string> tags)
+    {
+        if (string.IsNullOrEmpty(conversationId)) return false;
+
+        var conv = _dc.Conversations.FindById(conversationId);
+        if (conv != null)
+        {
+            conv.Tags = tags ?? new List<string>();
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+            return true;
+        }
+        return false;
+    }
+
+    public bool AppendConversationTags(string conversationId, List<string> tags)
+    {
+        if (string.IsNullOrEmpty(conversationId) || tags.IsNullOrEmpty()) return false;
+
+        var conv = _dc.Conversations.FindById(conversationId);
+        if (conv != null)
+        {
+            var curTags = conv.Tags ?? new List<string>();
+            var newTags = curTags.Concat(tags).Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
+            conv.Tags = newTags;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _dc.Conversations.Update(conv);
+            return true;
+        }
+        return false;
+    }
+
+
+    public bool UpdateConversationMessage(string conversationId, UpdateMessageRequest request)
+    {
+        if (string.IsNullOrEmpty(conversationId)) return false;
+
+        var foundDialog = _dc.ConversationDialogs.FindOne(x => x.ConversationId == conversationId);
+        if (foundDialog == null || foundDialog.Dialogs.IsNullOrEmpty())
+        {
+            return false;
+        }
+
+        var dialogs = foundDialog.Dialogs;
+        var candidates = dialogs.Where(x => x.MetaData.MessageId == request.Message.MetaData.MessageId
+                                            && x.MetaData.Role == request.Message.MetaData.Role).ToList();
+
+        var found = candidates.Where((_, idx) => idx == request.InnderIndex).FirstOrDefault();
+        if (found == null) return false;
+
+        found.Content = request.Message.Content;
+        found.RichContent = request.Message.RichContent;
+
+        if (!string.IsNullOrEmpty(found.SecondaryContent))
+        {
+            found.SecondaryContent = request.Message.Content;
+        }
+
+        if (!string.IsNullOrEmpty(found.SecondaryRichContent))
+        {
+            found.SecondaryRichContent = request.Message.RichContent;
+        }
+
+        foundDialog.UpdatedTime = DateTime.UtcNow;
+        _dc.ConversationDialogs.Update(foundDialog);
+        return true;
+    }
+
+    [SideCar]
     public void UpdateConversationBreakpoint(string conversationId, ConversationBreakpoint breakpoint)
     {
         if (string.IsNullOrEmpty(conversationId)) return;
@@ -168,7 +259,7 @@ public partial class LiteDBRepository
     {
         if (string.IsNullOrEmpty(conversationId) || states == null) return;
 
-        var saveStates = states.Select(x => StateLiteDBElement.ToMongoElement(x)).ToList();
+        var saveStates = states.Select(x => StateLiteDBElement.ToLiteDBElement(x)).ToList();
         var state = _dc.ConversationStates.FindOne(x => x.ConversationId == conversationId);
 
         if (state != null)
@@ -219,6 +310,7 @@ public partial class LiteDBRepository
             Dialogs = dialogElements,
             States = curStates,
             DialogCount = conv.DialogCount,
+            Tags = conv.Tags,
             CreatedTime = conv.CreatedTime,
             UpdatedTime = conv.UpdatedTime
         };
@@ -235,6 +327,10 @@ public partial class LiteDBRepository
         if (!string.IsNullOrEmpty(filter?.Title))
         {
             query = query.Where(x => x.Title.Contains(filter.Title));
+        }
+        if (!string.IsNullOrEmpty(filter?.TitleAlias))
+        {
+            query = query.Where(x => x.TitleAlias.Contains(filter.TitleAlias));
         }
         if (!string.IsNullOrEmpty(filter?.AgentId))
         {
@@ -259,6 +355,13 @@ public partial class LiteDBRepository
         if (filter?.StartTime != null)
         {
             query = query.Where(x => x.CreatedTime >= filter.StartTime.Value);
+        }
+        if (filter?.Tags != null && filter.Tags.Any())
+        {
+            foreach (var tag in filter.Tags)
+            {
+                query = query.Where(x => x.Tags.Contains(tag));
+            }
         }
 
         //todo: Filter states
@@ -314,6 +417,7 @@ public partial class LiteDBRepository
             Channel = x.Channel,
             Status = x.Status,
             DialogCount = x.DialogCount,
+            Tags = x.Tags ?? new(),
             CreatedTime = x.CreatedTime,
             UpdatedTime = x.UpdatedTime
         }).ToList();
@@ -342,6 +446,7 @@ public partial class LiteDBRepository
             Channel = c.Channel,
             Status = c.Status,
             DialogCount = c.DialogCount,
+            Tags = c.Tags ?? new(),
             CreatedTime = c.CreatedTime,
             UpdatedTime = c.UpdatedTime
         }).ToList();
@@ -396,7 +501,7 @@ public partial class LiteDBRepository
         return conversationIds.Take(batchSize).ToList();
     }
 
-    public IEnumerable<string> TruncateConversation(string conversationId, string messageId, bool cleanLog = false)
+    public List<string> TruncateConversation(string conversationId, string messageId, bool cleanLog = false)
     {
         var deletedMessageIds = new List<string>();
         if (string.IsNullOrEmpty(conversationId) || string.IsNullOrEmpty(messageId))
@@ -485,6 +590,28 @@ public partial class LiteDBRepository
         }
 
         return deletedMessageIds;
+    }
+
+#if !DEBUG
+    [SharpCache(10)]
+#endif
+    public List<string> GetConversationStateSearchKeys(int messageLowerLimit = 2, int convUpperlimit = 100)
+    {
+        var conversations = _dc.Conversations
+            .Find(x => x.DialogCount >= messageLowerLimit)
+            .OrderByDescending(x => x.UpdatedTime)
+            .Take(convUpperlimit)
+            .ToList();
+
+        if (conversations.Count == 0) return new List<string>();
+
+        var convIds = conversations.Select(x => x.Id).ToList();
+        var states = _dc.ConversationStates
+            .Find(x => convIds.Contains(x.ConversationId))
+            .ToList();
+
+        var keys = states.SelectMany(x => x.States.Select(s => s.Key)).Distinct().ToList();
+        return keys;
     }
 
     private string ConvertSnakeCaseToPascalCase(string snakeCase)

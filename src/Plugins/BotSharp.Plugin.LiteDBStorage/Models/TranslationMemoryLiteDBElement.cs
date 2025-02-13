@@ -5,7 +5,7 @@ public class TranslationMemoryLiteDBElement
     public string TranslatedText { get; set; }
     public string Language { get; set; }
 
-    public static TranslationMemoryLiteDBElement ToMongoElement(TranslationMemoryItem item)
+    public static TranslationMemoryLiteDBElement ToLiteDBElement(TranslationMemoryItem item)
     {
         return new TranslationMemoryLiteDBElement
         {

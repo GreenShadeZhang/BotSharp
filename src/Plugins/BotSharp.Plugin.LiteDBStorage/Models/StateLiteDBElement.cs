@@ -7,16 +7,16 @@ public class StateLiteDBElement
     public string Key { get; set; }
     public bool Versioning { get; set; }
     public bool Readonly { get; set; }
-    public List<StateValueMongoElement> Values { get; set; }
+    public List<StateValueLiteDBElement> Values { get; set; }
 
-    public static StateLiteDBElement ToMongoElement(StateKeyValue state)
+    public static StateLiteDBElement ToLiteDBElement(StateKeyValue state)
     {
         return new StateLiteDBElement
         {
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
-            Values = state.Values?.Select(x => StateValueMongoElement.ToMongoElement(x))?.ToList() ?? new List<StateValueMongoElement>()
+            Values = state.Values?.Select(x => StateValueLiteDBElement.ToLiteDBElement(x))?.ToList() ?? new List<StateValueLiteDBElement>()
         };
     }
 
@@ -27,12 +27,12 @@ public class StateLiteDBElement
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
-            Values = state.Values?.Select(x => StateValueMongoElement.ToDomainElement(x))?.ToList() ?? new List<StateValue>()
+            Values = state.Values?.Select(x => StateValueLiteDBElement.ToDomainElement(x))?.ToList() ?? new List<StateValue>()
         };
     }
 }
 
-public class StateValueMongoElement
+public class StateValueLiteDBElement
 {
     public string Data { get; set; }
     public string? MessageId { get; set; }
@@ -43,9 +43,9 @@ public class StateValueMongoElement
 
     public DateTime UpdateTime { get; set; }
 
-    public static StateValueMongoElement ToMongoElement(StateValue element)
+    public static StateValueLiteDBElement ToLiteDBElement(StateValue element)
     {
-        return new StateValueMongoElement
+        return new StateValueLiteDBElement
         {
             Data = element.Data,
             MessageId = element.MessageId,
@@ -57,7 +57,7 @@ public class StateValueMongoElement
         };
     }
 
-    public static StateValue ToDomainElement(StateValueMongoElement element)
+    public static StateValue ToDomainElement(StateValueLiteDBElement element)
     {
         return new StateValue
         {

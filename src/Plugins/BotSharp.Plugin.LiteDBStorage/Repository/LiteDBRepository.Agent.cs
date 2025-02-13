@@ -9,7 +9,7 @@ public partial class LiteDBRepository
 {
     public void UpdateAgent(Agent agent, AgentField field)
     {
-        if (agent == null || string.IsNullOrEmpty(agent.Id)) return;
+        if (agent == null || string.IsNullOrWhiteSpace(agent.Id)) return;
 
         switch (field)
         {
@@ -31,8 +31,11 @@ public partial class LiteDBRepository
             case AgentField.InheritAgentId:
                 UpdateAgentInheritAgentId(agent.Id, agent.InheritAgentId);
                 break;
-            case AgentField.Profiles:
+            case AgentField.Profile:
                 UpdateAgentProfiles(agent.Id, agent.Profiles);
+                break;
+            case AgentField.Label:
+                UpdateAgentLabels(agent.Id, agent.Profiles);
                 break;
             case AgentField.RoutingRule:
                 UpdateAgentRoutingRules(agent.Id, agent.RoutingRules);
@@ -56,7 +59,16 @@ public partial class LiteDBRepository
                 UpdateAgentLlmConfig(agent.Id, agent.LlmConfig);
                 break;
             case AgentField.Utility:
-                UpdateAgentUtilities(agent.Id, agent.Utilities);
+                UpdateAgentUtilities(agent.Id, agent.MergeUtility, agent.Utilities);
+                break;
+            case AgentField.KnowledgeBase:
+                UpdateAgentKnowledgeBases(agent.Id, agent.KnowledgeBases);
+                break;
+            case AgentField.Rule:
+                UpdateAgentRules(agent.Id, agent.Rules);
+                break;
+            case AgentField.MaxMessageCount:
+                UpdateAgentMaxMessageCount(agent.Id, agent.MaxMessageCount);
                 break;
             case AgentField.All:
                 UpdateAgentAllFields(agent);
@@ -154,12 +166,27 @@ public partial class LiteDBRepository
             _dc.Agents.Update(agent);
         }
     }
+	
+  public bool UpdateAgentLabels(string agentId, List<string> labels)
+    {
+        if (labels == null) return false;
+
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent != null)
+        {
+            agent.Labels = labels;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+            return true;
+        }
+        return false;
+    }
 
     private void UpdateAgentRoutingRules(string agentId, List<RoutingRule> rules)
     {
         if (rules == null) return;
 
-        var ruleElements = rules.Select(x => RoutingRuleLiteDBElement.ToMongoElement(x)).ToList();
+        var ruleElements = rules.Select(x => RoutingRuleLiteDBElement.ToLiteDBElement(x)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -175,7 +202,7 @@ public partial class LiteDBRepository
     {
         if (string.IsNullOrWhiteSpace(agentId)) return;
 
-        var instructionElements = channelInstructions?.Select(x => ChannelInstructionLiteDBElement.ToMongoElement(x))?
+        var instructionElements = channelInstructions?.Select(x => ChannelInstructionLiteDBElement.ToLiteDBElement(x))?
                                                       .ToList() ?? new List<ChannelInstructionLiteDBElement>();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
@@ -193,7 +220,7 @@ public partial class LiteDBRepository
     {
         if (functions == null) return;
 
-        var functionsToUpdate = functions.Select(f => FunctionDefLiteDBElement.ToMongoElement(f)).ToList();
+        var functionsToUpdate = functions.Select(f => FunctionDefLiteDBElement.ToLiteDBElement(f)).ToList();
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
         if (agent != null)
@@ -208,7 +235,7 @@ public partial class LiteDBRepository
     {
         if (templates == null) return;
 
-        var templatesToUpdate = templates.Select(t => AgentTemplateLiteDBElement.ToMongoElement(t)).ToList();
+        var templatesToUpdate = templates.Select(t => AgentTemplateLiteDBElement.ToLiteDBElement(t)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -224,7 +251,7 @@ public partial class LiteDBRepository
     {
         if (responses == null) return;
 
-        var responsesToUpdate = responses.Select(r => AgentResponseLiteDBElement.ToMongoElement(r)).ToList();
+        var responsesToUpdate = responses.Select(r => AgentResponseLiteDBElement.ToLiteDBElement(r)).ToList();
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
@@ -248,30 +275,74 @@ public partial class LiteDBRepository
             _dc.Agents.Update(agent);
         }
     }
-
-    private void UpdateAgentUtilities(string agentId, List<string> utilities)
+	
+  private void UpdateAgentUtilities(string agentId, bool mergeUtility, List<AgentUtility> utilities)
     {
         if (utilities == null) return;
 
-        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        var elements = utilities.Select(x => AgentUtilityLiteDBElement.ToLiteDBElement(x)).ToList();
 
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
         if (agent != null)
         {
-            agent.Utilities = utilities;
+            agent.MergeUtility = mergeUtility;
+            agent.Utilities = elements;
             agent.UpdatedTime = DateTime.UtcNow;
             _dc.Agents.Update(agent);
         }
     }
+	
+  private void UpdateAgentKnowledgeBases(string agentId, List<AgentKnowledgeBase> knowledgeBases)
+    {
+        if (knowledgeBases == null) return;
+
+        var elements = knowledgeBases.Select(x => AgentKnowledgeBaseLiteDBElement.ToLiteDBElement(x)).ToList();
+
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent != null)
+        {
+            agent.KnowledgeBases = elements;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
+    }
+	
+  private void UpdateAgentRules(string agentId, List<AgentRule> rules)
+    {
+        if (rules == null) return;
+
+        var elements = rules.Select(x => AgentRuleLiteDBElement.ToLiteDBElement(x)).ToList();
+
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent != null)
+        {
+            agent.Rules = elements;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
+    }
+	
 
     private void UpdateAgentLlmConfig(string agentId, AgentLlmConfig? config)
     {
-        var llmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(config);
+        var llmConfig = AgentLlmConfigLiteDBElement.ToLiteDBElement(config);
 
         var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
 
         if (agent != null)
         {
             agent.LlmConfig = llmConfig;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _dc.Agents.Update(agent);
+        }
+    }
+	
+  private void UpdateAgentMaxMessageCount(string agentId, int? maxMessageCount)
+    {
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent != null)
+        {
+            agent.MaxMessageCount = maxMessageCount;
             agent.UpdatedTime = DateTime.UtcNow;
             _dc.Agents.Update(agent);
         }
@@ -286,17 +357,22 @@ public partial class LiteDBRepository
             agentData.Name = agent.Name;
             agentData.Description = agent.Description;
             agentData.Disabled = agent.Disabled;
+            agentData.MergeUtility = agent.MergeUtility;
             agentData.Type = agent.Type;
+            agentData.MaxMessageCount = agent.MaxMessageCount;
             agentData.Profiles = agent.Profiles;
-            agentData.RoutingRules = agent.RoutingRules.Select(r => RoutingRuleLiteDBElement.ToMongoElement(r)).ToList();
+            agentData.Labels = agent.Labels;
+            agentData.RoutingRules = agent.RoutingRules.Select(r => RoutingRuleLiteDBElement.ToLiteDBElement(r)).ToList();
             agentData.Instruction = agent.Instruction;
-            agentData.ChannelInstructions = agent.ChannelInstructions.Select(i => ChannelInstructionLiteDBElement.ToMongoElement(i)).ToList();
-            agentData.Templates = agent.Templates.Select(t => AgentTemplateLiteDBElement.ToMongoElement(t)).ToList();
-            agentData.Functions = agent.Functions.Select(f => FunctionDefLiteDBElement.ToMongoElement(f)).ToList();
-            agentData.Responses = agent.Responses.Select(r => AgentResponseLiteDBElement.ToMongoElement(r)).ToList();
+            agentData.ChannelInstructions = agent.ChannelInstructions.Select(i => ChannelInstructionLiteDBElement.ToLiteDBElement(i)).ToList();
+            agentData.Templates = agent.Templates.Select(t => AgentTemplateLiteDBElement.ToLiteDBElement(t)).ToList();
+            agentData.Functions = agent.Functions.Select(f => FunctionDefLiteDBElement.ToLiteDBElement(f)).ToList();
+            agentData.Responses = agent.Responses.Select(r => AgentResponseLiteDBElement.ToLiteDBElement(r)).ToList();
             agentData.Samples = agent.Samples;
-            agentData.Utilities = agent.Utilities;
-            agentData.LlmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(agent.LlmConfig);
+            agentData.Utilities = agent.Utilities.Select(u => AgentUtilityLiteDBElement.ToLiteDBElement(u)).ToList();
+            agentData.KnowledgeBases = agent.KnowledgeBases.Select(u => AgentKnowledgeBaseLiteDBElement.ToLiteDBElement(u)).ToList();
+            agentData.Rules = agent.Rules.Select(e => AgentRuleLiteDBElement.ToLiteDBElement(e)).ToList();
+            agentData.LlmConfig = AgentLlmConfigLiteDBElement.ToLiteDBElement(agent.LlmConfig);
             agentData.IsPublic = agent.IsPublic;
             agentData.UpdatedTime = DateTime.UtcNow;
         }
@@ -305,6 +381,13 @@ public partial class LiteDBRepository
     }
     #endregion
 
+    public Agent? GetAgent(string agentId, bool basicsOnly = false)
+    {
+        var agent = _dc.Agents.FindOne(x => x.Id == agentId);
+        if (agent == null) return null;
+
+        return TransformAgentDocument(agent);
+    }
 
     public Agent? GetAgent(string agentId)
     {
@@ -318,10 +401,18 @@ public partial class LiteDBRepository
     {
         var agents = new List<Agent>();
         var query = _dc.Agents.Query();
-
-        if (!string.IsNullOrEmpty(filter.AgentName))
+        if (filter.AgentIds != null)
         {
-            query = query.Where(x => x.Name == filter.AgentName);
+            query = query.Where(x => filter.AgentIds.Contains(x.Id));
+        }
+        if (!filter.AgentNames.IsNullOrEmpty())
+        {
+            query = query.Where(x => filter.AgentNames.Contains(x.Name));
+        }
+
+        if (!string.IsNullOrEmpty(filter.SimilarName))
+        {
+            query = query.Where(x => x.Name.Contains(filter.SimilarName, StringComparison.OrdinalIgnoreCase));
         }
 
         if (filter.Disabled.HasValue)
@@ -329,26 +420,58 @@ public partial class LiteDBRepository
             query = query.Where(x => x.Disabled == filter.Disabled.Value);
         }
 
-        if (filter.Type != null)
+        if (filter.Types != null)
         {
-            var types = filter.Type.Split(",");
-            query = query.Where(x => types.Contains(x.Type));
+            query = query.Where(x => filter.Types.Contains(x.Type));
         }
 
-        if (filter.IsPublic.HasValue)
+        if (!filter.Labels.IsNullOrEmpty())
         {
-            query = query.Where(x => x.IsPublic == filter.IsPublic.Value);
+            query = query.Where(x => x.Labels.Any(label => filter.Labels.Contains(label)));
         }
 
-        if (filter.AgentIds != null)
-        {
-            query = query.Where(x => filter.AgentIds.Contains(x.Id));
-        }
+
 
         var agentDocs = query.ToList();
 
         return agentDocs.Select(x => TransformAgentDocument(x)).ToList();
     }
+	
+    public List<UserAgent> GetUserAgents(string userId)
+    {
+        var user = _dc.Users.Query().Where(x => x.Id == userId || x.ExternalId == userId).FirstOrDefault();
+
+        if (user == null)
+        {
+            return [];
+        }
+        var found = _dc.UserAgents.Query().Where(x => x.UserId == user.Id).ToList();
+
+        if (found.IsNullOrEmpty()) return [];
+
+        var res = found.Select(x => new UserAgent
+        {
+            Id = x.Id,
+            UserId = x.UserId,
+            AgentId = x.AgentId,
+            Actions = x.Actions,
+            CreatedTime = x.CreatedTime,
+            UpdatedTime = x.UpdatedTime
+        }).ToList();
+
+        var agentIds = found.Select(x => x.AgentId).Distinct().ToList();
+        var agents = GetAgents(new AgentFilter { AgentIds = agentIds });
+        foreach (var item in res)
+        {
+            var agent = agents.FirstOrDefault(x => x.Id == item.AgentId);
+            if (agent == null) continue;
+
+            item.Agent = agent;
+        }
+
+        return res;
+    }
+	
 
     public List<Agent> GetAgentsByUser(string userId)
     {
@@ -401,6 +524,21 @@ public partial class LiteDBRepository
         _dc.Agents.Update(agent);
         return true;
     }
+    public bool AppendAgentLabels(string agentId, List<string> labels)
+    {
+        if (labels == null || !labels.Any()) return false;
+
+        var agent = _dc.Agents.Query().Where(x => x.Id == agentId).FirstOrDefault();
+        if (agent == null) return false;
+
+        var prevLabels = agent.Labels ?? new List<string>();
+        var curLabels = prevLabels.Concat(labels).Distinct().ToList();
+        agent.Labels = curLabels;
+        agent.UpdatedTime = DateTime.UtcNow;
+
+        _dc.Agents.Update(agent);
+        return true;
+    }
 
     public void BulkInsertAgents(List<Agent> agents)
     {
@@ -413,29 +551,24 @@ public partial class LiteDBRepository
             IconUrl = x.IconUrl,
             Description = x.Description,
             Instruction = x.Instruction,
-            ChannelInstructions = x.ChannelInstructions?
-                            .Select(i => ChannelInstructionLiteDBElement.ToMongoElement(i))?
-                            .ToList() ?? new List<ChannelInstructionLiteDBElement>(),
-            Templates = x.Templates?
-                            .Select(t => AgentTemplateLiteDBElement.ToMongoElement(t))?
-                            .ToList() ?? new List<AgentTemplateLiteDBElement>(),
-            Functions = x.Functions?
-                            .Select(f => FunctionDefLiteDBElement.ToMongoElement(f))?
-                            .ToList() ?? new List<FunctionDefLiteDBElement>(),
-            Responses = x.Responses?
-                            .Select(r => AgentResponseLiteDBElement.ToMongoElement(r))?
-                            .ToList() ?? new List<AgentResponseLiteDBElement>(),
-            Samples = x.Samples ?? new List<string>(),
-            Utilities = x.Utilities ?? new List<string>(),
+            Samples = x.Samples ?? [],
             IsPublic = x.IsPublic,
             Type = x.Type,
             InheritAgentId = x.InheritAgentId,
             Disabled = x.Disabled,
-            Profiles = x.Profiles,
-            RoutingRules = x.RoutingRules?
-                            .Select(r => RoutingRuleLiteDBElement.ToMongoElement(r))?
-                            .ToList() ?? new List<RoutingRuleLiteDBElement>(),
-            LlmConfig = AgentLlmConfigLiteDBElement.ToMongoElement(x.LlmConfig),
+            MergeUtility = x.MergeUtility,
+            MaxMessageCount = x.MaxMessageCount,
+            Profiles = x.Profiles ?? [],
+            Labels = x.Labels ?? [],
+            LlmConfig = AgentLlmConfigLiteDBElement.ToLiteDBElement(x.LlmConfig),
+            ChannelInstructions = x.ChannelInstructions?.Select(i => ChannelInstructionLiteDBElement.ToLiteDBElement(i))?.ToList() ?? [],
+            Templates = x.Templates?.Select(t => AgentTemplateLiteDBElement.ToLiteDBElement(t))?.ToList() ?? [],
+            Functions = x.Functions?.Select(f => FunctionDefLiteDBElement.ToLiteDBElement(f))?.ToList() ?? [],
+            Responses = x.Responses?.Select(r => AgentResponseLiteDBElement.ToLiteDBElement(r))?.ToList() ?? [],
+            RoutingRules = x.RoutingRules?.Select(r => RoutingRuleLiteDBElement.ToLiteDBElement(r))?.ToList() ?? [],
+            Utilities = x.Utilities?.Select(u => AgentUtilityLiteDBElement.ToLiteDBElement(u))?.ToList() ?? [],
+            KnowledgeBases = x.KnowledgeBases?.Select(k => AgentKnowledgeBaseLiteDBElement.ToLiteDBElement(k))?.ToList() ?? [],
+            Rules = x.Rules?.Select(e => AgentRuleLiteDBElement.ToLiteDBElement(e))?.ToList() ?? [],
             CreatedTime = x.CreatedDateTime,
             UpdatedTime = x.UpdatedDateTime
         }).ToList();
@@ -447,12 +580,15 @@ public partial class LiteDBRepository
     {
         if (userAgents.IsNullOrEmpty()) return;
 
-        var userAgentDocs = userAgents.Select(x => new UserAgentDocument
+        var filtered = userAgents.Where(x => !string.IsNullOrEmpty(x.UserId) && !string.IsNullOrEmpty(x.AgentId)).ToList();
+        if (filtered.IsNullOrEmpty()) return;
+
+        var userAgentDocs = filtered.Select(x => new UserAgentDocument
         {
             Id = !string.IsNullOrEmpty(x.Id) ? x.Id : Guid.NewGuid().ToString(),
+            UserId = x.UserId,
             AgentId = x.AgentId,
-            UserId = !string.IsNullOrEmpty(x.UserId) ? x.UserId : string.Empty,
-            Editable = x.Editable,
+            Actions = x.Actions,
             CreatedTime = x.CreatedTime,
             UpdatedTime = x.UpdatedTime
         }).ToList();
@@ -502,29 +638,24 @@ public partial class LiteDBRepository
             IconUrl = agentDoc.IconUrl,
             Description = agentDoc.Description,
             Instruction = agentDoc.Instruction,
-            ChannelInstructions = !agentDoc.ChannelInstructions.IsNullOrEmpty() ? agentDoc.ChannelInstructions
-                              .Select(i => ChannelInstructionLiteDBElement.ToDomainElement(i))
-                              .ToList() : new List<ChannelInstruction>(),
-            Templates = !agentDoc.Templates.IsNullOrEmpty() ? agentDoc.Templates
-                             .Select(t => AgentTemplateLiteDBElement.ToDomainElement(t))
-                             .ToList() : new List<AgentTemplate>(),
-            Functions = !agentDoc.Functions.IsNullOrEmpty() ? agentDoc.Functions
-                             .Select(f => FunctionDefLiteDBElement.ToDomainElement(f))
-                             .ToList() : new List<FunctionDef>(),
-            Responses = !agentDoc.Responses.IsNullOrEmpty() ? agentDoc.Responses
-                             .Select(r => AgentResponseLiteDBElement.ToDomainElement(r))
-                             .ToList() : new List<AgentResponse>(),
-            RoutingRules = !agentDoc.RoutingRules.IsNullOrEmpty() ? agentDoc.RoutingRules
-                                .Select(r => RoutingRuleLiteDBElement.ToDomainElement(agentDoc.Id, agentDoc.Name, r))
-                                .ToList() : new List<RoutingRule>(),
-            LlmConfig = AgentLlmConfigLiteDBElement.ToDomainElement(agentDoc.LlmConfig),
-            Samples = agentDoc.Samples ?? new List<string>(),
-            Utilities = agentDoc.Utilities ?? new List<string>(),
+            Samples = agentDoc.Samples ?? [],
             IsPublic = agentDoc.IsPublic,
             Disabled = agentDoc.Disabled,
+			MergeUtility = agentDoc.MergeUtility,
             Type = agentDoc.Type,
             InheritAgentId = agentDoc.InheritAgentId,
-            Profiles = agentDoc.Profiles,
+            Profiles = agentDoc.Profiles ?? [],
+			Labels = agentDoc.Labels ?? [],
+			MaxMessageCount = agentDoc.MaxMessageCount,
+            LlmConfig = AgentLlmConfigLiteDBElement.ToDomainElement(agentDoc.LlmConfig),
+            ChannelInstructions = agentDoc.ChannelInstructions?.Select(i => ChannelInstructionLiteDBElement.ToDomainElement(i))?.ToList() ?? [],
+            Templates = agentDoc.Templates?.Select(t => AgentTemplateLiteDBElement.ToDomainElement(t))?.ToList() ?? [],
+            Functions = agentDoc.Functions?.Select(f => FunctionDefLiteDBElement.ToDomainElement(f)).ToList() ?? [],
+            Responses = agentDoc.Responses?.Select(r => AgentResponseLiteDBElement.ToDomainElement(r))?.ToList() ?? [],
+            RoutingRules = agentDoc.RoutingRules?.Select(r => RoutingRuleLiteDBElement.ToDomainElement(agentDoc.Id, agentDoc.Name, r))?.ToList() ?? [],
+            Utilities = agentDoc.Utilities?.Select(u => AgentUtilityLiteDBElement.ToDomainElement(u))?.ToList() ?? [],
+            KnowledgeBases = agentDoc.KnowledgeBases?.Select(x => AgentKnowledgeBaseLiteDBElement.ToDomainElement(x))?.ToList() ?? [],
+            Rules = agentDoc.Rules?.Select(e => AgentRuleLiteDBElement.ToDomainElement(e))?.ToList() ?? []
         };
     }
 }

@@ -6,9 +6,12 @@ public class ConversationDocument : LiteDBBase
     public string UserId { get; set; }
     public string? TaskId { get; set; }
     public string Title { get; set; }
+    public string TitleAlias { get; set; }
     public string Channel { get; set; }
+    public string ChannelId { get; set; }
     public string Status { get; set; }
     public int DialogCount { get; set; }
+    public List<string> Tags { get; set; }
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }
 }
