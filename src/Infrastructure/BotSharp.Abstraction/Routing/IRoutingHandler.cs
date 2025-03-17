@@ -17,4 +17,5 @@ public interface IRoutingHandler
     void SetDialogs(List<RoleDialogModel> dialogs);
 
     Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message);
+    Task<bool> HandleSseAsync(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message, Func<RoleDialogModel, Task> onResponseReceived);
 }

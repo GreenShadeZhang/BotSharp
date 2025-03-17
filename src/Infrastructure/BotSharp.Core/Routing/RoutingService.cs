@@ -59,6 +59,40 @@ public partial class RoutingService : IRoutingService
         return response;
     }
 
+    public async Task<RoleDialogModel> InstructDirectSseAsync(Agent agent, RoleDialogModel message, Func<RoleDialogModel, Task> onResponseReceived)
+    {
+        var handlers = _services.GetServices<IRoutingHandler>();
+
+        var handler = handlers.FirstOrDefault(x => x.Name == "route_to_agent");
+
+        var conv = _services.GetRequiredService<IConversationService>();
+        var storage = _services.GetRequiredService<IConversationStorage>();
+        storage.Append(conv.ConversationId, message);
+
+        var dialogs = conv.GetDialogHistory();
+        Context.SetDialogs(dialogs);
+        handler.SetDialogs(dialogs);
+
+        var inst = new FunctionCallFromLlm
+        {
+            Function = "route_to_agent",
+            Question = message.Content,
+            NextActionReason = message.Content,
+            AgentName = agent.Name,
+            OriginalAgent = agent.Name,
+            ExecutingDirectly = true
+        };
+
+        var result = await handler.HandleSseAsync(this, inst, message, onResponseReceived);
+
+        var response = dialogs.Last();
+        response.MessageId = message.MessageId;
+        response.Instruction = inst;
+
+        return response;
+    }
+
+
     public List<RoutingHandlerDef> GetHandlers(Agent router)
     {
         var reasoner = GetReasoner(router);

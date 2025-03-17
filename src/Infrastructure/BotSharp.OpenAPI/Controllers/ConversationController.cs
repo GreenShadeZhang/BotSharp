@@ -443,6 +443,58 @@ public class ConversationController : ControllerBase
         // await OnEventCompleted(Response);
     }
 
+    [HttpPost("/conversation/{agentId}/{conversationId}/sse-preview")]
+    public async Task SendMessageSsePreview([FromRoute] string agentId, [FromRoute] string conversationId, [FromBody] NewMessageModel input)
+    {
+        var conv = _services.GetRequiredService<IConversationService>();
+        var inputMsg = new RoleDialogModel(AgentRole.User, input.Text)
+        {
+            MessageId = !string.IsNullOrWhiteSpace(input.InputMessageId) ? input.InputMessageId : Guid.NewGuid().ToString(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var state = _services.GetRequiredService<IConversationStateService>();
+
+        var routing = _services.GetRequiredService<IRoutingService>();
+        routing.Context.SetMessageId(conversationId, inputMsg.MessageId);
+
+        conv.SetConversationId(conversationId, input.States);
+        SetStates(conv, input);
+
+        var response = new ChatResponseModel
+        {
+            ConversationId = conversationId,
+            MessageId = inputMsg.MessageId,
+        };
+
+        Response.StatusCode = 200;
+        Response.Headers.Append(Microsoft.Net.Http.Headers.HeaderNames.ContentType, "text/event-stream");
+        Response.Headers.Append(Microsoft.Net.Http.Headers.HeaderNames.CacheControl, "no-cache");
+        Response.Headers.Append(Microsoft.Net.Http.Headers.HeaderNames.Connection, "keep-alive");
+        InitProgressService(conversationId);
+
+        await conv.SendMessageSse(agentId, inputMsg,
+            replyMessage: input.Postback,
+            // responsed generated
+            async msg =>
+            {
+                response.Text = !string.IsNullOrEmpty(msg.SecondaryContent) ? msg.SecondaryContent : msg.Content;
+                response.Function = msg.FunctionName;
+                response.RichContent = msg.SecondaryRichContent ?? msg.RichContent;
+                response.Instruction = msg.Instruction;
+                response.Data = msg.Data;
+                response.States = state.GetStates();
+
+                await OnChunkReceived(Response, response);
+            });
+
+        response.States = state.GetStates();
+        response.MessageId = inputMsg.MessageId;
+        response.ConversationId = conversationId;
+
+        await OnEventCompleted(Response);
+    }
+
     private void InitProgressService(string conversationId)
     {
         var progressService = _services.GetService<IConversationProgressService>();

@@ -41,6 +41,19 @@ public interface IConversationService
         PostbackMessageModel? replyMessage,
         Func<RoleDialogModel, Task> onResponseReceived);
 
+    /// <summary>
+    /// Send message to LLM
+    /// </summary>
+    /// <param name="agentId"></param>
+    /// <param name="lastDialog"></param>
+    /// <param name="replyMessage"></param>
+    /// <param name="onResponseReceived">Received the response from AI Agent</param>
+    /// <returns></returns>
+    Task<bool> SendMessageSse(string agentId,
+        RoleDialogModel lastDialog,
+        PostbackMessageModel? replyMessage,
+        Func<RoleDialogModel, Task> onResponseReceived);
+
     List<RoleDialogModel> GetDialogHistory(int lastCount = 100, bool fromBreakpoint = true, IEnumerable<string>? includeMessageTypes = null);
     Task CleanHistory(string agentId);
 

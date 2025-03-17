@@ -1,6 +1,8 @@
 using BotSharp.Abstraction.Files.Utilities;
 using OpenAI.Chat;
 using System.ClientModel;
+using System.Diagnostics;
+using System.Text;
 
 namespace BotSharp.Plugin.AzureOpenAI.Providers.Chat;
 
@@ -194,6 +196,10 @@ public class ChatCompletionProvider : IChatCompletion
 
     public async Task<bool> GetChatCompletionsStreamingAsync(Agent agent, List<RoleDialogModel> conversations, Func<RoleDialogModel, Task> onMessageReceived)
     {
+        Dictionary<int, string>? toolCallIdsByIndex = null;
+        Dictionary<int, string>? functionNamesByIndex = null;
+        Dictionary<int, StringBuilder>? functionArgumentBuildersByIndex = null;
+
         var client = ProviderHelper.GetClient(Provider, _model, _services);
         var chatClient = client.GetChatClient(_model);
         var (prompt, messages, options) = PrepareOptions(agent, conversations);
@@ -202,26 +208,42 @@ public class ChatCompletionProvider : IChatCompletion
 
         await foreach (var choice in response)
         {
-            if (choice.FinishReason == ChatFinishReason.FunctionCall || choice.FinishReason == ChatFinishReason.ToolCalls)
-            {
-                var update = choice.ToolCallUpdates?.FirstOrDefault()?.FunctionArgumentsUpdate?.ToString() ?? string.Empty;
-                Console.Write(update);
+            //if (choice.FinishReason == ChatFinishReason.FunctionCall || choice.FinishReason == ChatFinishReason.ToolCalls)
+            //{
+            //    var update = choice.ToolCallUpdates?.FirstOrDefault()?.FunctionArgumentsUpdate?.ToString() ?? string.Empty;
+            //    Console.Write(update);
 
-                await onMessageReceived(new RoleDialogModel(AgentRole.Assistant, update)
+            //    await onMessageReceived(new RoleDialogModel(AgentRole.Assistant, update)
+            //    {
+            //        RenderedInstruction = string.Join("\r\n", renderedInstructions)
+            //    });
+            //    continue;
+            //}
+
+            TrackStreamingToolingUpdate(choice.ToolCallUpdates, ref toolCallIdsByIndex, ref functionNamesByIndex, ref functionArgumentBuildersByIndex);
+
+            if (!choice.ContentUpdate.IsNullOrEmpty() && choice.ContentUpdate[0] != null)
+            {
+                _logger.LogInformation(choice.ContentUpdate[0]?.Text);
+
+                if (!string.IsNullOrEmpty(choice.ContentUpdate[0]?.Text))
                 {
-                    RenderedInstruction = string.Join("\r\n", renderedInstructions)
-                });
-                continue;
+                    await onMessageReceived(new RoleDialogModel(choice.Role?.ToString() ?? ChatMessageRole.Assistant.ToString(), choice.ContentUpdate[0]?.Text ?? string.Empty)
+                    {
+                        RenderedInstruction = string.Join("\r\n", renderedInstructions)
+                    });
+                }
             }
+        }
 
-            if (choice.ContentUpdate.IsNullOrEmpty()) continue;
+        var tools = ConvertToolCallUpdatesToFunctionToolCalls(ref toolCallIdsByIndex, ref functionNamesByIndex, ref functionArgumentBuildersByIndex);
 
-            _logger.LogInformation(choice.ContentUpdate[0]?.Text);
-
-            await onMessageReceived(new RoleDialogModel(choice.Role?.ToString() ?? ChatMessageRole.Assistant.ToString(), choice.ContentUpdate[0]?.Text ?? string.Empty)
-            {
-                RenderedInstruction = string.Join("\r\n", renderedInstructions)
-            });
+        foreach (var tool in tools)
+        {
+            tool.CurrentAgentId = agent.Id;
+            tool.MessageId = conversations.LastOrDefault()?.MessageId ?? string.Empty;
+            tool.RenderedInstruction = string.Join("\r\n", renderedInstructions);
+            await onMessageReceived(tool);
         }
 
         return true;
@@ -407,6 +429,79 @@ public class ChatCompletionProvider : IChatCompletion
         }
 
         return prompt;
+    }
+
+    private static void TrackStreamingToolingUpdate(
+    IReadOnlyList<StreamingChatToolCallUpdate>? updates,
+    ref Dictionary<int, string>? toolCallIdsByIndex,
+    ref Dictionary<int, string>? functionNamesByIndex,
+    ref Dictionary<int, StringBuilder>? functionArgumentBuildersByIndex)
+    {
+        if (updates is null)
+        {
+            // Nothing to track.
+            return;
+        }
+
+        foreach (var update in updates)
+        {
+            // If we have an ID, ensure the index is being tracked. Even if it's not a function update,
+            // we want to keep track of it so we can send back an error.
+            if (!string.IsNullOrWhiteSpace(update.ToolCallId))
+            {
+                (toolCallIdsByIndex ??= [])[update.Index] = update.ToolCallId;
+            }
+
+            // Ensure we're tracking the function's name.
+            if (!string.IsNullOrWhiteSpace(update.FunctionName))
+            {
+                (functionNamesByIndex ??= [])[update.Index] = update.FunctionName;
+            }
+
+            // Ensure we're tracking the function's arguments.
+            if (update.FunctionArgumentsUpdate is not null && !update.FunctionArgumentsUpdate.ToMemory().IsEmpty)
+            {
+                if (!(functionArgumentBuildersByIndex ??= []).TryGetValue(update.Index, out StringBuilder? arguments))
+                {
+                    functionArgumentBuildersByIndex[update.Index] = arguments = new();
+                }
+
+                arguments.Append(update.FunctionArgumentsUpdate.ToString());
+            }
+        }
+    }
+
+    private static RoleDialogModel[] ConvertToolCallUpdatesToFunctionToolCalls(
+    ref Dictionary<int, string>? toolCallIdsByIndex,
+    ref Dictionary<int, string>? functionNamesByIndex,
+    ref Dictionary<int, StringBuilder>? functionArgumentBuildersByIndex)
+    {
+        RoleDialogModel[] toolCalls = [];
+        if (toolCallIdsByIndex is { Count: > 0 })
+        {
+            toolCalls = new RoleDialogModel[toolCallIdsByIndex.Count];
+
+            int i = 0;
+            foreach (KeyValuePair<int, string> toolCallIndexAndId in toolCallIdsByIndex)
+            {
+                string? functionName = null;
+                StringBuilder? functionArguments = null;
+
+                functionNamesByIndex?.TryGetValue(toolCallIndexAndId.Key, out functionName);
+                functionArgumentBuildersByIndex?.TryGetValue(toolCallIndexAndId.Key, out functionArguments);
+
+                toolCalls[i] = new RoleDialogModel(AgentRole.Function, string.Empty)
+                {
+                    FunctionName = functionName ?? string.Empty,
+                    FunctionArgs = functionArguments?.ToString() ?? string.Empty,
+                };
+                i++;
+            }
+
+            Debug.Assert(i == toolCalls.Length);
+        }
+
+        return toolCalls;
     }
 
     public void SetModelName(string model)

@@ -23,7 +23,7 @@ public class GenerateImageFn : IFunctionCallback
         var args = JsonSerializer.Deserialize<LlmContextIn>(message.FunctionArgs);
         Init(message);
         SetImageOptions();
-        
+
         var agentService = _services.GetRequiredService<IAgentService>();
         var agent = await agentService.LoadAgent(BuiltInAgentId.UtilityAssistant);
         var imageAgent = new Agent
@@ -58,7 +58,7 @@ public class GenerateImageFn : IFunctionCallback
     {
         try
         {
-            var completion = CompletionProvider.GetImageCompletion(_services, provider: "openai", model: "dall-e-3");
+            var completion = CompletionProvider.GetImageCompletion(_services, provider: "azure-openai", model: "dall-e-3");
             var text = !string.IsNullOrWhiteSpace(description) ? description : message.Content;
             var dialog = RoleDialogModel.From(message, AgentRole.User, text);
             var result = await completion.GetImageGeneration(agent, dialog);

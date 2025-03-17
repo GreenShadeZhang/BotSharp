@@ -33,6 +33,7 @@ public interface IRoutingService
     //void SetRecursiveCounter(int counter);
 
     Task<bool> InvokeAgent(string agentId, List<RoleDialogModel> dialogs);
+    Task<bool> InvokeAgentSseAsync(string agentId, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onResponseReceived);
     Task<bool> InvokeFunction(string name, RoleDialogModel messages);
     Task<RoleDialogModel> InstructLoop(RoleDialogModel message, List<RoleDialogModel> dialogs);
 
@@ -43,6 +44,8 @@ public interface IRoutingService
     /// <param name="message"></param>
     /// <returns></returns>
     Task<RoleDialogModel> InstructDirect(Agent agent, RoleDialogModel message);
+
+    Task<RoleDialogModel> InstructDirectSseAsync(Agent agent, RoleDialogModel message, Func<RoleDialogModel, Task> onResponseReceived);
 
     Task<string> GetConversationContent(List<RoleDialogModel> dialogs, int maxDialogCount = 100);
 
