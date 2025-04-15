@@ -8,5 +8,6 @@ public interface IExecutor
     Task<RoleDialogModel> Execute(IRoutingService routing,
         FunctionCallFromLlm inst,
         RoleDialogModel message,
-        List<RoleDialogModel> dialogs);
+        List<RoleDialogModel> dialogs,
+        Func<RoleDialogModel, Task> onStreamResponseReceived);
 }

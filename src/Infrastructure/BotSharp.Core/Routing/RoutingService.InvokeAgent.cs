@@ -4,7 +4,7 @@ namespace BotSharp.Core.Routing;
 
 public partial class RoutingService
 {
-    public async Task<bool> InvokeAgent(string agentId, List<RoleDialogModel> dialogs)
+    public async Task<bool> InvokeAgent(string agentId, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         var agentService = _services.GetRequiredService<IAgentService>();
         var agent = await agentService.LoadAgent(agentId);
@@ -26,12 +26,12 @@ public partial class RoutingService
             model = agentSettings.LlmConfig.Model;
         }
 
-        var chatCompletion = CompletionProvider.GetChatCompletion(_services, 
+        var chatCompletion = CompletionProvider.GetChatCompletion(_services,
             provider: provider,
             model: model);
 
         var message = dialogs.Last();
-        var response = await chatCompletion.GetChatCompletions(agent, dialogs);
+        var response = await chatCompletion.GetChatCompletionsAsync(agent, dialogs, onStreamResponseReceived);
 
         if (response.Role == AgentRole.Function)
         {
@@ -46,7 +46,7 @@ public partial class RoutingService
             message.Indication = response.Indication;
             message.CurrentAgentId = agent.Id;
 
-            await InvokeFunction(message, dialogs);
+            await InvokeFunction(message, dialogs, onStreamResponseReceived);
         }
         else
         {
@@ -66,7 +66,7 @@ public partial class RoutingService
         return true;
     }
 
-    private async Task<bool> InvokeFunction(RoleDialogModel message, List<RoleDialogModel> dialogs)
+    private async Task<bool> InvokeFunction(RoleDialogModel message, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         // execute function
         // Save states
@@ -102,7 +102,7 @@ public partial class RoutingService
 
                 // Send to Next LLM
                 var curAgentId = routing.Context.GetCurrentAgentId();
-                await InvokeAgent(curAgentId, dialogs);
+                await InvokeAgent(curAgentId, dialogs, onStreamResponseReceived);
             }
         }
         else

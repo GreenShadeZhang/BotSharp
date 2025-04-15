@@ -65,7 +65,8 @@ public class RuleEngine : IRuleEngine
             await convService.SendMessage(agent.Id,
                 message,
                 null,
-                msg => Task.CompletedTask);
+                msg => Task.CompletedTask,
+                stremMsg => Task.CompletedTask);
 
             convService.SaveStates();
 

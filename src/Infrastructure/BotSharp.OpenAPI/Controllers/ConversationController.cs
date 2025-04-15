@@ -381,7 +381,8 @@ public class ConversationController : ControllerBase
                 response.RichContent = msg.SecondaryRichContent ?? msg.RichContent;
                 response.Instruction = msg.Instruction;
                 response.Data = msg.Data;
-            });
+            },
+            stremMsg => Task.CompletedTask);
 
         var state = _services.GetRequiredService<IConversationStateService>();
         response.States = state.GetStates();
@@ -426,11 +427,15 @@ public class ConversationController : ControllerBase
             // responsed generated
             async msg =>
             {
-                response.Text = !string.IsNullOrEmpty(msg.SecondaryContent) ? msg.SecondaryContent : msg.Content;
-                response.Function = msg.FunctionName;
-                response.RichContent = msg.SecondaryRichContent ?? msg.RichContent;
-                response.Instruction = msg.Instruction;
-                response.Data = msg.Data;
+
+            },
+            async streamMsg =>
+            {
+                response.Text = !string.IsNullOrEmpty(streamMsg.SecondaryContent) ? streamMsg.SecondaryContent : streamMsg.Content;
+                response.Function = streamMsg.FunctionName;
+                response.RichContent = streamMsg.SecondaryRichContent ?? streamMsg.RichContent;
+                response.Instruction = streamMsg.Instruction;
+                response.Data = streamMsg.Data;
                 response.States = state.GetStates();
 
                 await OnChunkReceived(Response, response);

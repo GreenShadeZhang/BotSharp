@@ -26,7 +26,7 @@ public partial class RoutingService : IRoutingService
         _logger = logger;
     }
 
-    public async Task<RoleDialogModel> InstructDirect(Agent agent, RoleDialogModel message)
+    public async Task<RoleDialogModel> InstructDirect(Agent agent, RoleDialogModel message, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         var handlers = _services.GetServices<IRoutingHandler>();
 
@@ -50,7 +50,7 @@ public partial class RoutingService : IRoutingService
             ExecutingDirectly = true
         };
 
-        var result = await handler.Handle(this, inst, message);
+        var result = await handler.Handle(this, inst, message, onStreamResponseReceived);
 
         var response = dialogs.Last();
         response.MessageId = message.MessageId;

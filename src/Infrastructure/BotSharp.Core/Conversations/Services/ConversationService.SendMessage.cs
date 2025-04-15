@@ -10,7 +10,8 @@ public partial class ConversationService
     public async Task<bool> SendMessage(string agentId,
         RoleDialogModel message,
         PostbackMessageModel? replyMessage,
-        Func<RoleDialogModel, Task> onMessageReceived)
+        Func<RoleDialogModel, Task> onMessageReceived,
+        Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         var conversation = await GetConversationRecordOrCreateNew(agentId);
         var agentService = _services.GetRequiredService<IAgentService>();
@@ -91,11 +92,11 @@ public partial class ConversationService
 
             if (agent.Type == AgentType.Routing)
             {
-                response = await routing.InstructLoop(message, dialogs);
+                response = await routing.InstructLoop(message, dialogs, onStreamResponseReceived);
             }
             else
             {
-                response = await routing.InstructDirect(agent, message);
+                response = await routing.InstructDirect(agent, message, onStreamResponseReceived);
             }
 
             routing.Context.ResetRecursiveCounter();

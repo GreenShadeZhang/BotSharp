@@ -105,7 +105,8 @@ public partial class EvaluatingService : IEvaluatingService
         await conv.SendMessage(agentId,
             inputMsg,
             replyMessage: null,
-            async msg => response = msg);
+            async msg => response = msg,
+            async streamMsg => { });
 
         return response;
     }

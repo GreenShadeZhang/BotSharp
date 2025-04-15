@@ -1,8 +1,3 @@
-using BotSharp.Abstraction.Functions.Models;
-using BotSharp.Abstraction.Models;
-using BotSharp.Abstraction.Repositories;
-using BotSharp.Abstraction.Repositories.Filters;
-using BotSharp.Abstraction.Routing;
 using BotSharp.Abstraction.Routing.Settings;
 using BotSharp.Core.Routing.Reasoning;
 
@@ -30,12 +25,12 @@ public class ContinueExecuteTaskRoutingHandler : RoutingHandlerBase//, IRoutingH
         nameof(HFReasoner)
     };
 
-    public ContinueExecuteTaskRoutingHandler(IServiceProvider services, ILogger<ContinueExecuteTaskRoutingHandler> logger, RoutingSettings settings) 
+    public ContinueExecuteTaskRoutingHandler(IServiceProvider services, ILogger<ContinueExecuteTaskRoutingHandler> logger, RoutingSettings settings)
         : base(services, logger, settings)
     {
     }
 
-    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message)
+    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         var db = _services.GetRequiredService<IBotSharpRepository>();
         var filter = new AgentFilter { AgentNames = [inst.AgentName] };

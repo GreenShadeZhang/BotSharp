@@ -109,7 +109,8 @@ public class BotSharpConversationSideCar : IConversationSideCar
                 response.RichContent = msg.SecondaryRichContent ?? msg.RichContent;
                 response.Instruction = msg.Instruction;
                 response.Data = msg.Data;
-            });
+            },
+            stremMsg => Task.CompletedTask);
 
         return response;
     }

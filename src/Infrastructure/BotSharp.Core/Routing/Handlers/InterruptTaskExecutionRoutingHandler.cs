@@ -1,5 +1,3 @@
-using BotSharp.Abstraction.Functions.Models;
-using BotSharp.Abstraction.Routing;
 using BotSharp.Abstraction.Routing.Settings;
 using BotSharp.Core.Routing.Reasoning;
 
@@ -22,12 +20,12 @@ public class InterruptTaskExecutionRoutingHandler : RoutingHandlerBase//, IRouti
         nameof(HFReasoner)
     };
 
-    public InterruptTaskExecutionRoutingHandler(IServiceProvider services, ILogger<InterruptTaskExecutionRoutingHandler> logger, RoutingSettings settings) 
+    public InterruptTaskExecutionRoutingHandler(IServiceProvider services, ILogger<InterruptTaskExecutionRoutingHandler> logger, RoutingSettings settings)
         : base(services, logger, settings)
     {
     }
 
-    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message)
+    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         message.FunctionName = inst.Function;
         message.StopCompletion = true;

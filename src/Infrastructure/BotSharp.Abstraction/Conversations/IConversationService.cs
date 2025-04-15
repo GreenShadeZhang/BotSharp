@@ -1,4 +1,3 @@
-using BotSharp.Abstraction.Loggers.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 
 namespace BotSharp.Abstraction.Conversations;
@@ -35,11 +34,13 @@ public interface IConversationService
     /// <param name="lastDialog"></param>
     /// <param name="replyMessage"></param>
     /// <param name="onResponseReceived">Received the response from AI Agent</param>
+    /// <param name="onStreamResponseReceived">Received the stream response from AI Agent</param>
     /// <returns></returns>
     Task<bool> SendMessage(string agentId,
-        RoleDialogModel lastDialog, 
+        RoleDialogModel lastDialog,
         PostbackMessageModel? replyMessage,
-        Func<RoleDialogModel, Task> onResponseReceived);
+        Func<RoleDialogModel, Task> onResponseReceived,
+        Func<RoleDialogModel, Task> onStreamResponseReceived);
 
     List<RoleDialogModel> GetDialogHistory(int lastCount = 100, bool fromBreakpoint = true, IEnumerable<string>? includeMessageTypes = null);
     Task CleanHistory(string agentId);

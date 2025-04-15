@@ -18,12 +18,16 @@ public interface IChatCompletion
     Task<RoleDialogModel> GetChatCompletions(Agent agent,
         List<RoleDialogModel> conversations);
 
-    Task<bool> GetChatCompletionsAsync(Agent agent, 
-        List<RoleDialogModel> conversations, 
+    Task<RoleDialogModel> GetChatCompletionsAsync(Agent agent,
+    List<RoleDialogModel> conversations,
+    Func<RoleDialogModel, Task> onStreamResponseReceived);
+
+    Task<bool> GetChatCompletionsAsync(Agent agent,
+        List<RoleDialogModel> conversations,
         Func<RoleDialogModel, Task> onMessageReceived,
         Func<RoleDialogModel, Task> onFunctionExecuting);
 
-    Task<bool> GetChatCompletionsStreamingAsync(Agent agent, 
-        List<RoleDialogModel> conversations, 
+    Task<bool> GetChatCompletionsStreamingAsync(Agent agent,
+        List<RoleDialogModel> conversations,
         Func<RoleDialogModel, Task> onMessageReceived);
 }

@@ -29,12 +29,12 @@ public class RetrieveDataFromAgentRoutingHandler : RoutingHandlerBase//, IRoutin
         nameof(HFReasoner)
     };
 
-    public RetrieveDataFromAgentRoutingHandler(IServiceProvider services, ILogger<RetrieveDataFromAgentRoutingHandler> logger, RoutingSettings settings) 
+    public RetrieveDataFromAgentRoutingHandler(IServiceProvider services, ILogger<RetrieveDataFromAgentRoutingHandler> logger, RoutingSettings settings)
         : base(services, logger, settings)
     {
     }
 
-    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message)
+    public async Task<bool> Handle(IRoutingService routing, FunctionCallFromLlm inst, RoleDialogModel message, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         var context = _services.GetRequiredService<IRoutingContext>();
         var agentId = context.GetCurrentAgentId();
@@ -47,7 +47,7 @@ public class RetrieveDataFromAgentRoutingHandler : RoutingHandlerBase//, IRoutin
             }
         };
 
-        var ret = await routing.InvokeAgent(agentId, dialogs);
+        var ret = await routing.InvokeAgent(agentId, dialogs, onStreamResponseReceived);
         var response = dialogs.Last();
         inst.Response = response.Content;
 

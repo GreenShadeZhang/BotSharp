@@ -7,7 +7,7 @@ namespace BotSharp.Core.Routing;
 
 public partial class RoutingService
 {
-    public async Task<RoleDialogModel> InstructLoop(RoleDialogModel message, List<RoleDialogModel> dialogs)
+    public async Task<RoleDialogModel> InstructLoop(RoleDialogModel message, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         RoleDialogModel response = default;
 
@@ -69,12 +69,12 @@ public partial class RoutingService
             if (inst.HandleDialogsByPlanner)
             {
                 var dialogWithoutContext = reasoner.BeforeHandleContext(inst, message, dialogs);
-                response = await executor.Execute(this, inst, message, dialogWithoutContext);
+                response = await executor.Execute(this, inst, message, dialogWithoutContext, onStreamResponseReceived);
                 reasoner.AfterHandleContext(dialogs, dialogWithoutContext);
             }
             else
             {
-                response = await executor.Execute(this, inst, message, dialogs);
+                response = await executor.Execute(this, inst, message, dialogs, onStreamResponseReceived);
             }
 
             await reasoner.AgentExecuted(_router, inst, response, dialogs);

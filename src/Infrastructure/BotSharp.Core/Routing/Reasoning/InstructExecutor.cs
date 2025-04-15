@@ -16,7 +16,8 @@ public class InstructExecutor : IExecutor
     public async Task<RoleDialogModel> Execute(IRoutingService routing,
         FunctionCallFromLlm inst,
         RoleDialogModel message,
-        List<RoleDialogModel> dialogs)
+        List<RoleDialogModel> dialogs,
+        Func<RoleDialogModel, Task> onStreamResponseReceived)
     {
         message.Instruction = inst;
 
@@ -24,7 +25,7 @@ public class InstructExecutor : IExecutor
         var handler = handlers.FirstOrDefault(x => x.Name == inst.Function);
         handler.SetDialogs(dialogs);
 
-        var handled = await handler.Handle(routing, inst, message);
+        var handled = await handler.Handle(routing, inst, message, onStreamResponseReceived);
 
         // For client display purpose
         var response = dialogs.Last();
