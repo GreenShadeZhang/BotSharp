@@ -172,6 +172,11 @@ public sealed class MicrosoftExtensionsAIChatCompletionProvider : IChatCompletio
     public Task<bool> GetChatCompletionsStreamingAsync(Agent agent, List<RoleDialogModel> conversations, Func<RoleDialogModel, Task> onMessageReceived) =>
         throw new NotImplementedException();
 
+    public Task<RoleDialogModel> GetChatCompletionsAsync(Agent agent, List<RoleDialogModel> conversations, Func<RoleDialogModel, Task> onStreamResponseReceived)
+    {
+        throw new NotImplementedException();
+    }
+
     private sealed class NopAIFunction(string name, string description, JsonElement schema) : AIFunction
     {
         public override string Name => name;

@@ -156,4 +156,9 @@ public class PalmChatCompletionProvider : IChatCompletion
     {
         _model = model;
     }
+
+    public Task<RoleDialogModel> GetChatCompletionsAsync(Agent agent, List<RoleDialogModel> conversations, Func<RoleDialogModel, Task> onStreamResponseReceived)
+    {
+        throw new NotImplementedException();
+    }
 }

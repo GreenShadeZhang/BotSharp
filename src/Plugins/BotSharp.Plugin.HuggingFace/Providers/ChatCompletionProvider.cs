@@ -141,4 +141,9 @@ public class ChatCompletionProvider : IChatCompletion
 
         return msg;
     }
+
+    public Task<RoleDialogModel> GetChatCompletionsAsync(Agent agent, List<RoleDialogModel> conversations, Func<RoleDialogModel, Task> onStreamResponseReceived)
+    {
+        throw new NotImplementedException();
+    }
 }

@@ -101,7 +101,8 @@ public class TwilioMessageQueueService : BackgroundService
                     Content = msg.Content,
                     MessageId = msg.MessageId
                 };
-            }
+            },
+            stremMsg => Task.CompletedTask
         );
         reply.SpeechFileName = await GetReplySpeechFileName(message.ConversationId, reply, sp);
         reply.Hints = GetHints(reply);

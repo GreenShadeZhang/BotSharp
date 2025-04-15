@@ -87,7 +87,8 @@ public class ChatbotUiController : ControllerBase
             message,
             replyMessage: null,
             async msg => 
-                await OnChunkReceived(outputStream, msg));
+                await OnChunkReceived(outputStream, msg),
+            stremMsg => Task.CompletedTask);
 
         await OnEventCompleted(outputStream);
     }
