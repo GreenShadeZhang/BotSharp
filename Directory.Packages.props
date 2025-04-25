@@ -5,6 +5,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Concentus" Version="2.2.2" />
     <PackageVersion Include="EntityFramework" Version="6.4.4" />
     <PackageVersion Include="Google_GenerativeAI" Version="2.5.8" />
     <PackageVersion Include="Google_GenerativeAI.Live" Version="2.5.8" />
@@ -18,6 +19,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.21.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="SharpHook" Version="5.3.9" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.7" />
