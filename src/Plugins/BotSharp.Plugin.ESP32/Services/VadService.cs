@@ -1,12 +1,7 @@
 using BotSharp.Plugin.ESP32.Utils;
 using BotSharp.Plugin.ESP32.Vad;
 using Microsoft.Extensions.Options;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BotSharp.Plugin.ESP32.Services;
 
@@ -14,7 +9,7 @@ public class VadService : IDisposable
 {
     private readonly ILogger<VadService> _logger;
     private readonly OpusProcessor _opusDecoder;
-    private readonly SileroVadModel _sileroVadModel;
+    private readonly IVadModel _sileroVadModel;
     private readonly IServiceProvider _serviceProvider;
 
     // VAD参数
@@ -35,7 +30,7 @@ public class VadService : IDisposable
     public VadService(
         ILogger<VadService> logger,
         OpusProcessor opusDecoder,
-        SileroVadModel sileroVadModel,
+        IVadModel sileroVadModel,
         IOptions<VadOptions> vadOptions,
         TarsosNoiseReducer tarsosNoiseReducer,
         IServiceProvider serviceProvider)
@@ -67,13 +62,14 @@ public class VadService : IDisposable
             // 初始化噪声抑制器
             if (_enableNoiseReduction)
             {
-                _tarsosNoiseReducer = _serviceProvider.GetRequiredService<TarsosNoiseReducer>();
+                _tarsosNoiseReducer = new TarsosNoiseReducer();//_serviceProvider.GetRequiredService<TarsosNoiseReducer>();
                 _logger.LogInformation("噪声抑制器初始化成功");
             }
 
             // 检查SileroVadModel是否已注入
             if (_sileroVadModel != null)
             {
+                _sileroVadModel.Initialize();
                 _logger.LogInformation("VAD服务初始化成功，使用SileroVadModel进行语音活动检测");
             }
             else

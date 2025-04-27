@@ -8,7 +8,7 @@ namespace BotSharp.Plugin.ESP32.Utils;
 /// </summary>
 public class TarsosNoiseReducer
 {
-    private readonly ILogger<TarsosNoiseReducer> _logger;
+    private readonly ILogger<TarsosNoiseReducer>? _logger;
 
     // 采样率
     private readonly int _sampleRate = 16000;
@@ -31,10 +31,10 @@ public class TarsosNoiseReducer
     // 噪声地板
     private float _noiseFloor = 0.01f;
 
-    public TarsosNoiseReducer(ILogger<TarsosNoiseReducer> logger)
+    public TarsosNoiseReducer()
     {
-        _logger = logger;
-        _logger.LogInformation("噪声抑制处理器已初始化");
+        //_logger = logger;
+        _logger?.LogInformation("噪声抑制处理器已初始化");
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public class TarsosNoiseReducer
             throw new ArgumentException("频谱减法因子必须在1.0到3.0之间");
         }
         _spectralSubtractionFactor = factor;
-        _logger.LogInformation("频谱减法因子已更新为: {Factor}", factor);
+        _logger?.LogInformation("频谱减法因子已更新为: {Factor}", factor);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public class TarsosNoiseReducer
             throw new ArgumentException("噪声估计窗口必须在1到50帧之间");
         }
         _noiseEstimationFrames = frames;
-        _logger.LogInformation("噪声估计窗口已更新为: {Frames} 帧", frames);
+        _logger?.LogInformation("噪声估计窗口已更新为: {Frames} 帧", frames);
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ public class TarsosNoiseReducer
     {
         _sessionNoiseProfiles[sessionId] = new float[_bufferSize];
         _sessionTrainingFrames[sessionId] = 0;
-        _logger.LogInformation("会话 {SessionId} 的噪声估计已重置", sessionId);
+        _logger?.LogInformation("会话 {SessionId} 的噪声估计已重置", sessionId);
     }
 
     /// <summary>
@@ -255,6 +255,6 @@ public class TarsosNoiseReducer
     {
         _sessionNoiseProfiles.TryRemove(sessionId, out _);
         _sessionTrainingFrames.TryRemove(sessionId, out _);
-        _logger.LogInformation("会话 {SessionId} 的噪声减少器资源已清理", sessionId);
+        _logger?.LogInformation("会话 {SessionId} 的噪声减少器资源已清理", sessionId);
     }
 }

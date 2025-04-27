@@ -26,12 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Concentus" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="System.Reactive" />
   </ItemGroup>
 
 </Project>

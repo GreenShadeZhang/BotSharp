@@ -2,6 +2,7 @@ using BotSharp.Abstraction.MLTasks;
 using BotSharp.Abstraction.Realtime;
 using BotSharp.Abstraction.Realtime.Models;
 using BotSharp.Abstraction.Routing;
+using BotSharp.Plugin.ESP32.Services;
 using Microsoft.AspNetCore.Http;
 using System.Net.WebSockets;
 using Task = System.Threading.Tasks.Task;
@@ -26,6 +27,7 @@ public class XiaoZhiStreamMiddleware
     {
         var request = httpContext.Request;
 
+
         if (request.Path.StartsWithSegments("/xiaozhi/v1/"))
         {
             if (httpContext.WebSockets.IsWebSocketRequest)
@@ -33,10 +35,11 @@ public class XiaoZhiStreamMiddleware
                 var services = httpContext.RequestServices;
                 var agentId = string.Empty;
                 var conversationId = string.Empty;
+                var sessionId = Guid.NewGuid().ToString(); // 生成新的唯一ID
                 using WebSocket webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
                 try
                 {
-                    await HandleWebSocket(services, agentId, conversationId, webSocket);
+                    await HandleWebSocket(services, agentId, conversationId, sessionId, webSocket);
                 }
                 catch (Exception ex)
                 {
@@ -49,8 +52,9 @@ public class XiaoZhiStreamMiddleware
         await _next(httpContext);
     }
 
-    private async Task HandleWebSocket(IServiceProvider services, string agentId, string conversationId, WebSocket webSocket)
+    private async Task HandleWebSocket(IServiceProvider services, string agentId, string conversationId, string sessionId, WebSocket webSocket)
     {
+        var session = new WebSocketSession(sessionId, webSocket);
         var settings = services.GetRequiredService<RealtimeModelSettings>();
         var hub = services.GetRequiredService<IRealtimeHub>();
         var conn = hub.SetHubConnection(conversationId);
@@ -91,6 +95,10 @@ public class XiaoZhiStreamMiddleware
                 // 获取二进制数据
                 byte[] opusData = new byte[result.Count];
                 Array.Copy(buffer, opusData, result.Count);
+
+                
+                var dialogueService = services.GetRequiredService<DialogueService>();
+                await dialogueService.ProcessAudioData(session, opusData);
             }
 
         } while (!result.CloseStatus.HasValue);

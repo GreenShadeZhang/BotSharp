@@ -1,6 +1,11 @@
 using BotSharp.Abstraction.Plugins;
 using BotSharp.Abstraction.Settings;
+using BotSharp.Plugin.ESP32.Services;
 using BotSharp.Plugin.ESP32.Settings;
+using BotSharp.Plugin.ESP32.Stt;
+using BotSharp.Plugin.ESP32.Tts;
+using BotSharp.Plugin.ESP32.Utils;
+using BotSharp.Plugin.ESP32.Vad;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.WebSockets;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +28,25 @@ public class ESP32Plugin : IBotSharpAppPlugin
             return settingService.Bind<ESP32Setting>("ESP32");
         });
 
+        services.AddScoped<TarsosNoiseReducer>();
+        services.AddScoped<AudioService>();
+        services.AddScoped<DialogueService>();
+        services.AddScoped<SessionManager>();
+        services.AddScoped<VadService>();
+
+        services.AddScoped<ITtsService, AliyunTtsService>();
+        services.AddScoped<ISttService, AliyunSttService>();
+
+        services.AddScoped<IVadDetector, VadServiceAdapter>();
+
+        services.AddScoped<IVadModel, SileroVadModel>();
+
+        services.AddScoped<SttServiceFactory>();
+
+        services.AddScoped<TtsServiceFactory>();
+
+        services.AddScoped<OpusProcessor>();
+      
         // 添加WebSocket支持
         services.AddWebSockets(options =>
         {

@@ -87,7 +87,7 @@ public class SileroVadModel : IVadModel, IDisposable
 
             // 获取输出
             var output = results.First(x => x.Name == "output").AsEnumerable<float>().ToArray();
-            var newState = results.First(x => x.Name == "state").AsTensor<float>();
+            var newState = results.First(x => x.Name == "stateN").AsTensor<float>();
 
             // 更新状态
             _state = new float[2, 1, 128];
