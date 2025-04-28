@@ -86,55 +86,55 @@ public class SttServiceFactory
     /// </summary>
     public ISttService GetSttService(SysConfig config)
     {
-        if (config == null)
-        {
-            return GetDefaultSttService();
-        }
+        //if (config == null)
+        //{
+        //    return GetDefaultSttService();
+        //}
 
-        string provider = config.Provider;
+        //string provider = config.Provider;
 
-        // 如果是Vosk，直接使用全局共享的实例
-        if (DEFAULT_PROVIDER.Equals(provider))
-        {
-            // 如果Vosk还未初始化，尝试初始化
-            // Vosk初始化失败的情况
-            if (!_voskInitialized)
-            {
-                return null;
-            }
-            return _serviceCache[DEFAULT_PROVIDER];
-        }
+        //// 如果是Vosk，直接使用全局共享的实例
+        //if (DEFAULT_PROVIDER.Equals(provider))
+        //{
+        //    // 如果Vosk还未初始化，尝试初始化
+        //    // Vosk初始化失败的情况
+        //    if (!_voskInitialized)
+        //    {
+        //        return null;
+        //    }
+        //    return _serviceCache[DEFAULT_PROVIDER];
+        //}
 
-        // 对于API服务，使用"provider:configId"作为缓存键，确保每个配置使用独立的服务实例
-        int? configId = config.ConfigId;
-        string cacheKey = provider + ":" + (configId != null ? configId.ToString() : "default");
+        //// 对于API服务，使用"provider:configId"作为缓存键，确保每个配置使用独立的服务实例
+        //int? configId = config.ConfigId;
+        //string cacheKey = provider + ":" + (configId != null ? configId.ToString() : "default");
 
-        // 检查是否已有该配置的服务实例
-        if (_serviceCache.ContainsKey(cacheKey))
-        {
-            return _serviceCache[cacheKey];
-        }
+        //// 检查是否已有该配置的服务实例
+        //if (_serviceCache.ContainsKey(cacheKey))
+        //{
+        //    return _serviceCache[cacheKey];
+        //}
 
-        // 创建新的API服务实例
-        try
-        {
-            ISttService service = CreateApiService(config);
-            if (service != null)
-            {
-                _serviceCache[cacheKey] = service;
+        //// 创建新的API服务实例
+        //try
+        //{
+        //    ISttService service = CreateApiService(config);
+        //    if (service != null)
+        //    {
+        //        _serviceCache[cacheKey] = service;
 
-                // 如果没有备选默认服务，将此服务设为备选
-                if (_fallbackProvider == null)
-                {
-                    _fallbackProvider = cacheKey;
-                }
-                return service;
-            }
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "创建{Provider}服务失败, configId={ConfigId}", provider, configId);
-        }
+        //        // 如果没有备选默认服务，将此服务设为备选
+        //        if (_fallbackProvider == null)
+        //        {
+        //            _fallbackProvider = cacheKey;
+        //        }
+        //        return service;
+        //    }
+        //}
+        //catch (Exception e)
+        //{
+        //    _logger.LogError(e, "创建{Provider}服务失败, configId={ConfigId}", provider, configId);
+        //}
 
         return new AliyunSttService();
     }

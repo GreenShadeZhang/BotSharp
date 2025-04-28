@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="Concentus" />
+    <PackageReference Include="Microsoft.CognitiveServices.Speech" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
     <PackageReference Include="System.Reactive" />
   </ItemGroup>

@@ -12,6 +12,7 @@
     <PackageVersion Include="LLMSharp.Google.Palm" Version="1.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.StaticFiles" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.CognitiveServices.Speech" Version="1.43.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
@@ -43,6 +44,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
     <PackageVersion Include="NAudio" Version="2.2.1" />
     <PackageVersion Include="NAudio.Core" Version="2.2.1" />
+    <PackageVersion Include="TencentCloudSDK.Asr" Version="3.0.1229" />
     <PackageVersion Include="Whisper.net" Version="1.8.1" />
     <PackageVersion Include="Whisper.net.Runtime" Version="1.8.1" />
     <PackageVersion Include="NCrontab" Version="3.3.3" />

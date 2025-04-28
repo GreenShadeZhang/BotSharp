@@ -2,6 +2,7 @@ using BotSharp.Plugin.ESP32.Models;
 using BotSharp.Plugin.ESP32.Stt;
 using BotSharp.Plugin.ESP32.Tts;
 using System.Collections.Concurrent;
+using System.Reactive;
 using System.Reactive.Linq;
 
 namespace BotSharp.Plugin.ESP32.Services;
@@ -174,11 +175,11 @@ public class DialogueService
     /// <summary>
     /// 初始化流式语音识别
     /// </summary>
-    private async Task InitializeStreamingRecognition(
+    private Task<Unit> InitializeStreamingRecognition(
         WebSocketSession session,
         string sessionId,
-        SysConfig? sttConfig,
-        SysConfig? ttsConfig,
+        SysConfig sttConfig,
+        SysConfig ttsConfig,
         SysDevice device,
         byte[] initialAudio)
     {
@@ -190,12 +191,12 @@ public class DialogueService
         _sessionManager.SetStreamingState(sessionId, true);
 
         // 获取对应的STT服务
-        var sttService = _sttServiceFactory.GetSttService(sttConfig ?? new SysConfig());
+        var sttService = _sttServiceFactory.GetSttService(sttConfig);
 
         if (sttService == null)
         {
             _logger.LogError("无法获取STT服务 - Provider: {Provider}", sttConfig != null ? sttConfig.Provider : "null");
-            return;
+            return Task.FromResult(Unit.Default);
         }
 
         // 发送初始音频数据
@@ -204,73 +205,107 @@ public class DialogueService
             audioSink.OnNext(initialAudio);
         }
 
-        // 启动流式识别
-        try
-        {
-            string finalText = "";
-            await foreach (var text in sttService.StreamRecognition(audioSink.AsObservable()))
+        // 创建最终变量以在lambda中使用
+        var finalTtsConfig = ttsConfig;
+
+        // 启动流式识别，使用纯Rx.NET方式处理
+        sttService.StreamRecognition(audioSink)
+            // 发送中间识别结果
+            .Do(text =>
             {
-                // 发送中间识别结果
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    //await _messageService.SendMessage(session, "stt", "interim", text);
+                    // 将SendMessage的Observable转为订阅以确保执行
+                    Observable.FromAsync(
+                        () => { return Task.CompletedTask; }
+                        )
+                        .Subscribe(
+                            _ => { },
+                            error => _logger.LogError(error, "发送中间识别结果失败")
+                        );
                 }
-                finalText = text;
-            }
-
-            if (string.IsNullOrWhiteSpace(finalText))
+            })
+            .DefaultIfEmpty("")  // 确保即使没有结果也有一个空字符串
+            .LastAsync()  // 获取最终结果
+            .SelectMany(finalText =>
             {
-                return;
-            }
+                if (string.IsNullOrWhiteSpace(finalText))
+                {
+                    return Observable.Empty<Unit>();
+                }
 
-            // 记录语音识别完成时间并计算用时
-            long sttEndTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-            if (_sessionSttStartTimes.TryGetValue(sessionId, out var sttStartTime))
+                // 记录语音识别完成时间并计算用时
+                var sttEndTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                if (_sessionSttStartTimes.TryGetValue(sessionId, out var sttStartTime))
+                {
+                    var sttDuration = (sttEndTime - sttStartTime) / 1000.0;
+                    _logger.LogInformation("语音识别完成 - SessionId: {SessionId}, 用时: {Duration}秒, 识别结果: \"{Result}\"",
+                        sessionId, string.Format(_decimalFormat, sttDuration), finalText);
+                }
+
+                // 记录模型回复开始时间
+                _sessionLlmStartTimes[sessionId] = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+
+                // 初始化完整回复内容
+                _sessionFullResponses[sessionId] = new StringBuilder();
+
+                // 设置会话为非监听状态，防止处理自己的声音
+                _sessionManager.SetListeningState(sessionId, false);
+
+                // 初始化句子计数器
+                _sessionSentenceCounters.TryAdd(sessionId, 0);
+
+                // 初始化音频任务列表和待处理句子列表
+                _sessionAudioTasks.TryAdd(sessionId, new List<Task<string>>());
+                _sessionPendingSentences.TryAdd(sessionId, new List<PendingSentence>());
+
+                // 发送最终识别结果，并在发送完成后处理LLM响应
+                return Observable.FromAsync(() => { return Task.CompletedTask; })
+                    .SelectMany(_ =>
+                    {
+                        var completionSource = new TaskCompletionSource<Unit>();
+
+                        try
+                        {
+                            //// 使用句子切分处理流式响应
+                            //_llmManager.ChatStreamBySentence(device, finalText,
+                            //    (sentence, isStart, isEnd) =>
+                            //    {
+                            //        ProcessSentenceFromLlm(
+                            //            session,
+                            //            sessionId,
+                            //            sentence,
+                            //            isStart,
+                            //            isEnd,
+                            //            finalTtsConfig,
+                            //            device.VoiceName
+                            //        );
+                            //    });
+
+                            completionSource.SetResult(Unit.Default);
+                        }
+                        catch (Exception ex)
+                        {
+                            completionSource.SetException(ex);
+                        }
+
+                        return Observable.FromAsync(() => completionSource.Task);
+                    });
+            })
+            .Catch<Unit, Exception>(error =>
             {
-                double sttDuration = (sttEndTime - sttStartTime) / 1000.0;
-                _logger.LogInformation("语音识别完成 - SessionId: {SessionId}, 用时: {Duration}秒, 识别结果: \"{Text}\"",
-                    sessionId, sttDuration.ToString(_decimalFormat), finalText);
-            }
+                _logger.LogError(error, "流式识别错误: {ErrorMessage}", error.Message);
+                return Observable.Empty<Unit>();
+            })
+            .Subscribe(
+                _ => _logger.LogDebug("流式识别处理完成 - SessionId: {SessionId}", sessionId),
+                error => _logger.LogError(error, "流式识别处理异常: {ErrorMessage}", error.Message),
+                () => _logger.LogDebug("流式识别处理结束 - SessionId: {SessionId}", sessionId)
+            );
 
-            // 记录模型回复开始时间
-            _sessionLlmStartTimes[sessionId] = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-
-            // 初始化完整回复内容
-            _sessionFullResponses[sessionId] = new StringBuilder();
-
-            // 设置会话为非监听状态，防止处理自己的声音
-            _sessionManager.SetListeningState(sessionId, false);
-
-            // 初始化句子计数器
-            _sessionSentenceCounters.TryAdd(sessionId, 0);
-
-            // 初始化音频任务列表和待处理句子列表
-            _sessionAudioTasks.TryAdd(sessionId, new List<Task<string>>());
-            _sessionPendingSentences.TryAdd(sessionId, new List<PendingSentence>());
-
-            // 发送最终识别结果
-            //await _messageService.SendMessage(session, "stt", "final", finalText);
-
-            // 使用句子切分处理流式响应
-            //_llmManager.ChatStreamBySentence(device, finalText,
-            //    (sentence, isStart, isEnd) =>
-            //    {
-            //        ProcessSentenceFromLlm(
-            //            session,
-            //            sessionId,
-            //            sentence,
-            //            isStart,
-            //            isEnd,
-            //            ttsConfig,
-            //            device.VoiceName
-            //        );
-            //    });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "流式识别错误: {Message}", ex.Message);
-        }
+        return Task.FromResult(Unit.Default);
     }
+
 
     /// <summary>
     /// 处理从LLM接收到的句子

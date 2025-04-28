@@ -1,4 +1,9 @@
 using BotSharp.Plugin.ESP32.Models;
+using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
+
 
 namespace BotSharp.Plugin.ESP32.Stt;
 
@@ -7,15 +12,25 @@ public class AliyunSttService : ISttService
     private static readonly ILogger<AliyunSttService> _logger;
     private const string PROVIDER_NAME = "aliyun";
 
-    private readonly string _apiKey;
+    private readonly string _apiKey = "";
+    private readonly string _region = "eastus"; // 默认区域，可以从配置中读取
 
     public AliyunSttService()
     {
-
     }
+
     public AliyunSttService(SysConfig config)
     {
-        _apiKey = config.ApiKey;
+        //_apiKey = config.ApiKey;
+        // 可以从 config.ApiUrl 中提取区域信息，如果有的话
+        if (!string.IsNullOrEmpty(config.ApiUrl) && config.ApiUrl.Contains("."))
+        {
+            var parts = config.ApiUrl.Split('.');
+            if (parts.Length > 1)
+            {
+                _region = parts[0];
+            }
+        }
     }
 
     public string GetProviderName()
@@ -31,90 +46,108 @@ public class AliyunSttService : ISttService
     public string Recognition(byte[] audioData)
     {
         // 单次识别暂未实现，可以根据需要添加
-        _logger.LogWarning("阿里云单次识别未实现，请使用流式识别");
+        _logger?.LogWarning("阿里云单次识别未实现，请使用流式识别");
         return null;
     }
 
-    public Task<string> StreamRecognition(IObservable<byte[]> audioStream)
+    IObservable<string> ISttService.StreamRecognition(IObservable<byte[]> audioStream)
     {
-        return Task.FromResult(string.Empty);
-        //var resultSubject = new Subject<string>();
+        var resultSubject = new Subject<string>();
 
-        //var rxAudioStream = Observable.Create<ByteBuffer>(observer =>
-        //{
-        //    var subscription = audioStream.Subscribe(
-        //        bytes =>
-        //        {
-        //            var buffer = ByteBuffer.Wrap(bytes);
-        //            observer.OnNext(buffer);
-        //        },
-        //        observer.OnError,
-        //        observer.OnCompleted
-        //    );
+        // 创建语音配置
+        var config = SpeechConfig.FromSubscription(_apiKey, _region);
+        config.SpeechRecognitionLanguage = "zh-CN"; // 默认使用中文识别，可以根据需求调整
 
-        //    return Disposable.Create(() => subscription.Dispose());
-        //});
+        // 创建推送流
+        using var pushStream = AudioInputStream.CreatePushStream();
+        using var audioConfig = AudioConfig.FromStreamInput(pushStream);
 
-        //// 创建识别参数
-        //var param = new RecognitionParam.Builder()
-        //    .Model("paraformer-realtime-v2")
-        //    .Format("pcm") // 默认使用PCM格式，可以根据实际情况调整
-        //    .SampleRate(AudioUtils.SAMPLE_RATE)
-        //    .ApiKey(_apiKey)
-        //    .Build();
+        // 创建语音识别器
+        using var recognizer = new SpeechRecognizer(config, audioConfig);
 
-        //// 创建识别器
-        //var recognizer = new Recognition();
+        // 处理识别结果
+        recognizer.Recognized += (s, e) =>
+        {
+            if (e.Result.Reason == ResultReason.RecognizedSpeech)
+            {
+                var text = e.Result.Text;
+                _logger?.LogInformation("识别结果（完成）: {0}", text);
+                resultSubject.OnNext(text);
+            }
+        };
 
-        //// 在单独的线程中执行流式识别，避免阻塞
-        //Task.Run(() =>
-        //{
-        //    try
-        //    {
-        //        recognizer.StreamCall(param, rxAudioStream)
-        //            .Subscribe(result =>
-        //            {
-        //                if (result.IsSentenceEnd())
-        //                {
-        //                    string text = result.GetSentence().GetText();
-        //                    _logger.LogInformation("识别结果（完成）: {0}", text);
-        //                    resultSubject.OnNext(text);
-        //                }
-        //                else
-        //                {
-        //                    string text = result.GetSentence().GetText();
-        //                    _logger.LogDebug("识别结果（中间）: {0}", text);
-        //                    resultSubject.OnNext(text);
-        //                }
-        //            },
-        //            ex =>
-        //            {
-        //                _logger.LogError(ex, "流式语音识别失败");
-        //                resultSubject.OnError(ex);
-        //            },
-        //            () =>
-        //            {
-        //                // 识别完成
-        //                resultSubject.OnCompleted();
-        //            });
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        _logger.LogError(e, "流式语音识别失败");
-        //        resultSubject.OnError(e);
-        //    }
-        //});
+        // 处理中间识别结果
+        recognizer.Recognizing += (s, e) =>
+        {
+            if (e.Result.Reason == ResultReason.RecognizingSpeech)
+            {
+                var text = e.Result.Text;
+                _logger?.LogDebug("识别结果（中间）: {0}", text);
+                resultSubject.OnNext(text);
+            }
+        };
 
-        //return resultSubject.AsObservable();
-    }
+        // 处理错误
+        recognizer.Canceled += (s, e) =>
+        {
+            if (e.Reason == CancellationReason.Error)
+            {
+                var error = new Exception($"语音识别错误: {e.ErrorCode}, {e.ErrorDetails}");
+                _logger?.LogError(error, "流式语音识别失败");
+                resultSubject.OnError(error);
+            }
+        };
 
-    IAsyncEnumerable<string> ISttService.StreamRecognition(IObservable<byte[]> audioStream)
-    {
-        throw new NotImplementedException();
+        // 处理会话结束
+        recognizer.SessionStopped += (s, e) =>
+        {
+            _logger?.LogInformation("语音识别会话结束");
+            resultSubject.OnCompleted();
+        };
+
+        // 开始连续识别
+        recognizer.StartContinuousRecognitionAsync().GetAwaiter().GetResult();
+
+        // 订阅音频流
+        var subscription = audioStream.Subscribe(
+            bytes =>
+            {
+                try
+                {
+                    // 将音频数据写入推送流
+                    pushStream.Write(bytes);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "写入音频数据时发生错误");
+                    resultSubject.OnError(ex);
+                }
+            },
+            error =>
+            {
+                _logger?.LogError(error, "音频流发生错误");
+                recognizer.StopContinuousRecognitionAsync().GetAwaiter().GetResult();
+                resultSubject.OnError(error);
+            },
+            () =>
+            {
+                // 音频流结束，停止识别
+                pushStream.Close();
+                recognizer.StopContinuousRecognitionAsync().GetAwaiter().GetResult();
+            }
+        );
+
+        // 当订阅被取消时，清理资源
+        return resultSubject.AsObservable()
+            .Finally(() =>
+            {
+                subscription.Dispose();
+                recognizer.StopContinuousRecognitionAsync().GetAwaiter().GetResult();
+            });
     }
 }
 
-// These are placeholder classes to represent the Java equivalents
+// 为了兼容性保留的占位符类
 public class ByteBuffer
 {
     public static ByteBuffer Wrap(byte[] data) => new ByteBuffer();

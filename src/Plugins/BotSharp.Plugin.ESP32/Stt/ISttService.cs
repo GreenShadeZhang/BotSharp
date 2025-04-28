@@ -1,5 +1,4 @@
 namespace BotSharp.Plugin.ESP32.Stt;
-
 /// <summary>
 /// STT服务接口
 /// </summary>
@@ -22,7 +21,7 @@ public interface ISttService
     /// </summary>
     /// <param name="audioStream">音频数据流</param>
     /// <returns>识别的文本结果流</returns>
-    IAsyncEnumerable<string> StreamRecognition(IObservable<byte[]> audioStream);
+    IObservable<string> StreamRecognition(IObservable<byte[]> audioStream);
 
     /// <summary>
     /// 检查服务是否支持流式处理
