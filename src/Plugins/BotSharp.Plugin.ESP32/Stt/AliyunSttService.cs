@@ -116,6 +116,26 @@ public class AliyunSttService : ISttService
                 {
                     // 将音频数据写入推送流
                     pushStream.Write(bytes);
+                    try
+                    {
+                        // 添加数据有效性检查
+                        if (bytes != null && bytes.Length > 0)
+                        {
+                            // 将音频数据写入推送流
+                            pushStream.Write(bytes);
+                        }
+                        else
+                        {
+                            _logger?.LogWarning("收到空音频数据，已跳过");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "写入音频数据时发生错误: {0}, 数据长度: {1}",
+                            ex.Message, bytes?.Length ?? 0);
+                        resultSubject.OnError(ex);
+                    }
+
                 }
                 catch (Exception ex)
                 {
