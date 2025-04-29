@@ -181,6 +181,35 @@ public class AudioService
         _sessionStreamingQueues.TryRemove(sessionId, out _);
     }
 
+
+    /// <summary>
+    /// 处理音频PCM数据并转换为Opus格式
+    /// </summary>
+    /// <param name="sessionId">会话ID</param>
+    /// <param name="pcmData">音频数据</param>
+    /// <param name="sampleRate">采样率</param>
+    /// <param name="channels">通道数</param>
+    /// <returns>处理结果，包含opus数据和持续时间</returns>
+    public AudioProcessResult ProcessAudioBytes(string sessionId, byte[] pcmData, int sampleRate, int channels)
+    {
+        try
+        {
+            // 计算音频时长
+            long durationMs = CalculateAudioDuration(pcmData, sampleRate, channels);
+
+            // 转换为Opus格式
+            List<byte[]> opusFrames = _opusProcessor.ConvertPcmToOpus(sessionId, pcmData, sampleRate, channels, FRAME_DURATION_MS);
+
+            return new AudioProcessResult(opusFrames, durationMs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理音频文件失败:");
+            return new AudioProcessResult();
+        }
+    }
+
+
     /// <summary>
     /// 处理音频文件，提取PCM数据并转换为Opus格式
     /// </summary>
@@ -288,6 +317,62 @@ public class AudioService
         int bytesPerSample = 2;
         return (long)((pcmData.Length * 1000.0) / (sampleRate * channels * bytesPerSample));
     }
+
+
+    /// <summary>
+    /// 发送音频消息
+    /// </summary>
+    /// <param name="session">WebSocket会话</param>
+    /// <param name="pcmData">音频文件路径</param>
+    /// <param name="text">文本内容</param>
+    /// <param name="isStart">是否是整个对话的开始</param>
+    /// <param name="isEnd">是否是整个对话的结束</param>
+    /// <returns>Task</returns>
+    public async Task SendAudioBytesMessage(WebSocketSession session, byte[] pcmData, string text, bool isStart, bool isEnd)
+    {
+        string sessionId = session.Id;
+
+        // 确保会话已初始化
+        InitializeSession(sessionId);
+
+        // 获取消息序列号
+        int nextSeqNum;
+        _sessionMessageCounters.TryGetValue(sessionId, out int currentSeqNum);
+        nextSeqNum = currentSeqNum + 1;
+        _sessionMessageCounters[sessionId] = nextSeqNum;
+
+        try
+        {
+            // 处理音频文件，转换为Opus格式
+            AudioProcessResult audioResult = await Task.Run(() => ProcessAudioBytes(sessionId, pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_CHANNELS));
+
+            // 将任务添加到队列
+            AudioMessageTask task = new AudioMessageTask(
+                audioResult.OpusFrames,
+                text,
+                isStart,
+                isEnd,
+                null,
+                nextSeqNum);
+
+            _sessionAudioQueues[sessionId].Enqueue(task);
+
+            // 如果当前没有正在处理的任务，开始处理队列
+            bool processingFlag;
+            _sessionProcessingFlags.TryGetValue(sessionId, out processingFlag);
+            if (!processingFlag)
+            {
+                _sessionProcessingFlags[sessionId] = true;
+                await ProcessAudioQueue(session, sessionId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[消息#{SequenceNumber}-错误] 准备音频消息失败", nextSeqNum);
+        }
+    }
+
+
 
     /// <summary>
     /// 发送音频消息

@@ -1,4 +1,5 @@
 using BotSharp.Plugin.ESP32.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace BotSharp.Plugin.ESP32.Tts;
 
@@ -15,9 +16,12 @@ public class TtsServiceFactory
     // 默认 EDGE TTS 服务默认语音名称
     private static readonly string DEFAULT_VOICE = "zh-CN-XiaoyiNeural";
 
-    public TtsServiceFactory(ILogger<TtsServiceFactory> logger)
+    private readonly IConfiguration _configuration;
+
+    public TtsServiceFactory(ILogger<TtsServiceFactory> logger, IConfiguration configuration)
     {
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -25,6 +29,7 @@ public class TtsServiceFactory
     /// </summary>
     public ITtsService GetTtsService(SysConfig config, string voiceName)
     {
+        return new AzureTtsService(_configuration);
         string provider;
         // 如果提供商为空，则使用默认提供商
         if (config == null)
@@ -58,6 +63,7 @@ public class TtsServiceFactory
     /// </summary>
     private ITtsService CreateApiService(SysConfig config, string voiceName, string outputPath)
     {
+        return new AzureTtsService(_configuration);
         string provider = config.Provider;
 
         // 如果是Edge，直接返回Edge服务

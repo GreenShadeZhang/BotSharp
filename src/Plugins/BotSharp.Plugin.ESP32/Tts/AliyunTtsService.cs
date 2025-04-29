@@ -181,4 +181,9 @@ public class AliyunTtsService : ITtsService
         // TODO: Auto-generated method stub
         throw new NotImplementedException("Unimplemented method 'StreamTextToSpeech'");
     }
+
+    public Task<byte[]> TextToSpeechAsync(string text)
+    {
+        throw new NotImplementedException();
+    }
 }

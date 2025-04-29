@@ -30,6 +30,14 @@ public interface ITtsService
     string TextToSpeech(string text);
 
     /// <summary>
+    /// 将文本转换为语音字节数组
+    /// </summary>
+    /// <param name="text">要转换为语音的文本</param>
+    /// <returns>生成的字节数组</returns>
+    /// <exception cref="System.Exception">转换过程中可能发生的异常</exception>
+    Task<byte[]> TextToSpeechAsync(string text);
+
+    /// <summary>
     /// 流式将文本转换为语音
     /// </summary>
     /// <param name="text">要转换为语音的文本</param>

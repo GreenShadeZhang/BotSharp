@@ -199,15 +199,6 @@ public class DialogueService
             return Task.FromResult(Unit.Default);
         }
 
-        // 发送初始音频数据
-        if (initialAudio != null && initialAudio.Length > 0)
-        {
-            audioSink.OnNext(initialAudio);
-        }
-
-        // 创建最终变量以在lambda中使用
-        var finalTtsConfig = ttsConfig;
-
         // 启动流式识别，使用纯Rx.NET方式处理
         sttService.StreamRecognition(audioSink)
             // 发送中间识别结果
@@ -229,6 +220,24 @@ public class DialogueService
             .LastAsync()  // 获取最终结果
             .SelectMany(finalText =>
             {
+
+                // 获取对应的TTS服务
+                var ttsService = _ttsService.GetTtsService(null, "");
+
+                var audioBytes = ttsService.TextToSpeechAsync("你好我叫绿荫").GetAwaiter().GetResult();
+
+                // 发送音频消息
+                Task.Run(async () =>
+                {
+                    await _audioService.SendAudioBytesMessage(
+                        session,
+                        audioBytes,
+                        "你好我叫绿荫",
+                        false,
+                        true
+                    );
+                });
+
                 if (string.IsNullOrWhiteSpace(finalText))
                 {
                     return Observable.Empty<Unit>();
@@ -282,6 +291,7 @@ public class DialogueService
                             //        );
                             //    });
 
+
                             completionSource.SetResult(Unit.Default);
                         }
                         catch (Exception ex)
@@ -302,6 +312,16 @@ public class DialogueService
                 error => _logger.LogError(error, "流式识别处理异常: {ErrorMessage}", error.Message),
                 () => _logger.LogDebug("流式识别处理结束 - SessionId: {SessionId}", sessionId)
             );
+
+        // 发送初始音频数据
+        if (initialAudio != null && initialAudio.Length > 0)
+        {
+            audioSink.OnNext(initialAudio);
+        }
+
+        // 创建最终变量以在lambda中使用
+        var finalTtsConfig = ttsConfig;
+
 
         return Task.FromResult(Unit.Default);
     }
