@@ -23,6 +23,21 @@ public class WebSocketSession
     /// </summary>
     public bool IsOpen => _webSocket.State == WebSocketState.Open;
 
+    /// <summary>
+    /// 发送WebSocket消息
+    /// </summary>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    public async Task SendMessageAsync(string message)
+    {
+        if (_webSocket.State == WebSocketState.Open)
+        {
+            var buffer = Encoding.UTF8.GetBytes(message);
+            await _webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+
+        }
+    }
+
     public Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
     {
         return _webSocket.SendAsync(buffer, messageType, endOfMessage, cancellationToken);

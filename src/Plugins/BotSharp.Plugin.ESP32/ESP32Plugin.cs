@@ -1,5 +1,6 @@
 using BotSharp.Abstraction.Plugins;
 using BotSharp.Abstraction.Settings;
+using BotSharp.Plugin.ESP32.LLM;
 using BotSharp.Plugin.ESP32.Services;
 using BotSharp.Plugin.ESP32.Settings;
 using BotSharp.Plugin.ESP32.Stt;
@@ -33,6 +34,8 @@ public class ESP32Plugin : IBotSharpAppPlugin
         services.AddScoped<DialogueService>();
         services.AddScoped<SessionManager>();
         services.AddScoped<VadService>();
+        services.AddScoped<MessageService>();
+        services.AddScoped<LlmManager>();
 
         services.AddScoped<ITtsService, AliyunTtsService>();
         services.AddScoped<ISttService, AliyunSttService>();
@@ -46,7 +49,7 @@ public class ESP32Plugin : IBotSharpAppPlugin
         services.AddScoped<TtsServiceFactory>();
 
         services.AddScoped<OpusProcessor>();
-      
+
         // 添加WebSocket支持
         services.AddWebSockets(options =>
         {

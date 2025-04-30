@@ -1,3 +1,4 @@
+using BotSharp.Plugin.ESP32.LLM;
 using BotSharp.Plugin.ESP32.Models;
 using BotSharp.Plugin.ESP32.Stt;
 using BotSharp.Plugin.ESP32.Tts;
@@ -18,11 +19,13 @@ public class DialogueService
     // 用于格式化浮点数，保留2位小数
     private static readonly string _decimalFormat = "0.00";
 
+    private readonly LlmManager _llmManager;
     private readonly AudioService _audioService;
     private readonly TtsServiceFactory _ttsService;
     private readonly SttServiceFactory _sttServiceFactory;
     private readonly VadService _vadService;
     private readonly SessionManager _sessionManager;
+    private readonly MessageService _messageService;
 
     // 添加一个每个会话的句子序列号计数器
     private readonly ConcurrentDictionary<string, int> _sessionSentenceCounters = new ConcurrentDictionary<string, int>();
@@ -74,7 +77,9 @@ public class DialogueService
         TtsServiceFactory ttsService,
         SttServiceFactory sttServiceFactory,
         VadService vadService,
-        SessionManager sessionManager)
+        SessionManager sessionManager,
+        MessageService messageService,
+        LlmManager llmManager)
     {
         _logger = logger;
         _audioService = audioService;
@@ -82,6 +87,8 @@ public class DialogueService
         _sttServiceFactory = sttServiceFactory;
         _vadService = vadService;
         _sessionManager = sessionManager;
+        _messageService = messageService;
+        _llmManager = llmManager;
     }
 
     /// <summary>
@@ -199,6 +206,7 @@ public class DialogueService
             return Task.FromResult(Unit.Default);
         }
 
+
         // 启动流式识别，使用纯Rx.NET方式处理
         sttService.StreamRecognition(audioSink)
             // 发送中间识别结果
@@ -206,14 +214,7 @@ public class DialogueService
             {
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    // 将SendMessage的Observable转为订阅以确保执行
-                    Observable.FromAsync(
-                        () => { return Task.CompletedTask; }
-                        )
-                        .Subscribe(
-                            _ => { },
-                            error => _logger.LogError(error, "发送中间识别结果失败")
-                        );
+                    _messageService.SendMessageAsync(session, "stt", "interim", text).GetAwaiter().GetResult();
                 }
             })
             .DefaultIfEmpty("")  // 确保即使没有结果也有一个空字符串
@@ -273,31 +274,22 @@ public class DialogueService
                     .SelectMany(_ =>
                     {
                         var completionSource = new TaskCompletionSource<Unit>();
+                        // 发送最终识别结果
+                        _messageService.SendMessageAsync(session, "stt", "final", finalText).GetAwaiter().GetResult();
 
-                        try
-                        {
-                            //// 使用句子切分处理流式响应
-                            //_llmManager.ChatStreamBySentence(device, finalText,
-                            //    (sentence, isStart, isEnd) =>
-                            //    {
-                            //        ProcessSentenceFromLlm(
-                            //            session,
-                            //            sessionId,
-                            //            sentence,
-                            //            isStart,
-                            //            isEnd,
-                            //            finalTtsConfig,
-                            //            device.VoiceName
-                            //        );
-                            //    });
-
-
-                            completionSource.SetResult(Unit.Default);
-                        }
-                        catch (Exception ex)
-                        {
-                            completionSource.SetException(ex);
-                        }
+                        // 使用句子切分处理流式响应
+                        _llmManager.ChatStreamBySentence(device, finalText,
+                            (sentence, isStart, isEnd) =>
+                            {
+                                ProcessSentenceFromLlm(
+                                    session,
+                                    sessionId,
+                                    sentence,
+                                    isStart,
+                                    isEnd,
+                                    ttsConfig,
+                                    device.VoiceName);
+                            });
 
                         return Observable.FromAsync(() => completionSource.Task);
                     });
@@ -543,23 +535,23 @@ public class DialogueService
         _sessionAudioTasks.TryAdd(sessionId, new List<Task<string>>());
         _sessionPendingSentences.TryAdd(sessionId, new List<PendingSentence>());
 
-        // 发送识别结果
-        //await _messageService.SendMessage(session, "stt", "start", text);
+        //发送识别结果
+        await _messageService.SendMessageAsync(session, "stt", "start", text);
 
-        // 使用句子切分处理流式响应
-        //_llmManager.ChatStreamBySentence(device, text,
-        //    (sentence, isStart, isEnd) =>
-        //    {
-        //        ProcessSentenceFromLlm(
-        //            session,
-        //            sessionId,
-        //            sentence,
-        //            isStart,
-        //            isEnd,
-        //            ttsConfig,
-        //            device.VoiceName
-        //        );
-        //    });
+        ///使用句子切分处理流式响应
+        _llmManager.ChatStreamBySentence(device, text,
+            (sentence, isStart, isEnd) =>
+            {
+                ProcessSentenceFromLlm(
+                    session,
+                    sessionId,
+                    sentence,
+                    isStart,
+                    isEnd,
+                    ttsConfig,
+                    device.VoiceName
+                );
+            });
     }
 
     /// <summary>
