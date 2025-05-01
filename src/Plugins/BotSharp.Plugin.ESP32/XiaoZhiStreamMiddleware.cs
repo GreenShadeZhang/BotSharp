@@ -96,7 +96,7 @@ public class XiaoZhiStreamMiddleware
 
         } while (!result.CloseStatus.HasValue);
 
-        await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+        await webSocket.CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure, result.CloseStatusDescription, CancellationToken.None);
     }
 
 
@@ -110,7 +110,7 @@ public class XiaoZhiStreamMiddleware
 
             if (root.TryGetProperty("type", out JsonElement typeElement))
             {
-                string messageType = typeElement.GetString();
+                var messageType = typeElement.GetString();
 
                 // hello消息应该始终处理，无论设备是否绑定
                 if ("hello".Equals(messageType))
@@ -128,7 +128,7 @@ public class XiaoZhiStreamMiddleware
         }
     }
 
-    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string messageType, SysDevice device)
+    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string? messageType, SysDevice device)
     {
         switch (messageType)
         {
@@ -137,7 +137,7 @@ public class XiaoZhiStreamMiddleware
                 break;
             case "abort":
                 var dialogueService = services.GetRequiredService<DialogueService>();
-                string reason = null;
+                string? reason = null;
                 if (jsonElement.TryGetProperty("reason", out JsonElement reasonElement) && reasonElement.ValueKind != JsonValueKind.Null)
                 {
                     reason = reasonElement.GetString();
@@ -176,7 +176,7 @@ public class XiaoZhiStreamMiddleware
 
         // 解析音频参数
         JsonElement audioParams = jsonElement.GetProperty("audio_params");
-        string format = audioParams.TryGetProperty("format", out var formatElement) ? formatElement.GetString() : null;
+        var format = audioParams.TryGetProperty("format", out var formatElement) ? formatElement.GetString() : null;
         int sampleRate = audioParams.TryGetProperty("sample_rate", out var sampleRateElement) ? sampleRateElement.GetInt32() : 0;
         int channels = audioParams.TryGetProperty("channels", out var channelsElement) ? channelsElement.GetInt32() : 0;
         int frameDuration = audioParams.TryGetProperty("frame_duration", out var frameDurationElement) ? frameDurationElement.GetInt32() : 0;
@@ -208,8 +208,8 @@ public class XiaoZhiStreamMiddleware
     {
         string sessionId = session.Id;
         // 解析listen消息中的state和mode字段
-        string state = jsonElement.TryGetProperty("state", out var stateElement) ? stateElement.GetString() : null;
-        string mode = jsonElement.TryGetProperty("mode", out var modeElement) ? modeElement.GetString() : null;
+        string? state = jsonElement.TryGetProperty("state", out var stateElement) ? stateElement.GetString() : null;
+        string? mode = jsonElement.TryGetProperty("mode", out var modeElement) ? modeElement.GetString() : null;
 
         var dialogueService = services.GetRequiredService<DialogueService>();
 
@@ -243,7 +243,7 @@ public class XiaoZhiStreamMiddleware
                 break;
             case "detect":
                 // 检测到唤醒词
-                string text = jsonElement.TryGetProperty("text", out var textElement) ? textElement.GetString() : null;
+                var text = jsonElement.TryGetProperty("text", out var textElement) ? textElement.GetString() : null;
                 await dialogueService.HandleWakeWord(session, text);
                 break;
             default:
@@ -252,7 +252,7 @@ public class XiaoZhiStreamMiddleware
         }
     }
 
-    private async Task HandleIotMessage(IServiceProvider services, WebSocketSession session, JsonElement jsonElement)
+    private Task HandleIotMessage(IServiceProvider services, WebSocketSession session, JsonElement jsonElement)
     {
         string sessionId = session.Id;
         _logger.LogInformation("收到IoT消息 - SessionId: {SessionId}", sessionId);
@@ -270,5 +270,6 @@ public class XiaoZhiStreamMiddleware
             _logger.LogInformation("收到设备状态更新: {States}", states.ToString());
             // 处理设备状态更新的逻辑
         }
+        return Task.CompletedTask;
     }
 }

@@ -53,7 +53,7 @@ public class TtsServiceFactory
         catch (Exception e)
         {
             _logger.LogError(e, "创建{0}服务失败", provider);
-            return new AliyunTtsService(config, voiceName, OutputPath);
+            return new AzureTtsService(_configuration);
         }
 
     }
@@ -69,7 +69,7 @@ public class TtsServiceFactory
         // 如果是Edge，直接返回Edge服务
         if ("aliyun".Equals(provider))
         {
-            return new AliyunTtsService(config, voiceName, outputPath);
+            return new AzureTtsService(_configuration);
         }
         /*
         else if ("tencent".Equals(provider))

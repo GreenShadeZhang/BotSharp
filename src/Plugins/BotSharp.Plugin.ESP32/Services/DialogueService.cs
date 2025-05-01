@@ -144,7 +144,7 @@ public class DialogueService
                     _logger.LogInformation("语音识别开始 - SessionId: {SessionId}", sessionId);
 
                     // 初始化流式识别
-                    await InitializeStreamingRecognition(session, sessionId, sttConfig, ttsConfig, device, vadResult.ProcessedData);
+                    await InitializeStreamingRecognitionAsync(session, sessionId, sttConfig, ttsConfig, device, vadResult.ProcessedData);
                     break;
 
                 case VadStatus.SpeechContinue:
@@ -182,7 +182,7 @@ public class DialogueService
     /// <summary>
     /// 初始化流式语音识别
     /// </summary>
-    private Task<Unit> InitializeStreamingRecognition(
+    private Task<Unit> InitializeStreamingRecognitionAsync(
         WebSocketSession session,
         string sessionId,
         SysConfig sttConfig,
@@ -223,21 +223,21 @@ public class DialogueService
             {
 
                 // 获取对应的TTS服务
-                var ttsService = _ttsService.GetTtsService(null, "");
+                //var ttsService = _ttsService.GetTtsService(null, "");
 
-                var audioBytes = ttsService.TextToSpeechAsync("你好我叫绿荫").GetAwaiter().GetResult();
+                //var audioBytes = ttsService.TextToSpeechAsync("你好我叫绿荫").GetAwaiter().GetResult();
 
-                // 发送音频消息
-                Task.Run(async () =>
-                {
-                    await _audioService.SendAudioBytesMessage(
-                        session,
-                        audioBytes,
-                        "你好我叫绿荫",
-                        false,
-                        true
-                    );
-                });
+                //// 发送音频消息
+                //Task.Run(async () =>
+                //{
+                //    await _audioService.SendAudioBytesMessage(
+                //        session,
+                //        audioBytes,
+                //        finalText,
+                //        false,
+                //        true
+                //    );
+                //});
 
                 if (string.IsNullOrWhiteSpace(finalText))
                 {
@@ -288,7 +288,7 @@ public class DialogueService
                                     isStart,
                                     isEnd,
                                     ttsConfig,
-                                    device.VoiceName);
+                                    string.Empty);
                             });
 
                         return Observable.FromAsync(() => completionSource.Task);
@@ -504,7 +504,7 @@ public class DialogueService
     /// <summary>
     /// 处理语音唤醒
     /// </summary>
-    public async Task HandleWakeWord(WebSocketSession session, string text)
+    public async Task HandleWakeWord(WebSocketSession session, string? text)
     {
         string sessionId = session.Id;
         SysDevice? device = _sessionManager.GetDeviceConfig(sessionId);
@@ -560,7 +560,7 @@ public class DialogueService
     /// <param name="session">WebSocket会话</param>
     /// <param name="reason">中止原因</param>
     /// <returns>处理结果</returns>
-    public async Task AbortDialogue(WebSocketSession session, string reason)
+    public async Task AbortDialogue(WebSocketSession session, string? reason)
     {
         string sessionId = session.Id;
         _logger.LogInformation("中止对话 - SessionId: {SessionId}, Reason: {Reason}", sessionId, reason);

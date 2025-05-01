@@ -271,7 +271,7 @@ public class VadService : IDisposable
 
         lock (sessionLock)
         {
-            if (_sessionStates.TryGetValue(sessionId, out VadSessionState state))
+            if (_sessionStates.TryGetValue(sessionId, out var state))
             {
                 state.Reset();
             }
@@ -310,7 +310,7 @@ public class VadService : IDisposable
                 byte[] pcmData = _opusDecoder.DecodeOpusFrameToPcm(sessionId, opusData);
                 if (pcmData == null || pcmData.Length == 0)
                 {
-                    return new VadResult(VadStatus.NoSpeech, null);
+                    return new VadResult(VadStatus.NoSpeech, []);
                 }
 
                 // 添加到预缓冲区
@@ -389,13 +389,13 @@ public class VadService : IDisposable
                 else
                 {
                     // 没有检测到语音
-                    return new VadResult(VadStatus.NoSpeech, null);
+                    return new VadResult(VadStatus.NoSpeech, []);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "处理音频数据失败 - SessionId: {SessionId}", sessionId);
-                return new VadResult(VadStatus.Error, null);
+                return new VadResult(VadStatus.Error, []);
             }
         }
     }

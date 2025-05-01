@@ -59,6 +59,8 @@ public class LlmManager
     {
         try
         {
+            sentenceHandler(message, true, false);
+            return;
             string deviceId = device.DeviceId;
             string sessionId = device.SessionId;
 
