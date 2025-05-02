@@ -1,4 +1,4 @@
-using BotSharp.Plugin.ESP32.Models;
+using BotSharp.Plugin.ESP32.Settings;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using System.Reactive.Linq;
@@ -6,50 +6,28 @@ using System.Reactive.Subjects;
 
 namespace BotSharp.Plugin.ESP32.Stt;
 
-public class AliyunSttService : ISttService
+public class AzureSttProvider : ISttProvider
 {
-    private static readonly ILogger<AliyunSttService> _logger;
-    private const string PROVIDER_NAME = "aliyun";
-
-    private readonly string _apiKey = "";
-    private readonly string _region = "eastus"; // 默认区域，可以从配置中读取
-
-    public AliyunSttService()
+    private readonly ILogger<AzureSttProvider> _logger;
+    private readonly SpeechConfig _speechConfig;
+    public AzureSttProvider(ILogger<AzureSttProvider> logger, ESP32Setting settings)
     {
+        _logger = logger;
+        var apiKey = settings.AzureCognitiveServicesOptions.Key;
+        var region = settings.AzureCognitiveServicesOptions.Region ?? "eastus";
+        // 创建语音配置
+        var config = SpeechConfig.FromSubscription(apiKey, region);
+        config.SpeechRecognitionLanguage = "zh-CN"; // 默认使用中文识别，可以根据需求调整
+        _speechConfig = config;
     }
 
-    public AliyunSttService(SysConfig config)
-    {
-        //_apiKey = config.ApiKey;
-        // 可以从 config.ApiUrl 中提取区域信息，如果有的话
-        if (!string.IsNullOrEmpty(config.ApiUrl) && config.ApiUrl.Contains("."))
-        {
-            var parts = config.ApiUrl.Split('.');
-            if (parts.Length > 1)
-            {
-                _region = parts[0];
-            }
-        }
-    }
-
-    public string GetProviderName()
-    {
-        return PROVIDER_NAME;
-    }
-
+    public string Provider => "Azure";
     public bool SupportsStreaming()
     {
         return true;
     }
 
-    public string Recognition(byte[] audioData)
-    {
-        // 单次识别暂未实现，可以根据需要添加
-        _logger?.LogWarning("阿里云单次识别未实现，请使用流式识别");
-        return null;
-    }
-
-    IObservable<string> ISttService.StreamRecognition(IObservable<byte[]> audioStream)
+    IObservable<string> ISttProvider.StreamRecognition(IObservable<byte[]> audioStream)
     {
         var resultSubject = new Subject<string>();
         SpeechRecognizer recognizer = null;
@@ -73,16 +51,13 @@ public class AliyunSttService : ISttService
                     // 延迟初始化 - 只有在第一次收到有效数据时才创建识别器
                     if (!isInitialized)
                     {
-                        // 创建语音配置
-                        var config = SpeechConfig.FromSubscription(_apiKey, _region);
-                        config.SpeechRecognitionLanguage = "zh-CN"; // 默认使用中文识别，可以根据需求调整
 
                         // 创建推送流
                         pushStream = AudioInputStream.CreatePushStream();
                         audioConfig = AudioConfig.FromStreamInput(pushStream);
 
                         // 创建语音识别器
-                        recognizer = new SpeechRecognizer(config, audioConfig);
+                        recognizer = new SpeechRecognizer(_speechConfig, audioConfig);
 
                         // 处理识别结果
                         recognizer.Recognized += (s, e) =>
@@ -189,10 +164,6 @@ public class AliyunSttService : ISttService
             return string.Empty;
         }
 
-        // 创建语音配置
-        var config = SpeechConfig.FromSubscription(_apiKey, _region);
-        config.SpeechRecognitionLanguage = "zh-CN"; // 默认使用中文识别，可以根据需求调整
-
         // 创建一个TaskCompletionSource来等待识别结果
         var recognitionResult = new TaskCompletionSource<string>();
         var recognizedText = new StringBuilder();
@@ -204,7 +175,7 @@ public class AliyunSttService : ISttService
             using var audioConfig = AudioConfig.FromStreamInput(audioInputStream);
 
             // 创建语音识别器
-            using var recognizer = new SpeechRecognizer(config, audioConfig);
+            using var recognizer = new SpeechRecognizer(_speechConfig, audioConfig);
 
             // 处理识别结果
             recognizer.Recognized += (s, e) =>
@@ -281,38 +252,3 @@ public class AliyunSttService : ISttService
         }
     }
 }
-
-// 为了兼容性保留的占位符类
-public class ByteBuffer
-{
-    public static ByteBuffer Wrap(byte[] data) => new ByteBuffer();
-}
-
-public class RecognitionParam
-{
-    public class Builder
-    {
-        public Builder Model(string model) => this;
-        public Builder Format(string format) => this;
-        public Builder SampleRate(int sampleRate) => this;
-        public Builder ApiKey(string apiKey) => this;
-        public RecognitionParam Build() => new RecognitionParam();
-    }
-}
-
-public class RecognitionResult
-{
-    public bool IsSentenceEnd() => false;
-    public Sentence GetSentence() => new Sentence();
-}
-
-public class Sentence
-{
-    public string GetText() => "";
-}
-
-public static class AudioUtils
-{
-    public const int SAMPLE_RATE = 16000;
-}
-

@@ -2,19 +2,12 @@ namespace BotSharp.Plugin.ESP32.Stt;
 /// <summary>
 /// STT服务接口
 /// </summary>
-public interface ISttService
+public interface ISttProvider
 {
     /// <summary>
-    /// 获取服务提供商名称
+    /// 服务提供商名称
     /// </summary>
-    string GetProviderName();
-
-    /// <summary>
-    /// 处理音频数据（非流式）
-    /// </summary>
-    /// <param name="audioData">音频字节数组</param>
-    /// <returns>识别的文本结果</returns>
-    string Recognition(byte[] audioData);
+    string Provider { get; }
 
     /// <summary>
     /// 流式处理音频数据

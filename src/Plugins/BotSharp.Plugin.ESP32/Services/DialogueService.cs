@@ -22,8 +22,8 @@ public class DialogueService
 
     private readonly LlmManager _llmManager;
     private readonly AudioService _audioService;
-    private readonly TtsServiceFactory _ttsService;
-    private readonly SttServiceFactory _sttServiceFactory;
+    private readonly TtsProviderFactory _ttsService;
+    private readonly SttProviderFactory _sttServiceFactory;
     private readonly VadService _vadService;
     private readonly SessionManager _sessionManager;
     private readonly MessageService _messageService;
@@ -77,8 +77,8 @@ public class DialogueService
     public DialogueService(
         ILogger<DialogueService> logger,
         AudioService audioService,
-        TtsServiceFactory ttsService,
-        SttServiceFactory sttServiceFactory,
+        TtsProviderFactory ttsService,
+        SttProviderFactory sttServiceFactory,
         VadService vadService,
         SessionManager sessionManager,
         MessageService messageService,
@@ -203,7 +203,7 @@ public class DialogueService
         _sessionManager.SetStreamingState(sessionId, true);
 
         // 获取对应的STT服务
-        var sttService = _sttServiceFactory.GetSttService(sttConfig);
+        var sttService = _sttServiceFactory.CreateSttProvider();
 
         if (sttService == null)
         {
@@ -398,8 +398,15 @@ public class DialogueService
         {
             try
             {
+                var tts = _ttsService.CreateTtsProvider();
+                if (tts == null)
+                {
+                    _logger.LogError("无法获取TTS服务 - Provider: {Provider}", ttsConfig != null ? ttsConfig.Provider : "null");
+                    throw new InvalidOperationException("无法获取TTS服务");
+                }
+
                 // 调用TTS服务生成音频
-                string audioPath = _ttsService.GetTtsService(ttsConfig, voiceName).TextToSpeech(sentence);
+                string audioPath = tts.TextToSpeech(sentence);
 
                 // 计算TTS处理用时
                 long ttsDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - ttsStartTime;

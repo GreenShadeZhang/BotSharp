@@ -1,49 +1,42 @@
+using BotSharp.Plugin.ESP32.Settings;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
-using Microsoft.Extensions.Configuration;
 
 namespace BotSharp.Plugin.ESP32.Tts
 {
-    public class AzureTtsService : ITtsService
+    public class AzureTtsProvider : ITtsProvider
     {
-        private readonly IConfiguration _configuration;
         private string _outputFolder;
         private string _subscriptionKey;
         private string _region;
         private string _voice;
         private string _outputFormat;
+        private readonly ESP32Setting _settings;
 
-        public AzureTtsService(IConfiguration configuration)
+        public AzureTtsProvider(ESP32Setting settings)
         {
-            _configuration = configuration;
             // 从配置中获取Azure语音服务的设置
-            _subscriptionKey = _configuration["AzureSpeech:SubscriptionKey"] ?? "";
-            _region = _configuration["AzureSpeech:Region"] ?? "eastus";
-            _voice = _configuration["AzureSpeech:Voice"] ?? "zh-CN-XiaoxiaoNeural";
-            _outputFormat = _configuration["AzureSpeech:OutputFormat"] ?? "riff-16khz-16bit-mono-pcm";
-            _outputFolder = _configuration["AzureSpeech:OutputFolder"] ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tts_output");
+            _subscriptionKey = settings.AzureCognitiveServicesOptions.Key ?? "";
+            _region = settings.AzureCognitiveServicesOptions.Region ?? "eastus";
+            _voice = settings.AzureCognitiveServicesOptions.SpeechSynthesisVoiceName ?? "zh-CN-XiaoxiaoNeural";
+            _outputFormat = "riff-16khz-16bit-mono-pcm";
+            _outputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tts_output");
 
             // 确保输出目录存在
             if (!Directory.Exists(_outputFolder))
             {
                 Directory.CreateDirectory(_outputFolder);
             }
+
+            _settings = settings;
         }
+
+        public string Provider => "Azure";
 
         public string GetAudioFileName()
         {
             // 生成唯一的文件名
             return $"azure_tts_{Guid.NewGuid()}.wav";
-        }
-
-        public string GetProviderName()
-        {
-            return "Azure TTS";
-        }
-
-        public void StreamTextToSpeech(string text, Action<byte[]> audioDataConsumer)
-        {
-
         }
 
         public string TextToSpeech(string text)

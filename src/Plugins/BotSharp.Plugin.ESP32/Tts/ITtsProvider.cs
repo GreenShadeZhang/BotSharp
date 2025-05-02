@@ -1,19 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace BotSharp.Plugin.ESP32.Tts;
 /// <summary>
 /// TTS服务接口
 /// </summary>
-public interface ITtsService
+public interface ITtsProvider
 {
     /// <summary>
-    /// 获取服务提供商名称
+    /// 服务提供商名称
     /// </summary>
-    string GetProviderName();
+    string Provider { get; }
 
     /// <summary>
     /// 生成文件名称
@@ -36,12 +30,4 @@ public interface ITtsService
     /// <returns>生成的字节数组</returns>
     /// <exception cref="System.Exception">转换过程中可能发生的异常</exception>
     Task<byte[]> TextToSpeechAsync(string text);
-
-    /// <summary>
-    /// 流式将文本转换为语音
-    /// </summary>
-    /// <param name="text">要转换为语音的文本</param>
-    /// <param name="audioDataConsumer">音频数据消费者，接收PCM格式的音频数据块</param>
-    /// <exception cref="System.Exception">转换过程中可能发生的异常</exception>
-    void StreamTextToSpeech(string text, Action<byte[]> audioDataConsumer);
 }

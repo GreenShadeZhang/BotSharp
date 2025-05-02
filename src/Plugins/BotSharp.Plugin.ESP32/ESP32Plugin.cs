@@ -37,16 +37,16 @@ public class ESP32Plugin : IBotSharpAppPlugin
         services.AddScoped<MessageService>();
         services.AddScoped<LlmManager>();
 
-        services.AddScoped<ITtsService, AzureTtsService>();
-        services.AddScoped<ISttService, AliyunSttService>();
+        services.AddScoped<ITtsProvider, AzureTtsProvider>();
+        services.AddScoped<ISttProvider, AzureSttProvider>();
 
         services.AddScoped<IVadDetector, VadServiceAdapter>();
 
         services.AddScoped<IVadModel, SileroVadModel>();
 
-        services.AddScoped<SttServiceFactory>();
+        services.AddScoped<SttProviderFactory>();
 
-        services.AddScoped<TtsServiceFactory>();
+        services.AddScoped<TtsProviderFactory>();
 
         services.AddScoped<OpusProcessor>();
 
