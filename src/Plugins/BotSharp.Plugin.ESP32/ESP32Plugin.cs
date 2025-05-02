@@ -1,7 +1,11 @@
 using BotSharp.Abstraction.Plugins;
-using BotSharp.Abstraction.Settings;
+using BotSharp.Plugin.ESP32.Enums;
 using BotSharp.Plugin.ESP32.LLM;
+using BotSharp.Plugin.ESP32.Repository;
+using BotSharp.Plugin.ESP32.Repository.Enums;
+using BotSharp.Plugin.ESP32.Repository.LiteDB;
 using BotSharp.Plugin.ESP32.Services;
+using BotSharp.Plugin.ESP32.Services.Manager;
 using BotSharp.Plugin.ESP32.Settings;
 using BotSharp.Plugin.ESP32.Stt;
 using BotSharp.Plugin.ESP32.Tts;
@@ -21,13 +25,31 @@ public class ESP32Plugin : IBotSharpAppPlugin
     public string Description => "ESP32 xiaozhi";
     public string IconUrl => "https://w7.pngwing.com/pngs/918/671/png-transparent-twilio-full-logo-tech-companies.png";
 
+    public string[] AgentIds => new string[]
+{
+        IoTAgentId.IoTDefaultAgent
+};
+
     public void RegisterDI(IServiceCollection services, IConfiguration config)
     {
+        var settings = new ESP32Setting();
+        config.Bind("ESP32", settings);
+
         services.AddScoped(provider =>
         {
-            var settingService = provider.GetRequiredService<ISettingService>();
-            return settingService.Bind<ESP32Setting>("ESP32");
+            return settings;
         });
+
+        if (settings.DbDefault == IoTRepositoryEnum.LiteDBRepository)
+        {
+            services.AddScoped((IServiceProvider x) =>
+            {
+                var dbSettings = x.GetRequiredService<ESP32Setting>();
+                return new LiteDBIoTDbContext(settings);
+            });
+
+            services.AddScoped<IIoTDeviceRepository, LiteDBIoTDeviceRepository>();
+        }
 
         services.AddScoped<TarsosNoiseReducer>();
         services.AddScoped<AudioService>();
@@ -43,6 +65,8 @@ public class ESP32Plugin : IBotSharpAppPlugin
         services.AddScoped<IVadDetector, VadServiceAdapter>();
 
         services.AddScoped<IVadModel, SileroVadModel>();
+
+        services.AddScoped<IIoTDeviceService, IoTDeviceService>();
 
         services.AddScoped<SttProviderFactory>();
 

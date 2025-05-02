@@ -1,30 +1,30 @@
-namespace BotSharp.Plugin.ESP32.Models;
+namespace BotSharp.Plugin.ESP32.Repository.Entities;
 
 /// <summary>
-/// 设备表
+/// 设备实体
 /// </summary>
 public class IoTDevice
 {
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 智能体ID
+    /// </summary>
+    public string AgentId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 框架的对话ID
+    /// </summary>
+    public string ConversationId { get; set; } = string.Empty;
     /// <summary>
     /// 设备ID
     /// </summary>
     public string DeviceId { get; set; } = string.Empty;
 
     /// <summary>
-    /// 会话ID
+    /// socket会话ID
     /// </summary>
     public string SessionId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 模型ID
-    /// </summary>
-    public int ModelId { get; set; }
-
-    /// <summary>
-    /// STT ID
-    /// </summary>
-    public int SttId { get; set; }
 
     /// <summary>
     /// 设备名称
@@ -75,12 +75,4 @@ public class IoTDevice
     /// 固件版本
     /// </summary>
     public string Version { get; set; } = string.Empty;
-
-    public override string ToString()
-    {
-        return $"SysDevice [DeviceId={DeviceId}, SessionId={SessionId}, ModelId={ModelId}, SttId={SttId}, " +
-               $"DeviceName={DeviceName}, State={State}, TotalMessage={TotalMessage}, Code={Code}, " +
-               $"AudioPath={AudioPath}, LastLogin={LastLogin}, WifiName={WifiName}, Ip={Ip}, " +
-               $"ChipModelName={ChipModelName}, Version={Version}]";
-    }
 }

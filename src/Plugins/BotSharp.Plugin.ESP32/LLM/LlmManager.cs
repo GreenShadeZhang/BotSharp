@@ -54,7 +54,7 @@ public class LlmManager
     /// <param name="device">设备信息</param>
     /// <param name="message">用户消息</param>
     /// <param name="sentenceHandler">句子处理函数，接收句子内容、是否是开始句子、是否是结束句子</param>
-    public void ChatStreamBySentence(IoTDevice device, string message,
+    public void ChatStreamBySentence(IoTDeviceModel device, string message,
         Action<string, bool, bool> sentenceHandler)
     {
         try

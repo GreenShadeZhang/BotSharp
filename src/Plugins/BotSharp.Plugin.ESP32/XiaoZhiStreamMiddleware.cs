@@ -1,8 +1,8 @@
-using BotSharp.Abstraction.Realtime;
-using BotSharp.Abstraction.Realtime.Models;
-using BotSharp.Abstraction.Routing;
+using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.ESP32.Enums;
 using BotSharp.Plugin.ESP32.Models;
 using BotSharp.Plugin.ESP32.Services;
+using BotSharp.Plugin.ESP32.Services.Manager;
 using Microsoft.AspNetCore.Http;
 using System.Net.WebSockets;
 
@@ -32,45 +32,107 @@ public class XiaoZhiStreamMiddleware
             if (httpContext.WebSockets.IsWebSocketRequest)
             {
                 var services = httpContext.RequestServices;
-                var agentId = string.Empty;
-                var conversationId = string.Empty;
+
+                var sessionManager = services.GetRequiredService<SessionManager>();
+                var deviceService = services.GetRequiredService<IIoTDeviceService>();
+                var agentService = services.GetRequiredService<IAgentService>();
+                var conversationService = services.GetRequiredService<IConversationService>();
                 var sessionId = Guid.NewGuid().ToString(); // 生成新的唯一ID
+                // Try to get device ID from request headers by priority order
+                string[] deviceKeys = { "device-Id", "mac_address", "uuid" };
+                string? deviceId = null;
+
+                foreach (string key in deviceKeys)
+                {
+                    if (httpContext.Request.Headers.TryGetValue(key, out var values))
+                    {
+                        deviceId = values.FirstOrDefault();
+                        if (!string.IsNullOrEmpty(deviceId))
+                            break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(deviceId))
+                {
+                    _logger.LogError("Device ID is empty");
+                    return;
+                }
+
+                var devices = await deviceService.QueryAsync(new IoTDeviceModel { DeviceId = deviceId });
+
+                IoTDeviceModel device;
+
+                if (devices.Count == 0)
+                {
+                    var agent = new Agent
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        InheritAgentId = IoTAgentId.IoTDefaultAgent,
+                        Name = $"IoT-{DateTime.Now.Ticks}",
+                        Description = "IoT Device",
+                    };
+
+                    var data = await agentService.CreateAgent(agent);
+
+                    var conversation = new Conversation
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        AgentId = data.Id,
+                        Title = agent.Name,
+                    };
+
+                    var conv = await conversationService.NewConversation(conversation);
+
+                    device = new IoTDeviceModel
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        AgentId = data.Id,
+                        ConversationId = conv.Id,
+                        DeviceId = deviceId,
+                        SessionId = sessionId
+                    };
+                    await deviceService.AddAsync(device);
+                }
+                else
+                {
+                    device = devices[0];
+                    device.SessionId = sessionId;
+                }
+
+                sessionManager.RegisterDevice(sessionId, device);
+
+                _logger.LogInformation("WebSocket connection established successfully - SessionId: {SessionId}, DeviceId: {DeviceId}", sessionId, deviceId);
+
+                // Update device status
+                await deviceService.UpdateAsync(new IoTDeviceModel
+                {
+                    DeviceId = device.DeviceId,
+                    State = "1",
+                    LastLogin = DateTime.Now.ToString()
+                });
+
                 using WebSocket webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+
                 try
                 {
-                    await HandleWebSocket(services, agentId, conversationId, sessionId, webSocket);
+                    await HandleWebSocket(services, sessionId, webSocket);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Error in WebSocket communication: {ex.Message} for conversation {conversationId}");
+                    _logger.LogError(ex, $"Error in WebSocket communication: {ex.Message}");
                 }
                 return;
             }
         }
-
         await _next(httpContext);
     }
 
-    private async Task HandleWebSocket(IServiceProvider services, string agentId, string conversationId, string sessionId, WebSocket webSocket)
+    private async Task HandleWebSocket(IServiceProvider services, string sessionId, WebSocket webSocket)
     {
         var session = new WebSocketSession(sessionId, webSocket);
-        var settings = services.GetRequiredService<RealtimeModelSettings>();
-        var hub = services.GetRequiredService<IRealtimeHub>();
-        var conn = hub.SetHubConnection(conversationId);
-        conn.CurrentAgentId = agentId;
-
-        // load conversation and state
-        var convService = services.GetRequiredService<IConversationService>();
-        convService.SetConversationId(conversationId, []);
-
-        convService.States.Save();
-
-        var routing = services.GetRequiredService<IRoutingService>();
-        routing.Context.Push(agentId);
 
         var buffer = new byte[1024 * 32];
         WebSocketReceiveResult result;
-
         do
         {
             Array.Clear(buffer, 0, buffer.Length);
@@ -128,7 +190,7 @@ public class XiaoZhiStreamMiddleware
         }
     }
 
-    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string? messageType, IoTDevice device)
+    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string? messageType, IoTDeviceModel device)
     {
         switch (messageType)
         {

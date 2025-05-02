@@ -19,7 +19,7 @@ public class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, WebSocketSession> _sessions = new ConcurrentDictionary<string, WebSocketSession>();
 
     // 用于存储会话和设备的映射关系
-    private readonly ConcurrentDictionary<string, IoTDevice> _deviceConfigs = new ConcurrentDictionary<string, IoTDevice>();
+    private readonly ConcurrentDictionary<string, IoTDeviceModel> _deviceConfigs = new ConcurrentDictionary<string, IoTDeviceModel>();
 
     private readonly ConcurrentDictionary<int, SysConfig> _configCache = new ConcurrentDictionary<int, SysConfig>();
 
@@ -134,7 +134,7 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <param name="device">设备信息</param>
-    public void RegisterDevice(string sessionId, IoTDevice device)
+    public void RegisterDevice(string sessionId, IoTDeviceModel device)
     {
         // 先检查是否已存在该sessionId的配置
         if (_deviceConfigs.TryGetValue(sessionId, out _))
@@ -192,7 +192,7 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <returns>设备配置</returns>
-    public IoTDevice? GetDeviceConfig(string sessionId)
+    public IoTDeviceModel? GetDeviceConfig(string sessionId)
     {
         _deviceConfigs.TryGetValue(sessionId, out var device);
         return device;

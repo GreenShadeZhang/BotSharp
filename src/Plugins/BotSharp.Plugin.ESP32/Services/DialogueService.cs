@@ -108,23 +108,10 @@ public class DialogueService
         var device = _sessionManager.GetDeviceConfig(sessionId);
 
         // 如果设备未注册或不在监听状态，忽略音频数据
-        //if (device == null || !_sessionManager.IsListening(sessionId))
-        //{
-        //    return;
-        //}
-
-        SysConfig? sttConfig = null;
-        SysConfig? ttsConfig = null;
-
-        //if (device.SttId > 0)
-        //{
-        //    sttConfig = _sessionManager.GetCachedConfig(device.SttId);
-        //}
-
-        //if (device.TtsId > 0)
-        //{
-        //    ttsConfig = _sessionManager.GetCachedConfig(device.TtsId);
-        //}
+        if (device == null || !_sessionManager.IsListening(sessionId))
+        {
+            return;
+        }
 
         try
         {
@@ -149,7 +136,7 @@ public class DialogueService
                     _logger.LogInformation("语音识别开始 - SessionId: {SessionId}", sessionId);
 
                     // 初始化流式识别
-                    await InitializeStreamingRecognitionAsync(session, sessionId, sttConfig, ttsConfig, device, vadResult.ProcessedData);
+                    await InitializeStreamingRecognitionAsync(session, sessionId, device, vadResult.ProcessedData);
                     break;
 
                 case VadStatus.SpeechContinue:
@@ -190,9 +177,7 @@ public class DialogueService
     private Task<Unit> InitializeStreamingRecognitionAsync(
         WebSocketSession session,
         string sessionId,
-        SysConfig sttConfig,
-        SysConfig ttsConfig,
-        IoTDevice device,
+        IoTDeviceModel device,
         byte[] initialAudio)
     {
         // 如果已经在进行流式识别，先清理旧的资源
@@ -207,10 +192,9 @@ public class DialogueService
 
         if (sttService == null)
         {
-            _logger.LogError("无法获取STT服务 - Provider: {Provider}", sttConfig != null ? sttConfig.Provider : "null");
+            _logger.LogError("无法获取STT服务");
             return Task.FromResult(Unit.Default);
         }
-
 
         // 启动流式识别，使用纯Rx.NET方式处理
         sttService.StreamRecognition(audioSink)
@@ -226,23 +210,6 @@ public class DialogueService
             .LastAsync()  // 获取最终结果
             .SelectMany(finalText =>
             {
-
-                // 获取对应的TTS服务
-                //var ttsService = _ttsService.GetTtsService(null, "");
-
-                //var audioBytes = ttsService.TextToSpeechAsync("你好我叫绿荫").GetAwaiter().GetResult();
-
-                //// 发送音频消息
-                //Task.Run(async () =>
-                //{
-                //    await _audioService.SendAudioBytesMessage(
-                //        session,
-                //        audioBytes,
-                //        finalText,
-                //        false,
-                //        true
-                //    );
-                //});
 
                 if (string.IsNullOrWhiteSpace(finalText))
                 {
@@ -292,7 +259,6 @@ public class DialogueService
                                     sentence,
                                     isStart,
                                     isEnd,
-                                    ttsConfig,
                                     string.Empty);
                             });
 
@@ -316,9 +282,6 @@ public class DialogueService
             audioSink.OnNext(initialAudio);
         }
 
-        // 创建最终变量以在lambda中使用
-        var finalTtsConfig = ttsConfig;
-
 
         return Task.FromResult(Unit.Default);
     }
@@ -333,7 +296,6 @@ public class DialogueService
         string sentence,
         bool isStart,
         bool isEnd,
-        SysConfig? ttsConfig,
         string voiceName)
     {
         // 获取句子序列号
@@ -363,7 +325,7 @@ public class DialogueService
         }
 
         // 并发生成音频
-        var audioFuture = GenerateAudioAsync(sessionId, sentence, ttsConfig, voiceName, sentenceNumber, modelResponseTime);
+        var audioFuture = GenerateAudioAsync(sessionId, sentence, voiceName, sentenceNumber, modelResponseTime);
 
         // 设置句子的音频Future
         pendingSentence.SetAudioFuture(audioFuture);
@@ -385,7 +347,6 @@ public class DialogueService
     private Task<string> GenerateAudioAsync(
         string sessionId,
         string sentence,
-        SysConfig? ttsConfig,
         string voiceName,
         int sentenceNumber,
         double modelResponseTime)
@@ -401,7 +362,7 @@ public class DialogueService
                 var tts = _ttsService.CreateTtsProvider();
                 if (tts == null)
                 {
-                    _logger.LogError("无法获取TTS服务 - Provider: {Provider}", ttsConfig != null ? ttsConfig.Provider : "null");
+                    _logger.LogError("无法获取TTS服务");
                     throw new InvalidOperationException("无法获取TTS服务");
                 }
 
@@ -519,7 +480,7 @@ public class DialogueService
     public async Task HandleWakeWord(WebSocketSession session, string? text)
     {
         string sessionId = session.Id;
-        IoTDevice? device = _sessionManager.GetDeviceConfig(sessionId);
+        IoTDeviceModel? device = _sessionManager.GetDeviceConfig(sessionId);
 
         if (device == null)
         {
@@ -560,7 +521,6 @@ public class DialogueService
                     sentence,
                     isStart,
                     isEnd,
-                    ttsConfig,
                     string.Empty//device.VoiceName
                 );
             });

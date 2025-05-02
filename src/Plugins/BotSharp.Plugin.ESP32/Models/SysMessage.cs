@@ -4,7 +4,7 @@ namespace BotSharp.Plugin.ESP32.Models;
 /// 聊天记录表
 /// </summary>
 /// <author>Joey</author>
-public class SysMessage : IoTDevice
+public class SysMessage : IoTDeviceModel
 {
     private int? messageId;
     private string deviceId;
