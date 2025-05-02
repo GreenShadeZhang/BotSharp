@@ -19,7 +19,8 @@ public class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, WebSocketSession> _sessions = new ConcurrentDictionary<string, WebSocketSession>();
 
     // 用于存储会话和设备的映射关系
-    private readonly ConcurrentDictionary<string, SysDevice> _deviceConfigs = new ConcurrentDictionary<string, SysDevice>();
+    private readonly ConcurrentDictionary<string, IoTDevice> _deviceConfigs = new ConcurrentDictionary<string, IoTDevice>();
+
     private readonly ConcurrentDictionary<int, SysConfig> _configCache = new ConcurrentDictionary<int, SysConfig>();
 
     // 用于跟踪会话是否处于监听状态
@@ -102,7 +103,7 @@ public class SessionManager : IDisposable
     public void CloseSession(string sessionId)
     {
         // 关闭会话
-        if (_sessions.TryRemove(sessionId, out WebSocketSession session))
+        if (_sessions.TryRemove(sessionId, out var session))
         {
             try
             {
@@ -120,7 +121,7 @@ public class SessionManager : IDisposable
         _lastActivityTime.TryRemove(sessionId, out _); // 清理活动时间记录
 
         // 清理音频流
-        if (_audioSinks.TryRemove(sessionId, out ISubject<byte[]> sink))
+        if (_audioSinks.TryRemove(sessionId, out var sink))
         {
             sink.OnCompleted();
         }
@@ -133,7 +134,7 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <param name="device">设备信息</param>
-    public void RegisterDevice(string sessionId, SysDevice device)
+    public void RegisterDevice(string sessionId, IoTDevice device)
     {
         // 先检查是否已存在该sessionId的配置
         if (_deviceConfigs.TryGetValue(sessionId, out _))
@@ -163,9 +164,9 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <returns>WebSocket会话</returns>
-    public WebSocketSession GetSession(string sessionId)
+    public WebSocketSession? GetSession(string sessionId)
     {
-        _sessions.TryGetValue(sessionId, out WebSocketSession session);
+        _sessions.TryGetValue(sessionId, out var session);
         return session;
     }
 
@@ -174,7 +175,7 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="deviceId">设备ID</param>
     /// <returns>会话ID</returns>
-    public string GetSessionByDeviceId(string deviceId)
+    public string? GetSessionByDeviceId(string deviceId)
     {
         foreach (var kvp in _deviceConfigs)
         {
@@ -191,9 +192,9 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <returns>设备配置</returns>
-    public SysDevice GetDeviceConfig(string sessionId)
+    public IoTDevice? GetDeviceConfig(string sessionId)
     {
-        _deviceConfigs.TryGetValue(sessionId, out SysDevice device);
+        _deviceConfigs.TryGetValue(sessionId, out var device);
         return device;
     }
 
@@ -202,9 +203,9 @@ public class SessionManager : IDisposable
     /// </summary>
     /// <param name="configId">配置ID</param>
     /// <returns>配置信息</returns>
-    public SysConfig GetCachedConfig(int configId)
+    public SysConfig? GetCachedConfig(int configId)
     {
-        _configCache.TryGetValue(configId, out SysConfig config);
+        _configCache.TryGetValue(configId, out var config);
         return config;
     }
 
@@ -270,7 +271,7 @@ public class SessionManager : IDisposable
     /// <returns>音频数据接收器</returns>
     public ISubject<byte[]> GetAudioSink(string sessionId)
     {
-        _audioSinks.TryGetValue(sessionId, out ISubject<byte[]> sink);
+        _audioSinks.TryGetValue(sessionId, out var sink);
         return sink;
     }
 
@@ -280,7 +281,7 @@ public class SessionManager : IDisposable
     /// <param name="sessionId">会话ID</param>
     public void CloseAudioSink(string sessionId)
     {
-        if (_audioSinks.TryGetValue(sessionId, out ISubject<byte[]> sink))
+        if (_audioSinks.TryGetValue(sessionId, out var sink))
         {
             sink.OnCompleted();
         }

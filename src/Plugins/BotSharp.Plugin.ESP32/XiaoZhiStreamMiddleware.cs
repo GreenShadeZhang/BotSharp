@@ -128,7 +128,7 @@ public class XiaoZhiStreamMiddleware
         }
     }
 
-    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string? messageType, SysDevice device)
+    private async Task HandleMessageByType(IServiceProvider services, WebSocketSession session, JsonElement jsonElement, string? messageType, IoTDevice device)
     {
         switch (messageType)
         {

@@ -1,5 +1,6 @@
 using BotSharp.Plugin.ESP32.LLM;
 using BotSharp.Plugin.ESP32.Models;
+using BotSharp.Plugin.ESP32.Settings;
 using BotSharp.Plugin.ESP32.Stt;
 using BotSharp.Plugin.ESP32.Tts;
 using System.Collections.Concurrent;
@@ -26,6 +27,8 @@ public class DialogueService
     private readonly VadService _vadService;
     private readonly SessionManager _sessionManager;
     private readonly MessageService _messageService;
+
+    private readonly ESP32Setting _settings;
 
     // 添加一个每个会话的句子序列号计数器
     private readonly ConcurrentDictionary<string, int> _sessionSentenceCounters = new ConcurrentDictionary<string, int>();
@@ -79,7 +82,8 @@ public class DialogueService
         VadService vadService,
         SessionManager sessionManager,
         MessageService messageService,
-        LlmManager llmManager)
+        LlmManager llmManager,
+        ESP32Setting settings)
     {
         _logger = logger;
         _audioService = audioService;
@@ -89,6 +93,7 @@ public class DialogueService
         _sessionManager = sessionManager;
         _messageService = messageService;
         _llmManager = llmManager;
+        _settings = settings;
     }
 
     /// <summary>
@@ -100,7 +105,7 @@ public class DialogueService
     public async Task ProcessAudioData(WebSocketSession session, byte[] opusData)
     {
         string sessionId = session.Id;
-        SysDevice device = _sessionManager.GetDeviceConfig(sessionId);
+        var device = _sessionManager.GetDeviceConfig(sessionId);
 
         // 如果设备未注册或不在监听状态，忽略音频数据
         //if (device == null || !_sessionManager.IsListening(sessionId))
@@ -187,7 +192,7 @@ public class DialogueService
         string sessionId,
         SysConfig sttConfig,
         SysConfig ttsConfig,
-        SysDevice device,
+        IoTDevice device,
         byte[] initialAudio)
     {
         // 如果已经在进行流式识别，先清理旧的资源
@@ -507,7 +512,7 @@ public class DialogueService
     public async Task HandleWakeWord(WebSocketSession session, string? text)
     {
         string sessionId = session.Id;
-        SysDevice? device = _sessionManager.GetDeviceConfig(sessionId);
+        IoTDevice? device = _sessionManager.GetDeviceConfig(sessionId);
 
         if (device == null)
         {
@@ -515,7 +520,7 @@ public class DialogueService
         }
 
         // 获取配置
-        SysConfig? ttsConfig = device.TtsId > 0 ? _sessionManager.GetCachedConfig(device.TtsId) : null;
+        SysConfig? ttsConfig = null;//device.TtsId > 0 ? _sessionManager.GetCachedConfig(device.TtsId) : null;
         _sessionManager.UpdateLastActivity(sessionId);
         _logger.LogInformation("检测到唤醒词: \"{Text}\"", text);
 
@@ -549,7 +554,7 @@ public class DialogueService
                     isStart,
                     isEnd,
                     ttsConfig,
-                    device.VoiceName
+                    string.Empty//device.VoiceName
                 );
             });
     }
