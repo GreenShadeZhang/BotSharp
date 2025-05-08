@@ -1,6 +1,7 @@
 using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Abstraction.SideCar.Attributes;
+using System.Text.Json;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
@@ -282,7 +283,7 @@ public partial class LiteDBRepository
         }
     }
 
-    public Conversation GetConversation(string conversationId)
+    public Conversation GetConversation(string conversationId, bool isLoadStates = false)
     {
         if (string.IsNullOrEmpty(conversationId)) return null;
 

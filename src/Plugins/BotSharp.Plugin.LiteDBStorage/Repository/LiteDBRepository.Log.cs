@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Loggers.Models;
+using BotSharp.Abstraction.Repositories.Filters;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
@@ -34,7 +35,7 @@ public partial class LiteDBRepository
         var logs = new List<string>();
         if (string.IsNullOrEmpty(conversationId)) return logs;
 
-        var logCollection = _dc.ExectionLogs.Query().Where(x => x.ConversationId==conversationId).FirstOrDefault();
+        var logCollection = _dc.ExectionLogs.Query().Where(x => x.ConversationId == conversationId).FirstOrDefault();
 
         logs = logCollection?.Logs ?? new List<string>();
         return logs;
@@ -55,7 +56,7 @@ public partial class LiteDBRepository
             AgentId = log.AgentId,
             Prompt = log.Prompt,
             Response = log.Response,
-            CreateDateTime = log.CreateDateTime
+            CreateDateTime = log.CreatedTime
         };
 
         var llmCompletionLog = _dc.LlmCompletionLogs.Query().Where(x => x.ConversationId == conversationId).FirstOrDefault();
@@ -100,10 +101,40 @@ public partial class LiteDBRepository
             Role = log.Role,
             Source = log.Source,
             Content = log.Content,
-            CreateTime = log.CreateTime
+            CreateTime = log.CreatedTime
         };
 
         _dc.ContentLogs.Insert(logDoc);
+    }
+
+    public DateTimePagination<ContentLogOutputModel> GetConversationContentLogs(string conversationId, ConversationLogFilter filter)
+    {
+        var logs = _dc.ContentLogs
+                      .Query()
+                      .Where(x => x.ConversationId == conversationId)
+                      .OrderBy(x => x.CreateTime)
+                      .Select(x => new ContentLogOutputModel
+                      {
+                          ConversationId = x.ConversationId,
+                          MessageId = x.MessageId,
+                          Name = x.Name,
+                          AgentId = x.AgentId,
+                          Role = x.Role,
+                          Source = x.Source,
+                          Content = x.Content,
+                          CreatedTime = x.CreateTime
+                      })
+                      .ToList();
+
+        // Wrap the logs in a DateTimePagination object
+        var paginatedLogs = new DateTimePagination<ContentLogOutputModel>
+        {
+            Items = logs,
+            Count = logs.Count,
+            NextTime = logs.FirstOrDefault()?.CreatedTime
+        };
+
+        return paginatedLogs;
     }
 
     public List<ContentLogOutputModel> GetConversationContentLogs(string conversationId)
@@ -121,8 +152,8 @@ public partial class LiteDBRepository
                           Role = x.Role,
                           Source = x.Source,
                           Content = x.Content,
-                          CreateTime = x.CreateTime
-                      })   
+                          CreatedTime = x.CreateTime
+                      })
                       .ToList();
         return logs;
     }
@@ -141,12 +172,11 @@ public partial class LiteDBRepository
             ConversationId = log.ConversationId,
             MessageId = log.MessageId,
             States = log.States,
-            CreateTime = log.CreateTime
+            CreateTime = log.CreatedTime
         };
 
         _dc.StateLogs.Insert(logDoc);
     }
-
     public List<ConversationStateLogModel> GetConversationStateLogs(string conversationId)
     {
         var logs = _dc.StateLogs
@@ -158,10 +188,35 @@ public partial class LiteDBRepository
                           ConversationId = x.ConversationId,
                           MessageId = x.MessageId,
                           States = x.States,
-                          CreateTime = x.CreateTime
+                          CreatedTime = x.CreateTime
                       })
                       .ToList();
         return logs;
+    }
+
+    public DateTimePagination<ConversationStateLogModel> GetConversationStateLogs(string conversationId, ConversationLogFilter filter)
+    {
+        var logs = _dc.StateLogs
+                      .Query()
+                      .Where(x => x.ConversationId == conversationId)
+                      .OrderBy(x => x.CreateTime)
+                      .Select(x => new ConversationStateLogModel
+                      {
+                          ConversationId = x.ConversationId,
+                          MessageId = x.MessageId,
+                          States = x.States,
+                          CreatedTime = x.CreateTime
+                      })
+                      .ToList();
+
+        var paginatedLogs = new DateTimePagination<ConversationStateLogModel>
+        {
+            Items = logs,
+            Count = logs.Count,
+            NextTime = logs.FirstOrDefault()?.CreatedTime
+        };
+
+        return paginatedLogs;
     }
     #endregion
 }

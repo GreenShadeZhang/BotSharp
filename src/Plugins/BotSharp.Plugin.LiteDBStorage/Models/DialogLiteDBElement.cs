@@ -68,7 +68,7 @@ public class DialogMetaDataMongoElement
             MessageType = meta.MessageType,
             FunctionName = meta.FunctionName,
             SenderId = meta.SenderId,
-            CreateTime = meta.CreateTime,
+            CreatedTime = meta.CreateTime,
         };
     }
 
@@ -82,7 +82,7 @@ public class DialogMetaDataMongoElement
             MessageType = meta.MessageType,
             FunctionName = meta.FunctionName,
             SenderId = meta.SenderId,
-            CreateTime = meta.CreateTime,
+            CreateTime = meta.CreatedTime,
         };
     }
 }
