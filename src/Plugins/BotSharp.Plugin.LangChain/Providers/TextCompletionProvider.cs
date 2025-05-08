@@ -19,6 +19,8 @@ namespace BotSharp.Plugin.VertexAI.Providers
         IServiceProvider services) : ITextCompletion
     {
         public string Provider => "vertexai";
+        public string Model => _model;
+
         private readonly VertexAIConfiguration _config = config;
         private readonly ChatSettings? _settings = settings;
         private readonly IServiceProvider _services = services;
@@ -44,14 +46,14 @@ namespace BotSharp.Plugin.VertexAI.Providers
             };
 
             Task.WaitAll(contentHooks.Select(hook =>
-            hook.AfterGenerated(responseMessage, new TokenStatsModel
-            {
-                Prompt = text,
-                Provider = Provider,
-                Model = _model,
-                PromptCount = response.Usage.TotalTokens,
-                CompletionCount = response.Usage.OutputTokens
-            })).ToArray());
+                hook.AfterGenerated(responseMessage, new TokenStatsModel
+                {
+                    Prompt = text,
+                    Provider = Provider,
+                    Model = _model,
+                    TextInputTokens = response.Usage.InputTokens,
+                    TextOutputTokens = response.Usage.OutputTokens
+                })).ToArray());
 
             return response.LastMessageContent;
         }

@@ -24,7 +24,7 @@ public partial class LocalFileStorageService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Error when saving speech file. {fileName} ({conversationId})\r\n{ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"Error when saving speech file. {fileName} (conv id: {conversationId})");
             return false;
         }
     }
@@ -32,6 +32,10 @@ public partial class LocalFileStorageService
     public BinaryData GetSpeechFile(string conversationId, string fileName)
     {
         var path = Path.Combine(_baseDir, CONVERSATION_FOLDER, conversationId, TEXT_TO_SPEECH_FOLDER,  fileName);
+        if (!File.Exists(path))
+        {
+            return BinaryData.Empty;
+        }
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
         return BinaryData.FromStream(fs);
     }

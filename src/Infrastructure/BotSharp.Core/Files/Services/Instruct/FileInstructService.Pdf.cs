@@ -1,20 +1,21 @@
 using BotSharp.Abstraction.Files.Converters;
+using BotSharp.Abstraction.Instructs.Models;
+using BotSharp.Abstraction.Instructs;
 
 namespace BotSharp.Core.Files.Services;
 
 public partial class FileInstructService
 {
-    public async Task<string> ReadPdf(string? provider, string? model, string? modelId, string prompt, List<InstructFileModel> files)
+    public async Task<string> ReadPdf(string text, List<InstructFileModel> files, InstructOptions? options = null)
     {
         var content = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(prompt) || files.IsNullOrEmpty())
+        if (string.IsNullOrWhiteSpace(text) || files.IsNullOrEmpty())
         {
             return content;
         }
 
         var guid = Guid.NewGuid().ToString();
-
         var sessionDir = _fileStorage.BuildDirectory(SESSION_FOLDER, guid);
         DeleteIfExistDirectory(sessionDir, true);
 
@@ -24,23 +25,48 @@ public partial class FileInstructService
             var images = await ConvertPdfToImages(pdfFiles);
             if (images.IsNullOrEmpty()) return content;
 
-            var completion = CompletionProvider.GetChatCompletion(_services, provider: provider ?? "openai",
-                model: model, modelId: modelId ?? "gpt-4", multiModal: true);
+            var innerAgentId = options?.AgentId ?? Guid.Empty.ToString();
+            var instruction = await GetAgentTemplate(innerAgentId, options?.TemplateName);
+
+            var completion = CompletionProvider.GetChatCompletion(_services, provider: options?.Provider ?? "openai",
+                model: options?.Model ?? "gpt-4o", multiModal: true);
             var message = await completion.GetChatCompletions(new Agent()
             {
-                Id = Guid.Empty.ToString(),
+                Id = innerAgentId,
+                Instruction = instruction
             }, new List<RoleDialogModel>
             {
-                new RoleDialogModel(AgentRole.User, prompt)
+                new RoleDialogModel(AgentRole.User, text)
                 {
                     Files = images.Select(x => new BotSharpFile { FileStorageUrl = x }).ToList()
                 }
             });
+
+            var hooks = _services.GetServices<IInstructHook>();
+            foreach (var hook in hooks)
+            {
+                if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
+                {
+                    continue;
+                }
+
+                await hook.OnResponseGenerated(new InstructResponseModel
+                {
+                    AgentId = innerAgentId,
+                    Provider = completion.Provider,
+                    Model = completion.Model,
+                    TemplateName = options?.TemplateName,
+                    UserMessage = text,
+                    SystemInstruction = instruction,
+                    CompletionText = message.Content
+                });
+            }
+
             return message.Content;
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error when analyzing pdf in file service: {ex.Message}\r\n{ex.InnerException}");
+            _logger.LogError(ex, $"Error when analyzing pdf in file service.");
             return content;
         }
         finally
@@ -87,7 +113,7 @@ public partial class FileInstructService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error when saving pdf file: {ex.Message}\r\n{ex.InnerException}");
+                _logger.LogWarning(ex, $"Error when saving pdf file.");
                 continue;
             }
         }
@@ -115,7 +141,7 @@ public partial class FileInstructService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning($"Error when converting pdf file to images ({file}): {ex.Message}\r\n{ex.InnerException}");
+                _logger.LogWarning(ex, $"Error when converting pdf file to images ({file}).");
                 continue;
             }
         }

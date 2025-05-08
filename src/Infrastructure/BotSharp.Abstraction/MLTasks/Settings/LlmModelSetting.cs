@@ -3,14 +3,14 @@ namespace BotSharp.Abstraction.MLTasks.Settings;
 public class LlmModelSetting
 {
     /// <summary>
-    /// Model Id, like "gpt-3.5" and "gpt-4".
+    /// Model Id, like "gpt-4", "gpt-4o", "o1".
     /// </summary>
-    public string? Id { get; set; }
+    public string Id { get; set; } = null!;
 
     /// <summary>
     /// Deployment model name
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
     /// <summary>
     /// Model version
@@ -28,8 +28,8 @@ public class LlmModelSetting
     /// </summary>
     public string? Group { get; set; }
 
-    public string ApiKey { get; set; }
-    public string Endpoint { get; set; }
+    public string ApiKey { get; set; } = null!;
+    public string? Endpoint { get; set; }
     public LlmModelType Type { get; set; } = LlmModelType.Chat;
 
     /// <summary>
@@ -38,34 +38,37 @@ public class LlmModelSetting
     public bool MultiModal { get; set; }
 
     /// <summary>
-    /// If true, allow real-time interaction
-    /// </summary>
-    public bool RealTime { get; set; }
-
-    /// <summary>
     /// If true, allow generating images
     /// </summary>
     public bool ImageGeneration { get; set; }
-
-    /// <summary>
-    /// Prompt cost per 1K token
-    /// </summary>
-    public float PromptCost { get; set; }
-
-    /// <summary>
-    /// Completion cost per 1K token
-    /// </summary>
-    public float CompletionCost { get; set; }
 
     /// <summary>
     /// Embedding dimension
     /// </summary>
     public int Dimension { get; set; }
 
+    public LlmCost Cost { get; set; } = new();
+
     public override string ToString()
     {
         return $"[{Type}] {Name} {Endpoint}";
     }
+}
+
+/// <summary>
+/// Cost per 1K tokens
+/// </summary>
+public class LlmCost
+{
+    // Input
+    public float TextInputCost { get; set; } = 0f;
+    public float CachedTextInputCost { get; set; } = 0f;
+    public float AudioInputCost { get; set; } = 0f;
+    public float CachedAudioInputCost { get; set; } = 0f;
+
+    // Output
+    public float TextOutputCost { get; set; } = 0f;
+    public float AudioOutputCost { get; set; } = 0f;
 }
 
 public enum LlmModelType
@@ -74,5 +77,6 @@ public enum LlmModelType
     Chat = 2,
     Image = 3,
     Embedding = 4,
-    Audio = 5
+    Audio = 5,
+    Realtime = 6,
 }

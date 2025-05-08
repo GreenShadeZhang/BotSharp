@@ -1,3 +1,6 @@
+using System.IO;
+using System.Net.Http;
+
 namespace BotSharp.Plugin.WebDriver.Drivers.PlaywrightDriver;
 
 public partial class PlaywrightWebDriver
@@ -50,6 +53,18 @@ public partial class PlaywrightWebDriver
                 });
             }
         }
+        else if (action.Action == BroswerActionEnum.DropDown)
+        {
+            await locator.ClickAsync();
+            var optionLocator = page.Locator($"//div[text()='{action.Content}']");
+            var optionCount = await optionLocator.CountAsync(); ;
+            if (optionCount == 0)
+            {
+                Serilog.Log.Error($"Dropdown option not found: {action.Content}");
+                return;
+            }
+            await optionLocator.First.ClickAsync();
+        }
         else if (action.Action == BroswerActionEnum.InputText)
         {
             await locator.FillAsync(action.Content);
@@ -62,6 +77,48 @@ public partial class PlaywrightWebDriver
                 }
                 await locator.PressAsync(action.PressKey);
             }
+        }
+        else if (action.Action == BroswerActionEnum.FileUpload)
+        {
+            var _states = _services.GetRequiredService<IConversationStateService>();
+            var files = new List<string>();
+            if (action.FileUrl != null && action.FileUrl.Length > 0)
+            {
+                files.AddRange(action.FileUrl);
+            }
+            var hooks = _services.GetServices<IWebDriverHook>();
+            foreach (var hook in hooks)
+            {
+                files.AddRange(await hook.GetUploadFiles(message));
+            }
+            if (files.Count == 0)
+            {
+                Serilog.Log.Warning($"No files found to upload: {action.Content}");
+                return;
+            }
+            var fileChooser = await page.RunAndWaitForFileChooserAsync(async () =>
+            {
+                await locator.ClickAsync();
+            });
+            var guid = Guid.NewGuid().ToString();
+            var directory = Path.Combine(Path.GetTempPath(), guid);
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
+            Directory.CreateDirectory(directory);
+            var localPaths = new List<string>();
+            using var httpClient = new HttpClient();
+            foreach (var fileUrl in files)
+            {
+                var bytes = await httpClient.GetByteArrayAsync(fileUrl);
+                var fileName = new Uri(fileUrl).AbsolutePath;
+                var localPath = Path.Combine(directory, Path.GetFileName(fileName));
+                await File.WriteAllBytesAsync(localPath, bytes);
+                await Task.Delay(2000);
+                localPaths.Add(localPath);
+            }
+            await fileChooser.SetFilesAsync(localPaths);
         }
         else if (action.Action == BroswerActionEnum.Typing)
         {
@@ -128,7 +185,6 @@ public partial class PlaywrightWebDriver
             await Task.Delay(1000 * action.WaitTime);
         }
     }
-
     public static List<int> GetVelocityTrack(float distance)
     {
         // Initialize the track list to store the movement distances

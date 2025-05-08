@@ -30,7 +30,11 @@ public class CompletionProvider
         }
         else if (settings.Type == LlmModelType.Audio)
         {
-            return GetAudioCompletion(services, provider: provider, model: model);
+            return GetAudioTranscriber(services, provider: provider, model: model);
+        }
+        else if (settings.Type == LlmModelType.Realtime)
+        {
+            return GetRealTimeCompletion(services, provider: provider, model: model);
         }
         else
         {
@@ -126,20 +130,39 @@ public class CompletionProvider
         return completer;
     }
 
-    public static IAudioCompletion GetAudioCompletion(
+    public static IAudioTranscription GetAudioTranscriber(
         IServiceProvider services,
-        string provider,
-        string model)
+        string? provider = null,
+        string? model = null)
     {
-        var completions = services.GetServices<IAudioCompletion>();
-        var completer = completions.FirstOrDefault(x => x.Provider == provider);
+        var completions = services.GetServices<IAudioTranscription>();
+        var completer = completions.FirstOrDefault(x => x.Provider == (provider ?? "openai"));
         if (completer == null)
         {
             var logger = services.GetRequiredService<ILogger<CompletionProvider>>();
-            logger.LogError($"Can't resolve audio-completion provider by {provider}");
+            logger.LogError($"Can't resolve audio-transcriber provider by {provider}");
+            return default!;
         }
 
-        completer.SetModelName(model);
+        completer.SetModelName(model ?? "gpt-4o-mini-transcribe");
+        return completer;
+    }
+
+    public static IAudioSynthesis GetAudioSynthesizer(
+        IServiceProvider services,
+        string? provider = null,
+        string? model = null)
+    {
+        var completions = services.GetServices<IAudioSynthesis>();
+        var completer = completions.FirstOrDefault(x => x.Provider == (provider ?? "openai"));
+        if (completer == null)
+        {
+            var logger = services.GetRequiredService<ILogger<CompletionProvider>>();
+            logger.LogError($"Can't resolve audio-synthesizer provider by {provider}");
+            return default!;
+        }
+
+        completer.SetModelName(model ?? "gpt-4o-mini-tts");
         return completer;
     }
 
@@ -153,7 +176,7 @@ public class CompletionProvider
         var completions = services.GetServices<IRealTimeCompletion>();
         (provider, model) = GetProviderAndModel(services, provider: provider, model: model, modelId: modelId,
             multiModal: multiModal,
-            realTime: true,
+            modelType:  LlmModelType.Realtime,
             agentConfig: agentConfig);
 
         var completer = completions.FirstOrDefault(x => x.Provider == provider);
@@ -172,7 +195,7 @@ public class CompletionProvider
         string? model = null,
         string? modelId = null,
         bool? multiModal = null,
-        bool? realTime = null,
+        LlmModelType? modelType = null,
         bool imageGenerate = false,
         AgentLlmConfig? agentConfig = null)
     {
@@ -198,7 +221,7 @@ public class CompletionProvider
                 var llmProviderService = services.GetRequiredService<ILlmProviderService>();
                 model = llmProviderService.GetProviderModel(provider, modelIdentity,
                     multiModal: multiModal, 
-                    realTime: realTime,
+                    modelType: modelType,
                     imageGenerate: imageGenerate)?.Name;
             }
         }

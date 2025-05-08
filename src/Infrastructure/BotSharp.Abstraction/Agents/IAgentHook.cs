@@ -9,7 +9,7 @@ public interface IAgentHook
     /// </summary>
     string SelfId { get; }
     Agent Agent { get; }
-    void SetAget(Agent agent);
+    void SetAgent(Agent agent);
 
     /// <summary>
     /// Triggered when agent is loading.
@@ -26,6 +26,8 @@ public interface IAgentHook
     bool OnSamplesLoaded(List<string> samples);
 
     void OnAgentUtilityLoaded(Agent agent);
+
+    void OnAgentMcpToolLoaded(Agent agent);
 
     /// <summary>
     /// Triggered when agent is loaded completely.

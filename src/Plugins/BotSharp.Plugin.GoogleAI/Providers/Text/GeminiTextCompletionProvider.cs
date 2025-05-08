@@ -1,8 +1,8 @@
 using BotSharp.Abstraction.Agents.Enums;
 using BotSharp.Abstraction.Conversations;
 using BotSharp.Abstraction.Loggers;
-using Microsoft.Extensions.Logging;
-using Mscc.GenerativeAI;
+using GenerativeAI;
+using GenerativeAI.Core;
 
 namespace BotSharp.Plugin.GoogleAi.Providers.Text;
 
@@ -14,12 +14,16 @@ public class GeminiTextCompletionProvider : ITextCompletion
     private string _model;
 
     public string Provider => "google-ai";
+    public string Model => _model;
 
+    private GoogleAiSettings _settings;
     public GeminiTextCompletionProvider(
         IServiceProvider services,
+        GoogleAiSettings googleSettings,
         ILogger<GeminiTextCompletionProvider> logger,
         ITokenStatistics tokenStatistics)
     {
+        _settings = googleSettings;
         _services = services;
         _logger = logger;
         _tokenStatistics = tokenStatistics;
@@ -46,14 +50,11 @@ public class GeminiTextCompletionProvider : ITextCompletion
         }
 
         var client = ProviderHelper.GetGeminiClient(Provider, _model, _services);
-        var aiModel = client.GenerativeModel(_model);
+        var aiModel = client.CreateGenerativeModel(_model);
         PrepareOptions(aiModel);
 
-        _tokenStatistics.StartTimer();
-        var response = await aiModel.GenerateContent(text);
-        _tokenStatistics.StopTimer();
-
-        var completion = response.Text ?? string.Empty;
+        var response = await aiModel.GenerateContentAsync(text);
+        var completion = response?.Text ?? string.Empty;
 
         // After completion hook
         foreach (var hook in contentHooks)
@@ -62,7 +63,9 @@ public class GeminiTextCompletionProvider : ITextCompletion
             {
                 Prompt = text,
                 Provider = Provider,
-                Model = _model
+                Model = _model,
+                TextInputTokens = response?.UsageMetadata?.PromptTokenCount ?? 0,
+                TextOutputTokens = response?.UsageMetadata?.CandidatesTokenCount ?? 0
             });
         }
 
@@ -74,11 +77,15 @@ public class GeminiTextCompletionProvider : ITextCompletion
         _model = model;
     }
 
-
     private void PrepareOptions(GenerativeModel aiModel)
     {
         var settings = _services.GetRequiredService<GoogleAiSettings>();
+
         aiModel.UseGoogleSearch = settings.Gemini.UseGoogleSearch;
         aiModel.UseGrounding = settings.Gemini.UseGrounding;
+        aiModel.FunctionCallingBehaviour = new FunctionCallingBehaviour()
+        {
+            AutoCallFunction = false
+        };
     }
 }

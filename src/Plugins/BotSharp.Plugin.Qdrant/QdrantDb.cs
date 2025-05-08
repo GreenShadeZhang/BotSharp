@@ -1,8 +1,14 @@
+using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.Utilities;
 using BotSharp.Abstraction.VectorStorage.Models;
+using BotSharp.Plugin.Qdrant.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
+using System.Net.Http;
+using System.Net.Mime;
+using System.Text.Json;
 
 namespace BotSharp.Plugin.Qdrant;
 
@@ -10,15 +16,18 @@ public class QdrantDb : IVectorDb
 {
     private QdrantClient _client;
     private readonly QdrantSetting _setting;
+    private readonly BotSharpOptions _options;
     private readonly IServiceProvider _services;
     private readonly ILogger<QdrantDb> _logger;
 
     public QdrantDb(
         QdrantSetting setting,
+        BotSharpOptions options,
         ILogger<QdrantDb> logger,
         IServiceProvider services)
     {
         _setting = setting;
+        _options = options;
         _logger = logger;
         _services = services;
     }
@@ -39,6 +48,7 @@ public class QdrantDb : IVectorDb
         return _client;
     }
 
+    #region Collection
     public async Task<bool> DoesCollectionExist(string collectionName)
     {
         var client = GetClient();
@@ -87,6 +97,41 @@ public class QdrantDb : IVectorDb
         return collections.ToList();
     }
 
+    public async Task<VectorCollectionDetails?> GetCollectionDetails(string collectionName)
+    {
+        var exist = await DoesCollectionExist(collectionName);
+
+        if (!exist) return null;
+
+        var client = GetClient();
+        var details = await client.GetCollectionInfoAsync(collectionName);
+
+        if (details == null) return null;
+
+        return new VectorCollectionDetails
+        {
+            Status = details.Status.ToString(),
+            OptimizerStatus = details.OptimizerStatus.ToString(),
+            SegmentsCount = details.SegmentsCount,
+            InnerConfig = new VectorCollectionDetailConfig
+            {
+                Param = new VectorCollectionDetailConfigParam
+                {
+                    ShardNumber = details.Config?.Params?.ShardNumber,
+                    ShardingMethod = details.Config?.Params?.ShardingMethod.ToString(),
+                    ReplicationFactor = details.Config?.Params?.ReplicationFactor,
+                    WriteConsistencyFactor = details.Config?.Params?.WriteConsistencyFactor,
+                    ReadFanOutFactor = details.Config?.Params?.ReadFanOutFactor
+                }
+            },
+            VectorsCount = details.VectorsCount,
+            IndexedVectorsCount = details.IndexedVectorsCount,
+            PointsCount = details.PointsCount
+        };
+    }
+    #endregion
+
+    #region Collection data
     public async Task<StringIdPagedItems<VectorCollectionData>> GetPagedCollectionData(string collectionName, VectorFilter filter)
     {
         var exist = await DoesCollectionExist(collectionName);
@@ -332,4 +377,150 @@ public class QdrantDb : IVectorDb
         var result = await client.DeleteAsync(collectionName, new Filter());
         return result.Status == UpdateStatus.Completed;
     }
+    #endregion
+
+    #region Snapshots
+    public async Task<IEnumerable<VectorCollectionSnapshot>> GetCollectionSnapshots(string collectionName)
+    {
+        var exist = await DoesCollectionExist(collectionName);
+        if (!exist)
+        {
+            return Enumerable.Empty<VectorCollectionSnapshot>();
+        }
+
+        var client = GetClient();
+        var data = await client.ListSnapshotsAsync(collectionName);
+        var snapshots = data.Select(x => new VectorCollectionSnapshot
+        {
+            Name = x.Name,
+            Size = x.Size,
+            CreatedTime = x.CreationTime.ToDateTime(),
+            CheckSum = x.Checksum
+        });
+        return snapshots;
+    }
+
+    public async Task<VectorCollectionSnapshot?> CreateCollectionShapshot(string collectionName)
+    {
+        var exist = await DoesCollectionExist(collectionName);
+        if (!exist)
+        {
+            return null;
+        }
+
+        var client = GetClient();
+        var desc = await client.CreateSnapshotAsync(collectionName);
+        if (desc == null)
+        {
+            return null;
+        }
+
+        return new VectorCollectionSnapshot
+        {
+            Name = desc.Name,
+            Size = desc.Size,
+            CreatedTime = desc.CreationTime.ToDateTime(),
+            CheckSum = desc.Checksum
+        };
+    }
+
+    public async Task<BinaryData> DownloadCollectionSnapshot(string collectionName, string snapshotFileName)
+    {
+        var exist = await DoesCollectionExist(collectionName);
+        if (!exist)
+        {
+            return BinaryData.Empty;
+        }
+
+        var domain = $"https://{_setting.Url}:6333";
+        var url = $"{domain}/collections/{collectionName}/snapshots/{snapshotFileName}";
+
+        var http = _services.GetRequiredService<IHttpClientFactory>();
+        using (var client = http.CreateClient())
+        {
+            try
+            {
+                var uri = new Uri(url);
+                var message = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = uri
+                };
+
+                client.DefaultRequestHeaders.Add("api-key", _setting.ApiKey);
+                var rawResponse = await client.SendAsync(message);
+                rawResponse.EnsureSuccessStatusCode();
+
+                using var contentStream = await rawResponse.Content.ReadAsStreamAsync();
+                return BinaryData.FromStream(contentStream);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error when downloading Qdrant snapshot (Endpoint: {url}, Snapshot: {snapshotFileName}).");
+                return BinaryData.Empty;
+            }
+        }
+    }
+
+    public async Task<bool> RecoverCollectionFromShapshot(string collectionName, string snapshotFileName, BinaryData snapshotData)
+    {
+        var domain = $"https://{_setting.Url}:6333";
+        var url = $"{domain}/collections/{collectionName}/snapshots/upload";
+
+        var http = _services.GetRequiredService<IHttpClientFactory>();
+        using (var client = http.CreateClient())
+        {
+            try
+            {
+                var uri = new Uri(url);
+                var data = new MultipartFormDataContent
+                {
+                    { new StringContent(snapshotFileName), "name" },
+                    { new StringContent(MediaTypeNames.Application.Octet), "type" },
+                    { new StreamContent(snapshotData.ToStream()), "snapshot", snapshotFileName }
+                };
+
+                var message = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    RequestUri = uri,
+                    Content = data
+                };
+
+                client.DefaultRequestHeaders.Add("api-key", _setting.ApiKey);
+                var rawResponse = await client.SendAsync(message);
+                rawResponse.EnsureSuccessStatusCode();
+
+                var responseStr = await rawResponse.Content.ReadAsStringAsync();
+                var response = JsonSerializer.Deserialize<RecoverFromSnapshotResponse>(responseStr, _options.JsonSerializerOptions);
+                return response?.Result == true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error when uploading Qdrant snapshot (Endpoint: {url}, Snapshot: {snapshotFileName}).");
+                return false;
+            }
+        }
+    }
+
+    public async Task<bool> DeleteCollectionShapshot(string collectionName, string snapshotName)
+    {
+        var exist = await DoesCollectionExist(collectionName);
+        if (!exist)
+        {
+            return false;
+        }
+
+        try
+        {
+            var client = GetClient();
+            await client.DeleteSnapshotAsync(collectionName, snapshotName);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    #endregion
 }

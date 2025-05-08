@@ -1,4 +1,5 @@
 using BotSharp.Core;
+using BotSharp.Core.MCP;
 using BotSharp.OpenAPI;
 using BotSharp.Logger;
 using BotSharp.Plugin.ChatHub;
@@ -16,6 +17,8 @@ string[] allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get
         "https://botsharp.scisharpstack.org",
         "https://chat.scisharpstack.org"
     };
+
+
  
  // Add BotSharp
  builder.Services.AddBotSharpCore(builder.Configuration, options =>
@@ -23,6 +26,7 @@ string[] allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get
      options.JsonSerializerOptions.Converters.Add(new RichContentJsonConverter());
      options.JsonSerializerOptions.Converters.Add(new TemplateMessageJsonConverter());
  }).AddBotSharpOpenAPI(builder.Configuration, allowedOrigins, builder.Environment, true)
+   .AddBotSharpMCP(builder.Configuration)
    .AddBotSharpLogger(builder.Configuration);
 
 // Add service defaults & Aspire components.
@@ -38,9 +42,12 @@ builder.Services.AddSignalR()
 
 var app = builder.Build();
 
+app.UseWebSockets();
+
 // Enable SignalR
 app.MapHub<SignalRHub>("/chatHub");
-app.UseMiddleware<WebSocketsMiddleware>();
+app.UseMiddleware<ChatHubMiddleware>();
+app.UseMiddleware<ChatStreamMiddleware>();
 
 // Use BotSharp
 app.UseBotSharp()

@@ -9,11 +9,11 @@ public interface IConversationService
     string ConversationId { get; }
     Task<Conversation> NewConversation(Conversation conversation);
     void SetConversationId(string conversationId, List<MessageState> states, bool isReadOnly = false);
-    Task<Conversation> GetConversation(string id);
+    Task<Conversation> GetConversation(string id, bool isLoadStates = false);
     Task<PagedItems<Conversation>> GetConversations(ConversationFilter filter);
     Task<Conversation> UpdateConversationTitle(string id, string title);
     Task<Conversation> UpdateConversationTitleAlias(string id, string titleAlias);
-    Task<bool> UpdateConversationTags(string conversationId, List<string> tags);
+    Task<bool> UpdateConversationTags(string conversationId, List<string> toAddTags, List<string> toDeleteTags);
     Task<bool> UpdateConversationMessage(string conversationId, UpdateMessageRequest request);
     Task<List<Conversation>> GetLastConversations();
     Task<List<string>> GetIdleConversations(int batchSize, int messageLimit, int bufferHours, IEnumerable<string> excludeAgentIds);
@@ -27,20 +27,17 @@ public interface IConversationService
     /// <param name="newMessageId">If not null, delete messages while input a new message; otherwise delete messages only</param>
     /// <returns></returns>
     Task<bool> TruncateConversation(string conversationId, string messageId, string? newMessageId = null);
-    Task<List<ContentLogOutputModel>> GetConversationContentLogs(string conversationId);
-    Task<List<ConversationStateLogModel>> GetConversationStateLogs(string conversationId);
 
     /// <summary>
     /// Send message to LLM
     /// </summary>
     /// <param name="agentId"></param>
-    /// <param name="lastDalog"></param>
+    /// <param name="lastDialog"></param>
+    /// <param name="replyMessage"></param>
     /// <param name="onResponseReceived">Received the response from AI Agent</param>
-    /// <param name="onFunctionExecuting">This delegate is useful when you want to report progress on UI</param>
-    /// <param name="onFunctionExecuted">This delegate is useful when you want to report progress on UI</param>
     /// <returns></returns>
     Task<bool> SendMessage(string agentId,
-        RoleDialogModel lastDalog, 
+        RoleDialogModel lastDialog, 
         PostbackMessageModel? replyMessage,
         Func<RoleDialogModel, Task> onResponseReceived);
 
@@ -64,12 +61,7 @@ public interface IConversationService
 
     void SaveStates();
 
-    /// <summary>
-    /// Get conversation keys for searching
-    /// </summary>
-    /// <param name="query">search query</param>
-    /// <param name="convLimit">conversation limit</param>
-    /// <param name="preLoad">if pre-loading, then keys are not filter by the search query</param>
-    /// <returns></returns>
-    Task<List<string>> GetConversationStateSearhKeys(string query, int convlimit = 100, int keyLimit = 10, bool preLoad = false);
+    Task<List<string>> GetConversationStateSearhKeys(ConversationStateKeysFilter filter);
+
+    Task<bool> MigrateLatestStates(int batchSize = 100, int errorLimit = 10);
 }

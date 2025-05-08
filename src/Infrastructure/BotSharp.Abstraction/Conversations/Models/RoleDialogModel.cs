@@ -67,6 +67,12 @@ public class RoleDialogModel : ITrackableMessage
     public string? FunctionArgs { get; set; }
 
     /// <summary>
+    /// Set this flag is in OnFunctionExecuting, if true, it won't be executed by InvokeFunction.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public bool Handled { get; set; } = false;
+
+    /// <summary>
     /// Function execution structured data, this data won't pass to LLM.
     /// It's ideal to render in rich content in UI.
     /// </summary>
@@ -108,7 +114,8 @@ public class RoleDialogModel : ITrackableMessage
     [JsonPropertyName("generated_images")]
     public List<ImageGeneration> GeneratedImages { get; set; } = new List<ImageGeneration>();
 
-
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public string RenderedInstruction { get; set; } = string.Empty;
 
     private RoleDialogModel()
     {

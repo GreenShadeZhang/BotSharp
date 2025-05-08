@@ -92,4 +92,43 @@ public static class StringExtensions
 
         return JsonSerializer.Deserialize<T[]>(text, options);
     }
+
+    public static bool IsPrimitiveValue(this string value)
+    {
+        return int.TryParse(value, out _) ||
+               long.TryParse(value, out _) ||
+               double.TryParse(value, out _) ||
+               float.TryParse(value, out _) ||
+               bool.TryParse(value, out _) ||
+               char.TryParse(value, out _) ||
+               byte.TryParse(value, out _) ||
+               sbyte.TryParse(value, out _) ||
+               short.TryParse(value, out _) ||
+               ushort.TryParse(value, out _) ||
+               uint.TryParse(value, out _) ||
+               ulong.TryParse(value, out _);
+    }
+
+
+    public static string ConvertToString<T>(this T? value, JsonSerializerOptions? jsonOptions = null)
+    {
+        if (value == null)
+        {
+            return string.Empty;
+        }
+
+        if (value is string s)
+        {
+            return s;
+        }
+
+        if (value is JsonElement elem
+            && elem.ValueKind == JsonValueKind.String)
+        {
+            return elem.ToString();
+        }
+
+        var str = JsonSerializer.Serialize(value, jsonOptions);
+        return str;
+    }
 }

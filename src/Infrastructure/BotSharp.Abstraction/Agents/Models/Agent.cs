@@ -13,6 +13,12 @@ public class Agent
     /// Agent Type
     /// </summary>
     public string Type { get; set; } = AgentType.Task;
+
+    /// <summary>
+    /// Routing Mode: lazy or eager
+    /// </summary>
+    public string Mode { get; set; } = "eager";
+
     public DateTime CreatedDateTime { get; set; }
     public DateTime UpdatedDateTime { get; set; }
 
@@ -76,7 +82,7 @@ public class Agent
     public PluginDef Plugin {  get; set; }
 
     [JsonIgnore]
-    public bool Installed => Plugin.Enabled;
+    public bool Installed => Plugin?.Enabled == true;
 
     /// <summary>
     /// Default is True, user will enable this by installing appropriate plugin.
@@ -95,14 +101,19 @@ public class Agent
     public List<string> Labels { get; set; } = new();
 
     /// <summary>
-    /// Merge utilities from entry agent
+    /// Merge Utility from entry agent
     /// </summary>
     public bool MergeUtility { get; set; }
 
     /// <summary>
-    /// Agent utilities
+    /// Agent Utility
     /// </summary>
     public List<AgentUtility> Utilities { get; set; } = new();
+
+    /// <summary>
+    /// Agent MCP Tools
+    /// </summary>
+    public List<McpTool> McpTools { get; set; } = new();
 
     /// <summary>
     /// Agent rules
@@ -151,12 +162,15 @@ public class Agent
             Name = agent.Name,
             Description = agent.Description,
             Type = agent.Type,
+            Mode = agent.Mode,
             Instruction = agent.Instruction,
             ChannelInstructions = agent.ChannelInstructions,
             Functions = agent.Functions,
             Responses = agent.Responses,
             Samples = agent.Samples,
+            Templates = agent.Templates,
             Utilities = agent.Utilities,
+            McpTools = agent.McpTools,
             Knowledges = agent.Knowledges,
             IsPublic = agent.IsPublic,
             Disabled = agent.Disabled,
@@ -269,6 +283,17 @@ public class Agent
         return this;
     }
 
+    /// <summary>
+    /// Set agent mode: lazy or eager
+    /// </summary>
+    /// <param name="mode"></param>
+    /// <returns></returns>
+    public Agent SetAgentMode(string mode)
+    {
+        Mode = mode;
+        return this;
+    }
+
     public Agent SetProfiles(List<string> profiles)
     {
         Profiles = profiles ?? [];
@@ -296,6 +321,12 @@ public class Agent
     public Agent SetLlmConfig(AgentLlmConfig? llmConfig)
     {
         LlmConfig = llmConfig;
+        return this;
+    }
+
+    public Agent SetMcpTools(List<McpTool>? mcps)
+    {
+        McpTools = mcps ?? [];
         return this;
     }
 }

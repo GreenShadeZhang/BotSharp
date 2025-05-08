@@ -6,7 +6,7 @@ namespace BotSharp.Plugin.AudioHandler.Provider;
 /// <summary>
 /// Native Whisper provider for speech to text conversion
 /// </summary>
-public class NativeWhisperProvider : IAudioCompletion
+public class NativeWhisperProvider : IAudioTranscription
 {
     private static WhisperProcessor _whisperProcessor;
 
@@ -15,6 +15,8 @@ public class NativeWhisperProvider : IAudioCompletion
     private readonly ILogger<NativeWhisperProvider> _logger;
 
     public string Provider => "native-whisper";
+    public string Model => _model;
+    private string _model;
 
     public NativeWhisperProvider(
         BotSharpDatabaseSettings dbSettings,
@@ -27,7 +29,7 @@ public class NativeWhisperProvider : IAudioCompletion
         _logger = logger;
     }
 
-    public async Task<string> GenerateTextFromAudioAsync(Stream audio, string audioFileName, string? text = null)
+    public async Task<string> TranscriptTextAsync(Stream audio, string audioFileName, string? text = null)
     {
         var textResult = new List<SegmentData>();
 
@@ -47,7 +49,7 @@ public class NativeWhisperProvider : IAudioCompletion
         return audioOutput.ToString();
     }
 
-    public async Task<BinaryData> GenerateAudioFromTextAsync(string text)
+    public async Task<BinaryData> GenerateAudioFromTextAsync(string text, string? voice = "alloy", string? format = "mp3")
     {
         throw new NotImplementedException();
     }
@@ -56,11 +58,13 @@ public class NativeWhisperProvider : IAudioCompletion
     {
         if (Enum.TryParse(model, true, out GgmlType ggmlType))
         {
+            _model = model;
             LoadWhisperModel(ggmlType);
         }
         else
         {
             _logger.LogWarning($"Unsupported model type: {model}. Use Tiny model instead!");
+            _model = "Tiny";
             LoadWhisperModel(GgmlType.Tiny);
         }
     }
@@ -85,19 +89,24 @@ public class NativeWhisperProvider : IAudioCompletion
             }
 
             var bytes = _fileStorage.GetFileBytes(modelLoc);
-            _whisperProcessor = WhisperFactory.FromBuffer(buffer: bytes).CreateBuilder().WithLanguage("auto").Build();
+            _whisperProcessor = WhisperFactory.FromBuffer(bytes).CreateBuilder().WithLanguage("auto").Build();
         }
         catch (Exception ex)
         {
             var error = "Failed to load whisper model";
-            _logger.LogWarning($"${error}: {ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"{error}");
             throw new Exception($"{error}: {ex.Message}");
         }
     }
 
     private void DownloadModel(GgmlType modelType, string modelDir)
     {
-        using var modelStream = WhisperGgmlDownloader.GetGgmlModelAsync(modelType).ConfigureAwait(false).GetAwaiter().GetResult();
+        // Create an instance of WhisperGgmlDownloader
+        var downloader = WhisperGgmlDownloader.Default;
+
+        // Use the instance to call GetGgmlModelAsync
+        using var modelStream = downloader.GetGgmlModelAsync(modelType).ConfigureAwait(false).GetAwaiter().GetResult();
+
         _fileStorage.SaveFileStreamToPath(modelDir, modelStream);
         modelStream.Close();
     }

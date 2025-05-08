@@ -5,11 +5,13 @@ namespace BotSharp.Plugin.MetaGLM.Providers;
 public class ChatCompletionProvider : IChatCompletion
 {
     public string Provider => "metaglm";
+    public string Model => _model;
 
     private readonly MetaGLMSettings _settings;
     private readonly IServiceProvider _services;
     private readonly ILogger _logger;
     private readonly MetaGLMClient metaGLMClient;
+    private List<string> renderedInstructions = [];
     private string _model;
 
     public ChatCompletionProvider(IServiceProvider services,
@@ -49,7 +51,8 @@ public class ChatCompletionProvider : IChatCompletion
             responseMessage = new RoleDialogModel(AgentRole.Assistant, response?.choices.FirstOrDefault()?.message.content)
             {
                 CurrentAgentId = agent.Id,
-                MessageId = conversations.Last().MessageId
+                MessageId = conversations.Last().MessageId,
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
         }
 
@@ -61,7 +64,8 @@ public class ChatCompletionProvider : IChatCompletion
                 CurrentAgentId = agent.Id,
                 MessageId = conversations.Last().MessageId,
                 FunctionName = toolcall.function.name,
-                FunctionArgs = toolcall.function.arguments
+                FunctionArgs = toolcall.function.arguments,
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
 
         }
@@ -74,8 +78,8 @@ public class ChatCompletionProvider : IChatCompletion
                 Prompt = prompt,
                 Provider = Provider,
                 Model = _model,
-                PromptCount = response.usage.GetValueOrDefault("prompt_tokens"),
-                CompletionCount = response.usage.GetValueOrDefault("completion_tokens")
+                TextInputTokens = response.usage.GetValueOrDefault("prompt_tokens"),
+                TextOutputTokens = response.usage.GetValueOrDefault("completion_tokens")
             });
         }
 
@@ -87,10 +91,12 @@ public class ChatCompletionProvider : IChatCompletion
         var agentService = _services.GetRequiredService<IAgentService>();
         List<MessageItem> messages = new List<MessageItem>();
         List<FunctionTool> toolcalls = new List<FunctionTool>();
+        renderedInstructions = [];
 
         if (!string.IsNullOrEmpty(agent.Instruction) || !agent.SecondaryInstructions.IsNullOrEmpty())
         {
             var instruction = agentService.RenderedInstruction(agent);
+            renderedInstructions.Add(instruction);
             messages.Add(new MessageItem("system", instruction));
         }
 

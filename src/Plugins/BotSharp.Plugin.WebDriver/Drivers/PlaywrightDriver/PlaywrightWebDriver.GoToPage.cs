@@ -15,9 +15,19 @@ public partial class PlaywrightWebDriver
 
                 if (page != null)
                 {
-                    await page.EvaluateAsync(@"() => {
-                        window.open('', '_blank');
-                    }");
+                    if (!args.OpenBlankPage)
+                    {
+                        if (!_instance.Pages[message.ContextId].Contains(page))
+                        {
+                            _instance.Pages[message.ContextId].Add(page);
+                        }
+                    }
+                    if (args.OpenBlankPage && page.Url != "about:blank")
+                    {
+                        await page.EvaluateAsync(@"() => {
+                            window.open('', '_blank');
+                        }");
+                    }
 
                     if (args.EnableResponseCallback)
                     {
@@ -36,13 +46,6 @@ public partial class PlaywrightWebDriver
             else
             {
                 page = await _instance.NewPage(message, args);
-
-                Serilog.Log.Information($"goto page: {args.Url}");
-
-                if (args.OpenNewTab && page != null && page.Url == "about:blank")
-                {
-                    page = await _instance.NewPage(message, args);
-                }
             }
 
             if (page == null)
@@ -52,7 +55,6 @@ public partial class PlaywrightWebDriver
 
             // Active current tab
             await page.BringToFrontAsync();
-
             var response = await page.GotoAsync(args.Url, new PageGotoOptions
             {
                 Timeout = args.Timeout > 0 ? args.Timeout : 30000
@@ -95,6 +97,7 @@ public partial class PlaywrightWebDriver
             }
 
             result.ResponseStatusCode = response.Status;
+            result.UrlAfterAction = page.Url;
             if (response.Status == 200)
             {
                 result.IsSuccess = true;

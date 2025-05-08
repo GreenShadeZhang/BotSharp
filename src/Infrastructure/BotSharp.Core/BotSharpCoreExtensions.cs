@@ -16,7 +16,6 @@ using BotSharp.Abstraction.Templating;
 using BotSharp.Core.Templating;
 using BotSharp.Abstraction.Infrastructures.Enums;
 using BotSharp.Abstraction.Realtime;
-using BotSharp.Core.Realtime;
 
 namespace BotSharp.Core;
 
@@ -136,6 +135,8 @@ public static class BotSharpCoreExtensions
     {
         var pluginSettings = new PluginSettings();
         config.Bind("PluginLoader", pluginSettings);
+        var excludedFunctions = pluginSettings.ExcludedFunctions ?? [];
+
         services.AddScoped(provider =>
         {
             var settingService = provider.GetRequiredService<ISettingService>();
@@ -149,21 +150,11 @@ public static class BotSharpCoreExtensions
         var loader = new PluginLoader(services, config, pluginSettings);
         loader.Load(assembly =>
         {
-            // Register routing handlers
-            var handlers = assembly.GetTypes()
-                .Where(x => x.IsClass)
-                .Where(x => x.GetInterface(nameof(IRoutingHandler)) != null)
-                .ToArray();
-
-            foreach (var handler in handlers)
-            {
-                services.AddScoped(typeof(IRoutingHandler), handler);
-            }
-
             // Register function callback
             var functions = assembly.GetTypes()
-                .Where(x => x.IsClass)
-                .Where(x => x.GetInterface(nameof(IFunctionCallback)) != null)
+                .Where(x => x.IsClass
+                        && x.GetInterface(nameof(IFunctionCallback)) != null
+                        && !excludedFunctions.Contains(x.Name))
                 .ToArray();
 
             foreach (var function in functions)
@@ -173,7 +164,5 @@ public static class BotSharpCoreExtensions
         });
 
         services.AddSingleton(loader);
-
-        services.AddScoped<IRealtimeHub, RealtimeHub>();
     }
 }

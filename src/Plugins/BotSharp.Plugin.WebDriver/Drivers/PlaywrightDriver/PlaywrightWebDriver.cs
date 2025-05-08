@@ -1,4 +1,6 @@
 
+using BotSharp.Abstraction.Browsing.Settings;
+
 namespace BotSharp.Plugin.WebDriver.Drivers.PlaywrightDriver;
 
 public partial class PlaywrightWebDriver : IWebBrowser
@@ -6,17 +8,19 @@ public partial class PlaywrightWebDriver : IWebBrowser
     private IServiceProvider _services => _instance.Services;
     private readonly PlaywrightInstance _instance;
     private readonly ILogger _logger;
+    private readonly WebBrowsingSettings _webBrowsingSettings;
     public PlaywrightInstance Instance => _instance;
 
     public Agent Agent => _agent;
     private Agent _agent;
 
-    public PlaywrightWebDriver(IServiceProvider services, PlaywrightInstance instance, ILogger<PlaywrightWebDriver> logger)
+    public PlaywrightWebDriver(IServiceProvider services, PlaywrightInstance instance, ILogger<PlaywrightWebDriver> logger, WebBrowsingSettings webBrowsingSettings)
     {
         _instance = instance;
         _logger = logger;
         _instance.SetServiceProvider(services);
-    }
+        _webBrowsingSettings = webBrowsingSettings;
+     }
 
     public void SetAgent(Agent agent)
     {
@@ -67,7 +71,7 @@ public partial class PlaywrightWebDriver : IWebBrowser
 
     public void SetServiceProvider(IServiceProvider services)
     {
-        _instance.SetServiceProvider(_services);
+        _instance.SetServiceProvider(services);
     }
 
     public async Task PressKey(MessageInfo message, string key)
@@ -77,5 +81,10 @@ public partial class PlaywrightWebDriver : IWebBrowser
         {
             await page.Keyboard.PressAsync(key);
         }
+    }
+
+    public async Task<bool> IsBrowserClosed(string contextId)
+    {
+        return !_instance.Contexts.ContainsKey(contextId);
     }
 }

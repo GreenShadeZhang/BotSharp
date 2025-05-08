@@ -5,7 +5,6 @@ using BotSharp.Abstraction.Functions.Models;
 using BotSharp.Abstraction.Routing;
 using LLMSharp.Google.Palm;
 using LLMSharp.Google.Palm.DiscussService;
-using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.GoogleAi.Providers.Chat;
 
@@ -13,11 +12,13 @@ public class PalmChatCompletionProvider : IChatCompletion
 {
     private readonly IServiceProvider _services;
     private readonly ILogger<PalmChatCompletionProvider> _logger;
+    private List<string> renderedInstructions = [];
 
     private string _model;
 
     public string Provider => "google-palm";
-
+    public string Model => _model;
+   
     public PalmChatCompletionProvider(
         IServiceProvider services,
         ILogger<PalmChatCompletionProvider> logger)
@@ -61,7 +62,8 @@ public class PalmChatCompletionProvider : IChatCompletion
             {
                 CurrentAgentId = agent.Id,
                 FunctionName = llmResponse.FunctionName,
-                FunctionArgs = JsonSerializer.Serialize(llmResponse.Args)
+                FunctionArgs = JsonSerializer.Serialize(llmResponse.Args),
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
         }
         else
@@ -75,7 +77,8 @@ public class PalmChatCompletionProvider : IChatCompletion
 
             msg = new RoleDialogModel(llmResponse.Role, llmResponse.Content ?? message.Content)
             {
-                CurrentAgentId = agent.Id
+                CurrentAgentId = agent.Id,
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
         }
 

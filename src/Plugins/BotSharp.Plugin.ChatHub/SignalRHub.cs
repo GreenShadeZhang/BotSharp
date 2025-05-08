@@ -33,6 +33,8 @@ public class SignalRHub : Hub
         if (!string.IsNullOrEmpty(conversationId))
         {
             _logger.LogInformation($"Connection {Context.ConnectionId} is with conversation {conversationId}");
+            await AddGroup(conversationId);
+
             var conv = await convService.GetConversation(conversationId);
             if (conv != null)
             {
@@ -48,5 +50,21 @@ public class SignalRHub : Hub
         }
 
         await base.OnConnectedAsync();
+    }
+
+    private async Task AddGroup(string conversationId)
+    {
+        try
+        {
+            var settings = _services.GetRequiredService<ChatHubSettings>();
+            if (settings.EventDispatchBy == EventDispatchType.Group)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, conversationId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Failed to add chat group in {nameof(SignalRHub)} (conversation id: {conversationId}).");
+        }
     }
 }

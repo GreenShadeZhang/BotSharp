@@ -5,19 +5,20 @@ public partial class PlaywrightWebDriver
     public async Task<BrowserActionResult> ScreenshotAsync(MessageInfo message, string path)
     {
         var result = new BrowserActionResult();
-
-        await _instance.Wait(message.ContextId, waitNetworkIdle: false);
-        var page = _instance.GetPage(message.ContextId);
-
-        await Task.Delay(300);
-        var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
+        if (_webBrowsingSettings.IsEnableScreenshot)
         {
-            Path = path,
-            FullPage = true
-        });
+            await _instance.Wait(message.ContextId, waitNetworkIdle: false);
+            var page = _instance.GetPage(message.ContextId);
 
+            await Task.Delay(300);
+            var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
+            {
+                Path = path,
+                FullPage = true
+            });
+            result.Body = "data:image/png;base64," + Convert.ToBase64String(bytes);
+        }
         result.IsSuccess = true;
-        result.Body = "data:image/png;base64," + Convert.ToBase64String(bytes);
         return result;
     }
 }

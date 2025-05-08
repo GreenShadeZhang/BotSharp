@@ -19,7 +19,7 @@ public abstract class AgentHookBase : IAgentHook
         _settings = settings;
     }
 
-    public void SetAget(Agent agent)
+    public void SetAgent(Agent agent)
     {
         _agent = agent;
     }
@@ -57,5 +57,11 @@ public abstract class AgentHookBase : IAgentHook
 
     public virtual void OnAgentUtilityLoaded(Agent agent)
     {
+
+    }
+
+    public virtual void OnAgentMcpToolLoaded(Agent agent)
+    {
+
     }
 }

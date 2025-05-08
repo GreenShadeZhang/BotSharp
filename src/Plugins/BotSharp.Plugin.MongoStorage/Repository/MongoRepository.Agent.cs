@@ -28,6 +28,9 @@ public partial class MongoRepository
             case AgentField.Type:
                 UpdateAgentType(agent.Id, agent.Type);
                 break;
+            case AgentField.Mode:
+                UpdateAgentMode(agent.Id, agent.Mode);
+                break;
             case AgentField.InheritAgentId:
                 UpdateAgentInheritAgentId(agent.Id, agent.InheritAgentId);
                 break;
@@ -35,7 +38,7 @@ public partial class MongoRepository
                 UpdateAgentProfiles(agent.Id, agent.Profiles);
                 break;
             case AgentField.Label:
-                UpdateAgentLabels(agent.Id, agent.Profiles);
+                UpdateAgentLabels(agent.Id, agent.Labels);
                 break;
             case AgentField.RoutingRule:
                 UpdateAgentRoutingRules(agent.Id, agent.RoutingRules);
@@ -60,6 +63,9 @@ public partial class MongoRepository
                 break;
             case AgentField.Utility:
                 UpdateAgentUtilities(agent.Id, agent.MergeUtility, agent.Utilities);
+                break;
+            case AgentField.McpTool:
+                UpdateAgentMcpTools(agent.Id, agent.McpTools);
                 break;
             case AgentField.KnowledgeBase:
                 UpdateAgentKnowledgeBases(agent.Id, agent.KnowledgeBases);
@@ -128,6 +134,16 @@ public partial class MongoRepository
         var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
         var update = Builders<AgentDocument>.Update
             .Set(x => x.Type, type)
+            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+
+        _dc.Agents.UpdateOne(filter, update);
+    }
+
+    private void UpdateAgentMode(string agentId, string mode)
+    {
+        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
+        var update = Builders<AgentDocument>.Update
+            .Set(x => x.Mode, mode)
             .Set(x => x.UpdatedTime, DateTime.UtcNow);
 
         _dc.Agents.UpdateOne(filter, update);
@@ -261,6 +277,19 @@ public partial class MongoRepository
         _dc.Agents.UpdateOne(filter, update);
     }
 
+    private void UpdateAgentMcpTools(string agentId, List<McpTool> mcps)
+    {
+        if (mcps == null) return;
+
+        var elements = mcps?.Select(x => AgentMcpToolMongoElement.ToMongoElement(x))?.ToList() ?? [];
+
+        var filter = Builders<AgentDocument>.Filter.Eq(x => x.Id, agentId);
+        var update = Builders<AgentDocument>.Update 
+            .Set(x => x.McpTools, elements)
+            .Set(x => x.UpdatedTime, DateTime.UtcNow);
+
+        _dc.Agents.UpdateOne(filter, update);
+    }
     private void UpdateAgentKnowledgeBases(string agentId, List<AgentKnowledgeBase> knowledgeBases)
     {
         if (knowledgeBases == null) return;
@@ -319,6 +348,7 @@ public partial class MongoRepository
             .Set(x => x.Disabled, agent.Disabled)
             .Set(x => x.MergeUtility, agent.MergeUtility)
             .Set(x => x.Type, agent.Type)
+            .Set(x => x.Mode, agent.Mode)
             .Set(x => x.MaxMessageCount, agent.MaxMessageCount)
             .Set(x => x.Profiles, agent.Profiles)
             .Set(x => x.Labels, agent.Labels)
@@ -330,6 +360,7 @@ public partial class MongoRepository
             .Set(x => x.Responses, agent.Responses.Select(r => AgentResponseMongoElement.ToMongoElement(r)).ToList())
             .Set(x => x.Samples, agent.Samples)
             .Set(x => x.Utilities, agent.Utilities.Select(u => AgentUtilityMongoElement.ToMongoElement(u)).ToList())
+            .Set(x => x.McpTools, agent.McpTools.Select(u => AgentMcpToolMongoElement.ToMongoElement(u)).ToList())
             .Set(x => x.KnowledgeBases, agent.KnowledgeBases.Select(u => AgentKnowledgeBaseMongoElement.ToMongoElement(u)).ToList())
             .Set(x => x.Rules, agent.Rules.Select(e => AgentRuleMongoElement.ToMongoElement(e)).ToList())
             .Set(x => x.LlmConfig, AgentLlmConfigMongoElement.ToMongoElement(agent.LlmConfig))
@@ -497,6 +528,7 @@ public partial class MongoRepository
             Samples = x.Samples ?? [],
             IsPublic = x.IsPublic,
             Type = x.Type,
+            Mode = x.Mode,
             InheritAgentId = x.InheritAgentId,
             Disabled = x.Disabled,
             MergeUtility = x.MergeUtility,
@@ -510,6 +542,7 @@ public partial class MongoRepository
             Responses = x.Responses?.Select(r => AgentResponseMongoElement.ToMongoElement(r))?.ToList() ?? [],
             RoutingRules = x.RoutingRules?.Select(r => RoutingRuleMongoElement.ToMongoElement(r))?.ToList() ?? [],
             Utilities = x.Utilities?.Select(u => AgentUtilityMongoElement.ToMongoElement(u))?.ToList() ?? [],
+            McpTools = x.McpTools?.Select(u => AgentMcpToolMongoElement.ToMongoElement(u))?.ToList() ?? [],
             KnowledgeBases = x.KnowledgeBases?.Select(k => AgentKnowledgeBaseMongoElement.ToMongoElement(k))?.ToList() ?? [],
             Rules = x.Rules?.Select(e => AgentRuleMongoElement.ToMongoElement(e))?.ToList() ?? [],
             CreatedTime = x.CreatedDateTime,
@@ -593,6 +626,7 @@ public partial class MongoRepository
             Disabled = agentDoc.Disabled,
             MergeUtility = agentDoc.MergeUtility,
             Type = agentDoc.Type,
+            Mode = agentDoc.Mode,
             InheritAgentId = agentDoc.InheritAgentId,
             Profiles = agentDoc.Profiles ?? [],
             Labels = agentDoc.Labels ?? [],
@@ -604,6 +638,7 @@ public partial class MongoRepository
             Responses = agentDoc.Responses?.Select(r => AgentResponseMongoElement.ToDomainElement(r))?.ToList() ?? [],
             RoutingRules = agentDoc.RoutingRules?.Select(r => RoutingRuleMongoElement.ToDomainElement(agentDoc.Id, agentDoc.Name, r))?.ToList() ?? [],
             Utilities = agentDoc.Utilities?.Select(u => AgentUtilityMongoElement.ToDomainElement(u))?.ToList() ?? [],
+            McpTools = agentDoc.McpTools?.Select(u => AgentMcpToolMongoElement.ToDomainElement(u))?.ToList() ?? [],
             KnowledgeBases = agentDoc.KnowledgeBases?.Select(x => AgentKnowledgeBaseMongoElement.ToDomainElement(x))?.ToList() ?? [],
             Rules = agentDoc.Rules?.Select(e => AgentRuleMongoElement.ToDomainElement(e))?.ToList() ?? []
         };

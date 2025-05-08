@@ -100,7 +100,7 @@ public class ReadImageFn : IFunctionCallback
         {
             var llmProviderService = _services.GetRequiredService<ILlmProviderService>();
             var provider = llmProviderService.GetProviders().FirstOrDefault(x => x == "openai");
-            var model = llmProviderService.GetProviderModel(provider: provider, id: "gpt-4", multiModal: true);
+            var model = llmProviderService.GetProviderModel(provider: provider, id: "gpt-4o", multiModal: true);
             var completion = CompletionProvider.GetChatCompletion(_services, provider: provider, model: model.Name);
             var response = await completion.GetChatCompletions(agent, dialogs);
             return response.Content;
@@ -108,7 +108,7 @@ public class ReadImageFn : IFunctionCallback
         catch (Exception ex)
         {
             var error = $"Error when analyzing images.";
-            _logger.LogWarning($"{error} {ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"{error}");
             return error;
         }
     }

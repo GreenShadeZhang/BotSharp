@@ -124,7 +124,7 @@ public interface IBotSharpRepository : IHaveServiceProvider
         => throw new NotImplementedException();
     void UpdateConversationStatus(string conversationId, string status)
         => throw new NotImplementedException();
-    Conversation GetConversation(string conversationId)
+    Conversation GetConversation(string conversationId, bool isLoadStates = false)
         => throw new NotImplementedException();
     PagedItems<Conversation> GetConversations(ConversationFilter filter)
         => throw new NotImplementedException();
@@ -132,7 +132,7 @@ public interface IBotSharpRepository : IHaveServiceProvider
         => throw new NotImplementedException();
     void UpdateConversationTitleAlias(string conversationId, string titleAlias)
         => throw new NotImplementedException();
-    bool UpdateConversationTags(string conversationId, List<string> tags)
+    bool UpdateConversationTags(string conversationId, List<string> toAddTags, List<string> toDeleteTags)
         => throw new NotImplementedException();
     bool AppendConversationTags(string conversationId, List<string> tags)
         => throw new NotImplementedException();
@@ -148,15 +148,12 @@ public interface IBotSharpRepository : IHaveServiceProvider
          => throw new NotImplementedException();
     List<string> TruncateConversation(string conversationId, string messageId, bool cleanLog = false)
          => throw new NotImplementedException();
-    List<string> GetConversationStateSearchKeys(int messageLowerLimit = 2, int convUpperlimit = 100)
+    List<string> GetConversationStateSearchKeys(ConversationStateKeysFilter filter)
          => throw new NotImplementedException();
-    #endregion
-
-    #region Execution Log
-    void AddExecutionLogs(string conversationId, List<string> logs)
+    List<string> GetConversationsToMigrate(int batchSize = 100)
         => throw new NotImplementedException();
-    List<string> GetExecutionLogs(string conversationId)
-        => throw new NotImplementedException();
+    bool MigrateConvsersationLatestStates(string conversationId)
+         => throw new NotImplementedException();
     #endregion
 
     #region LLM Completion Log
@@ -167,15 +164,26 @@ public interface IBotSharpRepository : IHaveServiceProvider
     #region Conversation Content Log
     void SaveConversationContentLog(ContentLogOutputModel log)
         => throw new NotImplementedException();
-    List<ContentLogOutputModel> GetConversationContentLogs(string conversationId)
+    DateTimePagination<ContentLogOutputModel> GetConversationContentLogs(string conversationId, ConversationLogFilter filter)
         => throw new NotImplementedException();
     #endregion
 
     #region Conversation State Log
     void SaveConversationStateLog(ConversationStateLogModel log)
         => throw new NotImplementedException();
-    List<ConversationStateLogModel> GetConversationStateLogs(string conversationId)
+    DateTimePagination<ConversationStateLogModel> GetConversationStateLogs(string conversationId, ConversationLogFilter filter)
         => throw new NotImplementedException();
+    #endregion
+
+    #region Instruction Log
+    bool SaveInstructionLogs(IEnumerable<InstructionLogModel> logs)
+        => throw new NotImplementedException();
+
+    PagedItems<InstructionLogModel> GetInstructionLogs(InstructLogFilter filter)
+        => throw new NotImplementedException();
+
+    List<string> GetInstructionLogSearchKeys(InstructLogKeysFilter filter)
+         => throw new NotImplementedException();
     #endregion
 
     #region Statistics

@@ -5,17 +5,12 @@ namespace BotSharp.Plugin.MongoStorage.Models;
 [BsonIgnoreExtraElements(Inherited = true)]
 public class DialogMongoElement
 {
-    public DialogMetaDataMongoElement MetaData { get; set; }
-    public string Content { get; set; }
+    public DialogMetaDataMongoElement MetaData { get; set; } = new();
+    public string Content { get; set; } = default!;
     public string? SecondaryContent { get; set; }
     public string? RichContent { get; set; }
     public string? SecondaryRichContent { get; set; }
     public string? Payload { get; set; }
-
-    public DialogMongoElement()
-    {
-
-    }
 
     public static DialogMongoElement ToMongoElement(DialogElement dialog)
     {
@@ -44,20 +39,16 @@ public class DialogMongoElement
     }
 }
 
+[BsonIgnoreExtraElements(Inherited = true)]
 public class DialogMetaDataMongoElement
 {
-    public string Role { get; set; }
-    public string AgentId { get; set; }
-    public string MessageId { get; set; }
-    public string MessageType { get; set; }
+    public string Role { get; set; } = default!;
+    public string AgentId { get; set; } = default!;
+    public string MessageId { get; set; } = default!;
+    public string MessageType { get; set; } = default!;
     public string? FunctionName { get; set; }
     public string? SenderId { get; set; }
     public DateTime CreateTime { get; set; }
-
-    public DialogMetaDataMongoElement()
-    {
-
-    }
 
     public static DialogMetaData ToDomainElement(DialogMetaDataMongoElement meta)
     {
@@ -69,7 +60,7 @@ public class DialogMetaDataMongoElement
             MessageType = meta.MessageType,
             FunctionName = meta.FunctionName,
             SenderId = meta.SenderId,
-            CreateTime = meta.CreateTime,
+            CreatedTime = meta.CreateTime,
         };
     }
 
@@ -83,7 +74,7 @@ public class DialogMetaDataMongoElement
             MessageType = meta.MessageType,
             FunctionName = meta.FunctionName,
             SenderId = meta.SenderId,
-            CreateTime = meta.CreateTime,
+            CreateTime = meta.CreatedTime,
         };
     }
 }

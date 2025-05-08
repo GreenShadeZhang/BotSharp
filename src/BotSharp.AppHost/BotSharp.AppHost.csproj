@@ -10,11 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="8.2.0" />
-    <PackageReference Include="Aspire.Hosting.NodeJs" Version="8.0.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.NodeJs" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\tests\BotSharp.PizzaBot.MCPServer\BotSharp.PizzaBot.MCPServer.csproj" />
     <ProjectReference Include="..\BotSharp.ServiceDefaults\BotSharp.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WebStarter\WebStarter.csproj" />
   </ItemGroup>

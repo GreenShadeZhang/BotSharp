@@ -1,7 +1,6 @@
 using BotSharp.Abstraction.Agents.Enums;
 using BotSharp.Abstraction.Conversations;
 using BotSharp.Abstraction.Loggers;
-using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.GoogleAi.Providers.Text;
 
@@ -14,6 +13,7 @@ public class PalmTextCompletionProvider : ITextCompletion
     private string _model;
 
     public string Provider => "google-palm";
+    public string Model => _model;
 
     public PalmTextCompletionProvider(
         IServiceProvider services,

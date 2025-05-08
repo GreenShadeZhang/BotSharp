@@ -44,7 +44,7 @@ public class LlmProviderService : ILlmProviderService
             ?.Models ?? new List<LlmModelSetting>();
     }
 
-    public LlmModelSetting GetProviderModel(string provider, string id, bool? multiModal = null, bool? realTime = false, bool imageGenerate = false)
+    public LlmModelSetting GetProviderModel(string provider, string id, bool? multiModal = null, LlmModelType? modelType = null, bool imageGenerate = false)
     {
         var models = GetProviderModels(provider)
             .Where(x => x.Id == id);
@@ -54,9 +54,9 @@ public class LlmProviderService : ILlmProviderService
             models = models.Where(x => x.MultiModal == multiModal);
         }
 
-        if (realTime.HasValue)
+        if (modelType.HasValue)
         {
-            models = models.Where(x => x.RealTime == realTime);
+            models = models.Where(x => x.Type == modelType.Value);
         }
 
         models = models.Where(x => x.ImageGeneration == imageGenerate);
@@ -102,5 +102,46 @@ public class LlmProviderService : ILlmProviderService
         }
 
         return modelSetting;
+    }
+
+
+    public List<LlmProviderSetting> GetLlmConfigs(LlmConfigOptions? options = null)
+    {
+        var settingService = _services.GetRequiredService<ISettingService>();
+        var providers = settingService.Bind<List<LlmProviderSetting>>($"LlmProviders");
+        var configs = new List<LlmProviderSetting>();
+
+        if (providers.IsNullOrEmpty()) return configs;
+
+        if (options == null) return providers ?? [];
+
+        foreach (var provider in providers)
+        {
+            var models = provider.Models ?? [];
+            if (options.Type.HasValue)
+            {
+                models = models.Where(x => x.Type == options.Type.Value).ToList();
+            }
+
+            if (options.MultiModal.HasValue)
+            {
+                models = models.Where(x => x.MultiModal == options.MultiModal.Value).ToList();
+            }
+
+            if (options.ImageGeneration.HasValue)
+            {
+                models = models.Where(x => x.ImageGeneration == options.ImageGeneration.Value).ToList();
+            }
+
+            if (models.IsNullOrEmpty())
+            {
+                continue;
+            }
+
+            provider.Models = models;
+            configs.Add(provider);
+        }
+
+        return configs;
     }
 }

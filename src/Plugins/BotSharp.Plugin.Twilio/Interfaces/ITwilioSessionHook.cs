@@ -46,15 +46,6 @@ public interface ITwilioSessionHook
         => Task.CompletedTask;
 
     /// <summary>
-    /// On agent generated indication
-    /// </summary>
-    /// <param name="request"></param>
-    /// <param name="response"></param>
-    /// <returns></returns>
-    Task OnIndicationGenerated(ConversationalVoiceRequest request, ConversationalVoiceResponse response)
-        => Task.CompletedTask;
-
-    /// <summary>
     /// Waiting agent response
     /// </summary>
     /// <param name="request"></param>
@@ -88,5 +79,13 @@ public interface ITwilioSessionHook
     /// <param name="response"></param>
     /// <returns></returns>
     Task OnAgentTransferring(ConversationalVoiceRequest request, TwilioSetting settings)
-        => Task.CompletedTask;
+    => Task.CompletedTask;
+
+    /// <summary>
+    /// Allow Twilio to reconnect when it's in streaming mode.
+    /// </summary>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    Task<bool> ShouldReconnect(ConversationalVoiceRequest request, RoleDialogModel message)
+        => Task.FromResult(false);
 }

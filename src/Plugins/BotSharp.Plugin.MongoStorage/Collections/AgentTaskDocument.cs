@@ -4,12 +4,12 @@ namespace BotSharp.Plugin.MongoStorage.Collections;
 
 public class AgentTaskDocument : MongoBase
 {
-    public string Name { get; set; }
+    public string Name { get; set; } = default!;
     public string? Description { get; set; }
-    public string Content { get; set; }
+    public string Content { get; set; } = default!;
     public bool Enabled { get; set; }
-    public string AgentId { get; set; }
-    public string Status { get; set; }
+    public string AgentId { get; set; } = default!;
+    public string Status { get; set; } = default!;
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }
 
@@ -23,8 +23,8 @@ public class AgentTaskDocument : MongoBase
             Enabled = model.Enabled,
             AgentId = model.AgentId,
             Status = model.Status,
-            CreatedDateTime = model.CreatedTime,
-            UpdatedDateTime = model.UpdatedTime
+            CreatedTime = model.CreatedTime,
+            UpdatedTime = model.UpdatedTime
         };
     }
 
@@ -38,8 +38,8 @@ public class AgentTaskDocument : MongoBase
             Enabled = model.Enabled,
             AgentId = model.AgentId,
             Status = model.Status,
-            CreatedTime = model.CreatedDateTime,
-            UpdatedTime = model.UpdatedDateTime
+            CreatedTime = model.CreatedTime,
+            UpdatedTime = model.UpdatedTime
         };
     }
 }

@@ -8,6 +8,7 @@ public enum AgentField
     IsPublic,
     Disabled,
     Type,
+    Mode,
     InheritAgentId,
     Profile,
     Label,
@@ -19,6 +20,7 @@ public enum AgentField
     Sample,
     LlmConfig,
     Utility,
+    McpTool,
     KnowledgeBase,
     Rule,
     MaxMessageCount

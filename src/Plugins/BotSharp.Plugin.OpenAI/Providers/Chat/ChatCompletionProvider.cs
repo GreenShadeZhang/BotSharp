@@ -1,4 +1,3 @@
-using BotSharp.Abstraction.Files.Utilities;
 using OpenAI.Chat;
 
 namespace BotSharp.Plugin.OpenAI.Providers.Chat;
@@ -10,8 +9,10 @@ public class ChatCompletionProvider : IChatCompletion
     protected readonly ILogger<ChatCompletionProvider> _logger;
 
     protected string _model;
+    private List<string> renderedInstructions = [];
 
     public virtual string Provider => "openai";
+    public string Model => _model;
 
     public ChatCompletionProvider(
         OpenAiSettings settings,
@@ -53,7 +54,8 @@ public class ChatCompletionProvider : IChatCompletion
                 MessageId = conversations.LastOrDefault()?.MessageId ?? string.Empty,
                 ToolCallId = toolCall?.Id,
                 FunctionName = toolCall?.FunctionName,
-                FunctionArgs = toolCall?.FunctionArguments?.ToString()
+                FunctionArgs = toolCall?.FunctionArguments?.ToString(),
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
 
             // Somethings LLM will generate a function name with agent name.
@@ -68,8 +70,12 @@ public class ChatCompletionProvider : IChatCompletion
             {
                 CurrentAgentId = agent.Id,
                 MessageId = conversations.LastOrDefault()?.MessageId ?? string.Empty,
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
         }
+
+        var tokenUsage = response.Value?.Usage;
+        var inputTokenDetails = response.Value?.Usage?.InputTokenDetails;
 
         // After chat completion hook
         foreach (var hook in contentHooks)
@@ -79,8 +85,9 @@ public class ChatCompletionProvider : IChatCompletion
                 Prompt = prompt,
                 Provider = Provider,
                 Model = _model,
-                PromptCount = response.Value?.Usage?.InputTokenCount ?? 0,
-                CompletionCount = response.Value?.Usage?.OutputTokenCount ?? 0
+                TextInputTokens = (tokenUsage?.InputTokenCount ?? 0) - (inputTokenDetails?.CachedTokenCount ?? 0),
+                CachedTextInputTokens = inputTokenDetails?.CachedTokenCount ?? 0,
+                TextOutputTokens = tokenUsage?.OutputTokenCount ?? 0
             });
         }
 
@@ -112,8 +119,12 @@ public class ChatCompletionProvider : IChatCompletion
 
         var msg = new RoleDialogModel(AgentRole.Assistant, text)
         {
-            CurrentAgentId = agent.Id
+            CurrentAgentId = agent.Id,
+            RenderedInstruction = string.Join("\r\n", renderedInstructions)
         };
+
+        var tokenUsage = response?.Value?.Usage;
+        var inputTokenDetails = response?.Value?.Usage?.InputTokenDetails;
 
         // After chat completion hook
         foreach (var hook in hooks)
@@ -123,8 +134,9 @@ public class ChatCompletionProvider : IChatCompletion
                 Prompt = prompt,
                 Provider = Provider,
                 Model = _model,
-                PromptCount = response.Value?.Usage?.InputTokenCount ?? 0,
-                CompletionCount = response.Value?.Usage?.OutputTokenCount ?? 0
+                TextInputTokens = (tokenUsage?.InputTokenCount ?? 0) - (inputTokenDetails?.CachedTokenCount ?? 0),
+                CachedTextInputTokens = inputTokenDetails?.CachedTokenCount ?? 0,
+                TextOutputTokens = tokenUsage?.OutputTokenCount ?? 0
             });
         }
 
@@ -139,7 +151,8 @@ public class ChatCompletionProvider : IChatCompletion
                 MessageId = conversations.LastOrDefault()?.MessageId ?? string.Empty,
                 ToolCallId = toolCall?.Id,
                 FunctionName = toolCall?.FunctionName,
-                FunctionArgs = toolCall?.FunctionArguments?.ToString()
+                FunctionArgs = toolCall?.FunctionArguments?.ToString(),
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
             };
 
             // Somethings LLM will generate a function name with agent name.
@@ -175,7 +188,10 @@ public class ChatCompletionProvider : IChatCompletion
                 var update = choice.ToolCallUpdates?.FirstOrDefault()?.FunctionArgumentsUpdate?.ToString() ?? string.Empty;
                 _logger.LogInformation(update);
 
-                await onMessageReceived(new RoleDialogModel(AgentRole.Assistant, update));
+                await onMessageReceived(new RoleDialogModel(AgentRole.Assistant, update)
+                {
+                    RenderedInstruction = string.Join("\r\n", renderedInstructions)
+                });
                 continue;
             }
 
@@ -183,7 +199,10 @@ public class ChatCompletionProvider : IChatCompletion
 
             _logger.LogInformation(choice.ContentUpdate[0]?.Text);
 
-            await onMessageReceived(new RoleDialogModel(choice.Role?.ToString() ?? ChatMessageRole.Assistant.ToString(), choice.ContentUpdate[0]?.Text ?? string.Empty));
+            await onMessageReceived(new RoleDialogModel(choice.Role?.ToString() ?? ChatMessageRole.Assistant.ToString(), choice.ContentUpdate[0]?.Text ?? string.Empty)
+            {
+                RenderedInstruction = string.Join("\r\n", renderedInstructions)
+            });
         }
 
         return true;
@@ -198,6 +217,7 @@ public class ChatCompletionProvider : IChatCompletion
         var settingsService = _services.GetRequiredService<ILlmProviderService>();
         var settings = settingsService.GetSetting(Provider, _model);
         var allowMultiModal = settings != null && settings.MultiModal;
+        renderedInstructions = [];
 
         var messages = new List<ChatMessage>();
 
@@ -227,6 +247,7 @@ public class ChatCompletionProvider : IChatCompletion
         if (!string.IsNullOrEmpty(agent.Instruction) || !agent.SecondaryInstructions.IsNullOrEmpty())
         {
             var text = agentService.RenderedInstruction(agent);
+            renderedInstructions.Add(text);
             messages.Add(new SystemChatMessage(text));
         }
 

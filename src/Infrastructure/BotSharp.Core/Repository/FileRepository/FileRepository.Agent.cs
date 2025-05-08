@@ -27,6 +27,9 @@ namespace BotSharp.Core.Repository
                 case AgentField.Type:
                     UpdateAgentType(agent.Id, agent.Type);
                     break;
+                case AgentField.Mode:
+                    UpdateAgentMode(agent.Id, agent.Mode);
+                    break;
                 case AgentField.InheritAgentId:
                     UpdateAgentInheritAgentId(agent.Id, agent.InheritAgentId);
                     break;
@@ -59,6 +62,9 @@ namespace BotSharp.Core.Repository
                     break;
                 case AgentField.Utility:
                     UpdateAgentUtilities(agent.Id, agent.MergeUtility, agent.Utilities);
+                    break;
+                case AgentField.McpTool:
+                    UpdateAgentMcpTools(agent.Id, agent.McpTools);
                     break;
                 case AgentField.KnowledgeBase:
                     UpdateAgentKnowledgeBases(agent.Id, agent.KnowledgeBases);
@@ -139,6 +145,17 @@ namespace BotSharp.Core.Repository
             File.WriteAllText(agentFile, json);
         }
 
+        private void UpdateAgentMode(string agentId, string mode)
+        {
+            var (agent, agentFile) = GetAgentFromFile(agentId);
+            if (agent == null) return;
+
+            agent.Mode = mode;
+            agent.UpdatedDateTime = DateTime.UtcNow;
+            var json = JsonSerializer.Serialize(agent, _options);
+            File.WriteAllText(agentFile, json);
+        }
+
         private void UpdateAgentInheritAgentId(string agentId, string? inheritAgentId)
         {
             var (agent, agentFile) = GetAgentFromFile(agentId);
@@ -186,6 +203,20 @@ namespace BotSharp.Core.Repository
 
             agent.MergeUtility = mergeUtility;
             agent.Utilities = utilities;
+            agent.UpdatedDateTime = DateTime.UtcNow;
+            var json = JsonSerializer.Serialize(agent, _options);
+            File.WriteAllText(agentFile, json);
+        }
+
+        private void UpdateAgentMcpTools(string agentId, List<McpTool> mcptools)
+        {
+            if (mcptools == null) return;
+
+            var (agent, agentFile) = GetAgentFromFile(agentId);
+            if (agent == null) return;
+
+   
+            agent.McpTools = mcptools;
             agent.UpdatedDateTime = DateTime.UtcNow;
             var json = JsonSerializer.Serialize(agent, _options);
             File.WriteAllText(agentFile, json);
@@ -360,6 +391,7 @@ namespace BotSharp.Core.Repository
             agent.Profiles = inputAgent.Profiles;
             agent.Labels = inputAgent.Labels;
             agent.Utilities = inputAgent.Utilities;
+            agent.McpTools = inputAgent.McpTools;
             agent.KnowledgeBases = inputAgent.KnowledgeBases;
             agent.RoutingRules = inputAgent.RoutingRules;
             agent.Rules = inputAgent.Rules;

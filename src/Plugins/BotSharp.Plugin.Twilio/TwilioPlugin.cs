@@ -1,9 +1,8 @@
-using BotSharp.Abstraction.Realtime;
 using BotSharp.Abstraction.Settings;
+using BotSharp.Plugin.Twilio.Hooks;
 using BotSharp.Plugin.Twilio.Interfaces;
 using BotSharp.Plugin.Twilio.OutboundPhoneCallHandler.Hooks;
 using BotSharp.Plugin.Twilio.Services;
-using BotSharp.Plugin.Twilio.Services.Stream;
 using StackExchange.Redis;
 using Twilio;
 
@@ -34,5 +33,6 @@ public class TwilioPlugin : IBotSharpPlugin
         services.AddHostedService<TwilioMessageQueueService>();
         services.AddTwilioRequestValidation();
         services.AddScoped<IAgentUtilityHook, OutboundPhoneCallHandlerUtilityHook>();
+        services.AddScoped<IConversationHook, TwilioConversationHook>();
     }
 }

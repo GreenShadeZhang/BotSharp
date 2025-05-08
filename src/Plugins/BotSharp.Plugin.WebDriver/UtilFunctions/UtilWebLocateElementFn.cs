@@ -21,18 +21,23 @@ public class UtilWebLocateElementFn : IFunctionCallback
         var conv = _services.GetRequiredService<IConversationService>();
         locatorArgs.Highlight = true;
 
-        var browser = _services.GetRequiredService<IWebBrowser>();
+        var services = _services.CreateScope().ServiceProvider;
+        var browser = services.GetRequiredService<IWebBrowser>();
+        var webDriverService = _services.GetRequiredService<WebDriverService>();
         var msg = new MessageInfo
         {
             AgentId = message.CurrentAgentId,
             MessageId = message.MessageId,
-            ContextId = message.CurrentAgentId,
+            ContextId = webDriverService.GetMessageContext(message)
         };
         var result = await browser.LocateElement(msg, locatorArgs);
 
-        message.Content = $"Locating element {(result.IsSuccess ? "success" : "failed")}";
+        message.Content = $"Locating element {(result.IsSuccess ? "success" : "failed")}. ";
+        if (locatorArgs.IsReadContent && result.IsSuccess && !string.IsNullOrWhiteSpace(result.Body))
+        {
+            message.Content += $"Content is: \n{result.Body}";
+        }
 
-        var webDriverService = _services.GetRequiredService<WebDriverService>();
         var path = webDriverService.GetScreenshotFilePath(message.MessageId);
 
         message.Data = await browser.ScreenshotAsync(msg, path);

@@ -1,10 +1,8 @@
-using Azure;
 using BotSharp.Abstraction.Files.Constants;
 using BotSharp.Abstraction.Files.Enums;
 using BotSharp.Abstraction.Files.Utilities;
 using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.Routing;
-using BotSharp.Abstraction.Users.Enums;
 using BotSharp.Core.Infrastructures;
 
 namespace BotSharp.OpenAPI.Controllers;
@@ -35,7 +33,7 @@ public class ConversationController : ControllerBase
         var conv = new Conversation
         {
             AgentId = agentId,
-            Channel = channel == default ? ConversationChannel.OpenAPI : channel.Value,
+            Channel = channel == default ? ConversationChannel.OpenAPI : channel.Value.ToString(),
             Tags = config.Tags ?? new(),
             TaskId = config.TaskId
         };
@@ -45,27 +43,33 @@ public class ConversationController : ControllerBase
         return ConversationViewModel.FromSession(conv);
     }
 
-    [HttpPost("/conversations")]
-    public async Task<PagedItems<ConversationViewModel>> GetConversations([FromBody] ConversationFilter filter)
+    [HttpGet("/conversations")]
+    public async Task<PagedItems<ConversationViewModel>> GetConversations([FromQuery] ConversationFilter filter)
     {
         var convService = _services.GetRequiredService<IConversationService>();
         var userService = _services.GetRequiredService<IUserService>();
-        var user = await userService.GetUser(_user.Id);
+        var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
         if (user == null)
         {
             return new PagedItems<ConversationViewModel>();
         }
 
-        filter.UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : filter.UserId;
+        filter.UserId = !isAdmin ? user.Id : filter.UserId;
         var conversations = await convService.GetConversations(filter);
         var agentService = _services.GetRequiredService<IAgentService>();
         var list = conversations.Items.Select(x => ConversationViewModel.FromSession(x)).ToList();
 
+        var agentIds = list.Select(x => x.AgentId).ToList();
+        var agents = await agentService.GetAgentOptions(agentIds);
+
+        var userIds = list.Select(x => x.User.Id).ToList();
+        var users = await userService.GetUsers(new UserFilter { UserIds = userIds, Size = filter.Pager.Size });
+
         foreach (var item in list)
         {
-            user = await userService.GetUser(item.User.Id);
+            user = users.Items.FirstOrDefault(x => x.Id == item.User.Id);
             item.User = UserViewModel.FromUser(user);
-            var agent = await agentService.GetAgent(item.AgentId);
+            var agent = agents.FirstOrDefault(x => x.Id == item.AgentId);
             item.AgentName = agent?.Name ?? "Unkown";
         }
 
@@ -77,11 +81,11 @@ public class ConversationController : ControllerBase
     }
 
     [HttpGet("/conversation/{conversationId}/dialogs")]
-    public async Task<IEnumerable<ChatResponseModel>> GetDialogs([FromRoute] string conversationId)
+    public async Task<IEnumerable<ChatResponseModel>> GetDialogs([FromRoute] string conversationId, [FromQuery] int count = 100)
     {
         var conv = _services.GetRequiredService<IConversationService>();
-        conv.SetConversationId(conversationId, new List<MessageState>(), isReadOnly: true);
-        var history = conv.GetDialogHistory(fromBreakpoint: false);
+        conv.SetConversationId(conversationId, [], isReadOnly: true);
+        var history = conv.GetDialogHistory(lastCount: count, fromBreakpoint: false);
 
         var userService = _services.GetRequiredService<IUserService>();
         var agentService = _services.GetRequiredService<IAgentService>();
@@ -134,11 +138,11 @@ public class ConversationController : ControllerBase
     }
 
     [HttpGet("/conversation/{conversationId}")]
-    public async Task<ConversationViewModel?> GetConversation([FromRoute] string conversationId)
+    public async Task<ConversationViewModel?> GetConversation([FromRoute] string conversationId, [FromQuery] bool isLoadStates = false)
     {
         var service = _services.GetRequiredService<IConversationService>();
         var userService = _services.GetRequiredService<IUserService>();
-        var user = await userService.GetUser(_user.Id);
+        var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
         if (user == null)
         {
             return null;
@@ -147,7 +151,8 @@ public class ConversationController : ControllerBase
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
+            UserId = !isAdmin ? user.Id : null,
+            IsLoadLatestStates = isLoadStates
         };
         var conversations = await service.GetConversations(filter);
         if (conversations.Items.IsNullOrEmpty())
@@ -157,7 +162,6 @@ public class ConversationController : ControllerBase
 
         var result = ConversationViewModel.FromSession(conversations.Items.First());
         var state = _services.GetRequiredService<IConversationStateService>();
-        result.States = state.Load(conversationId, isReadOnly: true);
         user = await userService.GetUser(result.User.Id);
         result.User = UserViewModel.FromUser(user);
 
@@ -206,11 +210,11 @@ public class ConversationController : ControllerBase
         var userService = _services.GetRequiredService<IUserService>();
         var conv = _services.GetRequiredService<IConversationService>();
 
-        var user = await userService.GetUser(_user.Id);
+        var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
+            UserId = !isAdmin ? user?.Id : null
         };
         var conversations = await conv.GetConversations(filter);
 
@@ -229,11 +233,11 @@ public class ConversationController : ControllerBase
         var userService = _services.GetRequiredService<IUserService>();
         var conversationService = _services.GetRequiredService<IConversationService>();
 
-        var user = await userService.GetUser(_user.Id);
+        var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = user.Role != UserRole.Admin ? user.Id : null
+            UserId = !isAdmin ? user?.Id : null
         };
         var conversations = await conversationService.GetConversations(filter);
 
@@ -251,7 +255,7 @@ public class ConversationController : ControllerBase
     public async Task<bool> UpdateConversationTags([FromRoute] string conversationId, [FromBody] UpdateConversationRequest request)
     {
         var conv = _services.GetRequiredService<IConversationService>();
-        return await conv.UpdateConversationTags(conversationId, request.Tags);
+        return await conv.UpdateConversationTags(conversationId, request.ToAddTags, request.ToDeleteTags);
     }
 
     [HttpPut("/conversation/{conversationId}/update-message")]
@@ -283,11 +287,11 @@ public class ConversationController : ControllerBase
         var userService = _services.GetRequiredService<IUserService>();
         var conversationService = _services.GetRequiredService<IConversationService>();
 
-        var user = await userService.GetUser(_user.Id);
+        var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = !UserConstant.AdminRoles.Contains(user?.Role) ? user.Id : null
+            UserId = !isAdmin ? user?.Id : null
         };
         var conversations = await conversationService.GetConversations(filter);
 
@@ -349,7 +353,8 @@ public class ConversationController : ControllerBase
 
     #region Send message
     [HttpPost("/conversation/{agentId}/{conversationId}")]
-    public async Task<ChatResponseModel> SendMessage([FromRoute] string agentId,
+    public async Task<ChatResponseModel> SendMessage(
+        [FromRoute] string agentId,
         [FromRoute] string conversationId,
         [FromBody] NewMessageModel input)
     {
@@ -363,8 +368,8 @@ public class ConversationController : ControllerBase
         var routing = _services.GetRequiredService<IRoutingService>();
         routing.Context.SetMessageId(conversationId, inputMsg.MessageId);
 
-        SetStates(conv, input);
         conv.SetConversationId(conversationId, input.States);
+        SetStates(conv, input);
 
         var response = new ChatResponseModel();
 
@@ -555,22 +560,47 @@ public class ConversationController : ControllerBase
 
     #region Search state keys
     [HttpGet("/conversation/state/keys")]
-    public async Task<List<string>> GetConversationStateKeys([FromQuery] string query, [FromQuery] int keyLimit = 10, [FromQuery] bool preLoad = false)
+    public async Task<List<string>> GetConversationStateKeys([FromQuery] ConversationStateKeysFilter request)
     {
         var convService = _services.GetRequiredService<IConversationService>();
-        var keys = await convService.GetConversationStateSearhKeys(query, keyLimit: keyLimit, preLoad: preLoad);
+        var keys = await convService.GetConversationStateSearhKeys(request);
         return keys;
+    }
+    #endregion
+
+    #region Migrate Latest States
+    [HttpPost("/conversation/latest-state/migrate")]
+    public async Task<bool> MigrateConversationLatestStates([FromBody] MigrateLatestStateRequest request)
+    {
+        var convService = _services.GetRequiredService<IConversationService>();
+        var res = await convService.MigrateLatestStates(request.BatchSize, request.ErrorLimit);
+        return res;
     }
     #endregion
 
     #region Private methods
     private void SetStates(IConversationService conv, NewMessageModel input)
     {
-        conv.States.SetState("channel", input.Channel, source: StateSource.External)
-           .SetState("provider", input.Provider, source: StateSource.External)
-           .SetState("model", input.Model, source: StateSource.External)
-           .SetState("temperature", input.Temperature, source: StateSource.External)
-           .SetState("sampling_factor", input.SamplingFactor, source: StateSource.External);
+        if (string.IsNullOrEmpty(conv.States.GetState("channel")))
+        {
+            conv.States.SetState("channel", input.Channel, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("provider")))
+        {
+            conv.States.SetState("provider", input.Provider, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("model")))
+        {
+            conv.States.SetState("model", input.Model, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("temperature")))
+        {
+            conv.States.SetState("temperature", input.Temperature, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("sampling_factor")))
+        {
+            conv.States.SetState("sampling_factor", input.SamplingFactor, source: StateSource.External);
+        }
     }
 
     private FileContentResult BuildFileResult(string file)

@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Infrastructures.Enums;
 using BotSharp.Abstraction.Routing.Settings;
 
 namespace BotSharp.Core.Routing;
@@ -79,16 +80,18 @@ public class RoutingContext : IRoutingContext
     /// </summary>
     /// <param name="agentId">Id or Name</param>
     /// <param name="reason"></param>
-    public void Push(string agentId, string? reason = null)
+    public void Push(string agentId, string? reason = null, bool updateLazyRouting = true)
     {
         // Convert id to name
         if (!Guid.TryParse(agentId, out _))
         {
             var agentService = _services.GetRequiredService<IAgentService>();
-            agentId = agentService.GetAgents(new AgentFilter
+            var agents = agentService.GetAgentOptions([agentId], byName: true).Result;
+
+            if (agents.Count > 0)
             {
-                AgentNames = [agentId]
-            }).Result.Items.First().Id;
+                agentId = agents.First().Id;
+            }
         }
 
         if (_stack.Count == 0 || _stack.Peek() != agentId)
@@ -99,13 +102,15 @@ public class RoutingContext : IRoutingContext
             HookEmitter.Emit<IRoutingHook>(_services, async hook =>
                 await hook.OnAgentEnqueued(agentId, preAgentId, reason: reason)
             ).Wait();
+
+            UpdateLazyRoutingAgent(updateLazyRouting);
         }
     }
 
     /// <summary>
     /// Pop current agent
     /// </summary>
-    public void Pop(string? reason = null)
+    public void Pop(string? reason = null, bool updateLazyRouting = true)
     {
         if (_stack.Count == 0)
         {
@@ -126,7 +131,7 @@ public class RoutingContext : IRoutingContext
 
         // Run the routing rule
         var agency = _services.GetRequiredService<IAgentService>();
-        var agent = agency.LoadAgent(currentAgentId).Result;
+        var agent = agency.GetAgent(currentAgentId).Result;
 
         var message = new RoleDialogModel(AgentRole.User, $"Try to route to agent {agent.Name}")
         {
@@ -149,15 +154,17 @@ public class RoutingContext : IRoutingContext
                 _stack.Push(agentId);
             }
         }
+
+        UpdateLazyRoutingAgent(updateLazyRouting);
     }
 
-    public void PopTo(string agentId, string reason)
+    public void PopTo(string agentId, string reason, bool updateLazyRouting = true)
     {
         var currentAgentId = GetCurrentAgentId();
         while (!string.IsNullOrEmpty(currentAgentId) && 
             currentAgentId != agentId)
         {
-            Pop(reason);
+            Pop(reason, updateLazyRouting: updateLazyRouting);
             currentAgentId = GetCurrentAgentId();
         }
     }
@@ -181,7 +188,7 @@ public class RoutingContext : IRoutingContext
         return _stack.ToArray().Contains(agentId);
     }
 
-    public void Replace(string agentId, string? reason = null)
+    public void Replace(string agentId, string? reason = null, bool updateLazyRouting = true)
     {
         var fromAgent = agentId;
         var toAgent = agentId;
@@ -200,6 +207,8 @@ public class RoutingContext : IRoutingContext
                 await hook.OnAgentReplaced(fromAgent, toAgent, reason: reason)
             ).Wait();
         }
+
+        UpdateLazyRoutingAgent(updateLazyRouting);
     }
 
     public void Empty(string? reason = null)
@@ -274,5 +283,25 @@ public class RoutingContext : IRoutingContext
     public void ResetDialogs()
     {
         _dialogs = [];
+    }
+
+    private void UpdateLazyRoutingAgent(bool updateLazyRouting)
+    {
+        if (!updateLazyRouting)
+        {
+            return;
+        }
+
+        // Set next handling agent for lazy routing mode
+        var states = _services.GetRequiredService<IConversationStateService>();
+        var routingMode = states.GetState(StateConst.ROUTING_MODE, "eager");
+        if (routingMode == "lazy")
+        {
+            var agentId = GetCurrentAgentId();
+            if (agentId != BuiltInAgentId.Fallback)
+            {
+                states.SetState(StateConst.LAZY_ROUTING_AGENT_ID, agentId);
+            }
+        }
     }
 }

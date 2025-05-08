@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Infrastructures.Enums;
 using BotSharp.Abstraction.Messaging;
 using BotSharp.Abstraction.Messaging.Models.RichContent;
 using BotSharp.Abstraction.Routing.Settings;
@@ -36,7 +37,6 @@ public partial class ConversationService
         // Enqueue receiving agent first in case it stop completion by OnMessageReceived
         var routing = _services.GetRequiredService<IRoutingService>();
         routing.Context.SetMessageId(_conversationId, message.MessageId);
-        routing.Context.Push(agent.Id, reason: "request started");
 
         // Save payload in order to assign the payload before hook is invoked
         if (replyMessage != null && !string.IsNullOrEmpty(replyMessage.Payload))
@@ -77,14 +77,25 @@ public partial class ConversationService
             {
                 agent = await agentService.LoadAgent(message.CurrentAgentId);
             }
-            
+
             if (agent.Type == AgentType.Routing)
             {
-                response = await routing.InstructLoop(message, dialogs);
+                // Check the routing mode
+                var states = _services.GetRequiredService<IConversationStateService>();
+                var routingMode = states.GetState(StateConst.ROUTING_MODE, "eager");
+                routing.Context.Push(agent.Id, reason: "request started", updateLazyRouting: false);
+
+                if (routingMode == "lazy")
+                {
+                    message.CurrentAgentId = states.GetState(StateConst.LAZY_ROUTING_AGENT_ID, message.CurrentAgentId);
+                    routing.Context.Push(message.CurrentAgentId, reason: "lazy routing", updateLazyRouting: false);
+                }
+
+                response = await routing.InstructLoop(agent, message, dialogs);
             }
             else
             {
-                response = await routing.InstructDirect(agent, message);
+                response = await routing.InstructDirect(agent, message, dialogs);
             }
 
             routing.Context.ResetRecursiveCounter();
@@ -143,14 +154,6 @@ public partial class ConversationService
         {
             var conversation = _services.GetRequiredService<IConversationService>();
             var updatedConversation = await conversation.UpdateConversationTitle(_conversationId, response.Instruction.NextActionReason);
-
-            // Emit conversation task completed hook
-            if (response.Instruction.TaskCompleted)
-            {
-                await HookEmitter.Emit<IConversationHook>(_services, async hook =>
-                    await hook.OnTaskCompleted(response)
-                );
-            }
 
             // Emit conversation ending hook
             if (response.Instruction.ConversationEnd)

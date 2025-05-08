@@ -15,17 +15,20 @@
 ******************************************************************************/
 
 using BotSharp.Abstraction.Conversations.Enums;
+using BotSharp.Abstraction.Options;
+using BotSharp.Abstraction.SideCar;
 
 namespace BotSharp.Core.Conversations.Services;
 
 /// <summary>
 /// Maintain the conversation state
 /// </summary>
-public class ConversationStateService : IConversationStateService, IDisposable
+public class ConversationStateService : IConversationStateService
 {
     private readonly ILogger _logger;
     private readonly IServiceProvider _services;
     private readonly IBotSharpRepository _db;
+    private readonly IConversationSideCar? _sidecar;
     private string _conversationId;
     /// <summary>
     /// States in the current round of conversation
@@ -46,6 +49,7 @@ public class ConversationStateService : IConversationStateService, IDisposable
         _logger = logger;
         _curStates = new ConversationState();
         _historyStates = new ConversationState();
+        _sidecar = services.GetService<IConversationSideCar>();
     }
 
     public string GetConversationId() => _conversationId;
@@ -66,23 +70,36 @@ public class ConversationStateService : IConversationStateService, IDisposable
             return this;
         }
 
-        var preValue = string.Empty;
-        var currentValue = value.ToString();
-        var hooks = _services.GetServices<IConversationHook>();
-        var curActiveRounds = activeRounds > 0 ? activeRounds : -1;
-        int? preActiveRounds = null;
+        var options = _services.GetRequiredService<BotSharpOptions>();
 
-        if (ContainsState(name) && _curStates.TryGetValue(name, out var pair))
+        var defaultRound = -1;
+        var preValue = string.Empty;
+        var currentValue = value.ConvertToString(options.JsonSerializerOptions);
+        var curActive = true;
+        StateKeyValue? pair = null;
+        StateValue? prevLeafNode = null;
+        var curActiveRounds = activeRounds > 0 ? activeRounds : defaultRound;
+
+        if (ContainsState(name) && _curStates.TryGetValue(name, out pair))
         {
-            var leafNode = pair?.Values?.LastOrDefault();
-            preActiveRounds = leafNode?.ActiveRounds;
-            preValue = leafNode?.Data ?? string.Empty;
+            prevLeafNode = pair?.Values?.LastOrDefault();
+            preValue = prevLeafNode?.Data ?? string.Empty;
         }
 
-        _logger.LogInformation($"[STATE] {name} = {value}");
+        _logger.LogDebug($"[STATE] {name} = {value}");
         var routingCtx = _services.GetRequiredService<IRoutingContext>();
 
-        if (!ContainsState(name) || preValue != currentValue || preActiveRounds != curActiveRounds)
+        var isNoChange = ContainsState(name)
+                          && preValue == currentValue
+                          && prevLeafNode?.ActiveRounds == curActiveRounds
+                          && curActiveRounds == defaultRound
+                          && prevLeafNode?.Source == source
+                          && prevLeafNode?.DataType == valueType
+                          && prevLeafNode?.Active == curActive
+                          && pair?.Readonly == readOnly;
+
+        var hooks = _services.GetServices<IConversationHook>();
+        if (!ContainsState(name) || preValue != currentValue || prevLeafNode?.ActiveRounds != curActiveRounds)
         {
             foreach (var hook in hooks)
             {
@@ -92,7 +109,7 @@ public class ConversationStateService : IConversationStateService, IDisposable
                     MessageId = routingCtx.MessageId,
                     Name = name,
                     BeforeValue = preValue,
-                    BeforeActiveRounds = preActiveRounds,
+                    BeforeActiveRounds = prevLeafNode?.ActiveRounds,
                     AfterValue = currentValue,
                     AfterActiveRounds = curActiveRounds,
                     DataType = valueType,
@@ -113,7 +130,7 @@ public class ConversationStateService : IConversationStateService, IDisposable
         {
             Data = currentValue,
             MessageId = routingCtx.MessageId,
-            Active = true,
+            Active = curActive,
             ActiveRounds = curActiveRounds,
             DataType = valueType,
             Source = source,
@@ -124,6 +141,10 @@ public class ConversationStateService : IConversationStateService, IDisposable
         {
             newPair.Values = new List<StateValue> { newValue };
             _curStates[name] = newPair;
+        }
+        else if (isNoChange)
+        {
+            // do nothing
         }
         else
         {
@@ -138,20 +159,25 @@ public class ConversationStateService : IConversationStateService, IDisposable
         _conversationId = !isReadOnly ? conversationId : null;
         Reset();
 
-        var routingCtx = _services.GetRequiredService<IRoutingContext>();
-        var curMsgId = routingCtx.MessageId;
+        var endNodes = new Dictionary<string, string>();
+        if (_sidecar?.IsEnabled() == true)
+        {
+            return endNodes;
+        }
 
         _historyStates = _db.GetConversationStates(conversationId);
+        if (_historyStates.IsNullOrEmpty())
+        {
+            return endNodes;
+        }
 
-        var endNodes = new Dictionary<string, string>();
-
-        if (_historyStates.IsNullOrEmpty()) return endNodes;
-
+        var routingCtx = _services.GetRequiredService<IRoutingContext>();
+        var curMsgId = routingCtx.MessageId;
         var dialogs = _db.GetConversationDialogs(conversationId);
         var userDialogs = dialogs.Where(x => x.MetaData?.Role == AgentRole.User)
                                  .GroupBy(x => x.MetaData?.MessageId)
                                  .Select(g => g.First())
-                                 .OrderBy(x => x.MetaData?.CreateTime)
+                                 .OrderBy(x => x.MetaData?.CreatedTime)
                                  .ToList();
         var curMsgIndex = userDialogs.FindIndex(x => !string.IsNullOrEmpty(curMsgId) && x.MetaData?.MessageId == curMsgId);
         curMsgIndex = curMsgIndex < 0 ? userDialogs.Count() : curMsgIndex;
@@ -195,7 +221,7 @@ public class ConversationStateService : IConversationStateService, IDisposable
 
             var data = leafNode.Data ?? string.Empty;
             endNodes[state.Key] = data;
-            _logger.LogInformation($"[STATE] {key} : {data}");
+            _logger.LogDebug($"[STATE] {key} : {data}");
         }
 
         _logger.LogInformation($"Loaded conversation states: {conversationId}");
@@ -210,9 +236,8 @@ public class ConversationStateService : IConversationStateService, IDisposable
 
     public void Save()
     {
-        if (_conversationId == null)
+        if (_conversationId == null || _sidecar?.IsEnabled() == true)
         {
-            Reset();
             return;
         }
 
@@ -245,7 +270,6 @@ public class ConversationStateService : IConversationStateService, IDisposable
         }
 
         _db.UpdateConversationStates(_conversationId, states);
-        Reset();
         _logger.LogInformation($"Saved states of conversation {_conversationId}");
     }
 
@@ -409,14 +433,14 @@ public class ConversationStateService : IConversationStateService, IDisposable
     {
         var values = _curStates.Values.ToList();
         var copy = JsonSerializer.Deserialize<List<StateKeyValue>>(JsonSerializer.Serialize(values));
-        return new ConversationState(copy ?? new());
+        return new ConversationState(copy ?? []);
     }
 
     public void SetCurrentState(ConversationState state)
     {
         var values = _curStates.Values.ToList();
         var copy = JsonSerializer.Deserialize<List<StateKeyValue>>(JsonSerializer.Serialize(values));
-        _curStates = new ConversationState(copy ?? new());
+        _curStates = new ConversationState(copy ?? []);
     }
 
     public void ResetCurrentState()

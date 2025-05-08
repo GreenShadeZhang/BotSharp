@@ -10,6 +10,7 @@ public interface IKnowledgeService
     Task<bool> CreateVectorCollection(string collectionName, string collectionType, int dimension, string provider, string model);
     Task<bool> DeleteVectorCollection(string collectionName);
     Task<IEnumerable<VectorCollectionConfig>> GetVectorCollections(string? type = null);
+    Task<VectorCollectionDetails?> GetVectorCollectionDetails(string collectionName);
     Task<IEnumerable<VectorSearchResult>> SearchVectorKnowledge(string query, string collectionName, VectorSearchOptions options);
     Task<StringIdPagedItems<VectorSearchResult>> GetPagedVectorCollectionData(string collectionName, VectorFilter filter);
     Task<bool> DeleteVectorCollectionData(string collectionName, string id);
@@ -58,6 +59,14 @@ public interface IKnowledgeService
     Task<bool> DeleteKnowledgeDocuments(string collectionName, KnowledgeFileFilter filter);
     Task<PagedItems<KnowledgeFileModel>> GetPagedKnowledgeDocuments(string collectionName, KnowledgeFileFilter filter);
     Task<FileBinaryDataModel> GetKnowledgeDocumentBinaryData(string collectionName, Guid fileId);
+    #endregion
+
+    #region Snapshot
+    Task<IEnumerable<VectorCollectionSnapshot>> GetVectorCollectionSnapshots(string collectionName);
+    Task<VectorCollectionSnapshot?> CreateVectorCollectionSnapshot(string collectionName);
+    Task<BinaryData> DownloadVectorCollectionSnapshot(string collectionName, string snapshotFileName);
+    Task<bool> RecoverVectorCollectionFromSnapshot(string collectionName, string snapshotFileName, BinaryData snapshotData);
+    Task<bool> DeleteVectorCollectionSnapshot(string collectionName, string snapshotName);
     #endregion
 
     #region Common

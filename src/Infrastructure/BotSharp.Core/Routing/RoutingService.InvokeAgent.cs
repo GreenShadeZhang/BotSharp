@@ -53,6 +53,7 @@ public partial class RoutingService
             // Handle output routing exception.
             if (agent.Type == AgentType.Routing)
             {
+                // Forgot about what situation needs to handle in this way
                 response.Content = "Apologies, I'm not quite sure I understand. Could you please provide additional clarification or context?";
             }
 
@@ -100,8 +101,8 @@ public partial class RoutingService
                 Context.SetDialogs(dialogs);
 
                 // Send to Next LLM
-                var agentId = routing.Context.GetCurrentAgentId();
-                await InvokeAgent(agentId, dialogs);
+                var curAgentId = routing.Context.GetCurrentAgentId();
+                await InvokeAgent(curAgentId, dialogs);
             }
         }
         else
