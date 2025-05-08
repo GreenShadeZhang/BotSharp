@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Files;
+using BotSharp.Abstraction.Realtime;
 using BotSharp.Abstraction.Routing;
 using BotSharp.Core.Infrastructures;
 using BotSharp.Plugin.Twilio.Interfaces;
@@ -25,7 +26,7 @@ public class TwilioMessageQueueService : BackgroundService
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
-        _throttler = new SemaphoreSlim(10, 10);
+        _throttler = new SemaphoreSlim(20, 20);
         _logger = logger;
     }
 
@@ -104,8 +105,14 @@ public class TwilioMessageQueueService : BackgroundService
             },
             stremMsg => Task.CompletedTask
         );
-        reply.SpeechFileName = await GetReplySpeechFileName(message.ConversationId, reply, sp);
-        reply.Hints = GetHints(reply);
+
+        var settings = sp.GetRequiredService<TwilioSetting>();
+        if (settings.GenerateReplyAudio)
+        {
+            reply.SpeechFileName = await GetReplySpeechFileName(message.ConversationId, reply, sp);
+        }
+        
+        reply.Hints = GetHints(agentId, reply, sp);
         await sessionManager.SetAssistantReplyAsync(message.ConversationId, message.SeqNumber, reply);
     }
 
@@ -146,8 +153,13 @@ public class TwilioMessageQueueService : BackgroundService
         return fileName;
     }
 
-    private static string GetHints(AssistantMessage reply)
+    private static string GetHints(string agentId, AssistantMessage reply, IServiceProvider sp)
     {
+        var agentService = sp.GetRequiredService<IAgentService>();
+        var agent = agentService.GetAgent(agentId).Result;
+        var extraWords = new List<string>();
+        HookEmitter.Emit<IRealtimeHook>(sp, hook => extraWords.AddRange(hook.OnModelTranscriptPrompt(agent)));
+
         var phrases = reply.Content.Split(',', StringSplitOptions.RemoveEmptyEntries);
         int capcity = 100;
         var hints = new List<string>(capcity);
@@ -169,6 +181,7 @@ public class TwilioMessageQueueService : BackgroundService
         }
         // add frequency short words
         hints.AddRange(["yes", "no", "correct", "right"]);
+        hints.AddRange(extraWords);
         return string.Join(", ", hints.Select(x => x.ToLower()).Distinct().Reverse());
     }
 

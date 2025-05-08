@@ -3,6 +3,7 @@ namespace BotSharp.Abstraction.Realtime.Models;
 public class RealtimeHubConnection
 {
     public string StreamId { get; set; } = null!;
+    public string UserSessionId {get;set;} = null!; 
     public string? LastAssistantItemId { get; set; } = null!;
     public long LatestMediaTimestamp { get; set; }
     public long? ResponseStartTimestamp { get; set; }
@@ -13,6 +14,7 @@ public class RealtimeHubConnection
     public Func<string, string> OnModelMessageReceived { get; set; } = null!;
     public Func<string> OnModelAudioResponseDone { get; set; } = null!;
     public Func<string> OnModelUserInterrupted { get; set; } = null!;
+    public Func<string> OnUserSpeechDetected { get; set; } = () => string.Empty;
 
     public void ResetResponseState()
     {

@@ -6,6 +6,8 @@ using BotSharp.Core.Infrastructures;
 using BotSharp.Plugin.Twilio.Interfaces;
 using BotSharp.Plugin.Twilio.Models;
 using Twilio.Jwt.AccessToken;
+using Twilio.Rest.Api.V2010.Account.Call;
+using Task = System.Threading.Tasks.Task;
 using Token = Twilio.Jwt.AccessToken.Token;
 
 namespace BotSharp.Plugin.Twilio.Services;
@@ -66,9 +68,9 @@ public class TwilioService
             },
             Action = new Uri($"{_settings.CallbackHost}/{conversationalVoiceResponse.CallbackPath}"),
             Enhanced = true,
-            SpeechModel = Gather.SpeechModelEnum.PhoneCall,
+            SpeechModel = _settings.SpeechModel,
             SpeechTimeout = "auto", // timeout > 0 ? timeout.ToString() : "3",
-            Timeout = conversationalVoiceResponse.Timeout > 0 ? conversationalVoiceResponse.Timeout : 3,
+            Timeout = Math.Max(_settings.GatherTimeout, 1),
             ActionOnEmptyResult = conversationalVoiceResponse.ActionOnEmptyResult,
             Hints = conversationalVoiceResponse.Hints
         };
@@ -80,6 +82,12 @@ public class TwilioService
                 gather.Play(new Uri($"{_settings.CallbackHost}/{speechPath}"));
             }
         }
+
+        if (!string.IsNullOrEmpty(conversationalVoiceResponse.Text))
+        {
+            gather.Say(conversationalVoiceResponse.Text);
+        }
+
         response.Append(gather);
         return response;
     }
@@ -106,14 +114,30 @@ public class TwilioService
             },
             Action = new Uri($"{_settings.CallbackHost}/{voiceResponse.CallbackPath}"),
             Enhanced = true,
-            SpeechModel = Gather.SpeechModelEnum.PhoneCall,
+            SpeechModel = _settings.SpeechModel,
             SpeechTimeout = "auto", // conversationalVoiceResponse.Timeout > 0 ? conversationalVoiceResponse.Timeout.ToString() : "3",
-            Timeout = voiceResponse.Timeout > 0 ? voiceResponse.Timeout : 3,
+            Timeout = Math.Max(_settings.GatherTimeout, 1),
             ActionOnEmptyResult = voiceResponse.ActionOnEmptyResult,
         };
         response.Append(gather);
 
         return response;
+    }
+
+    public async Task StartRecording(string callSid, string agentId, string conversationId)
+    {
+        if (_settings.RecordingEnabled)
+        {
+            // https://help.twilio.com/articles/360010317333-Recording-Incoming-Twilio-Voice-Calls
+            var recordStatusUrl = $"{_settings.CallbackHost}/twilio/record/status?agent-id={agentId}&conversation-id={conversationId}";
+            var recording = await RecordingResource.CreateAsync(pathCallSid: callSid,
+                recordingStatusCallback: new Uri(recordStatusUrl),
+                trim: "trim-silence",
+                recordingChannels: "dual",
+                recordingTrack: "both");
+
+            _logger.LogInformation($"Recording started: {recording.CallSid} {recording.Sid}");
+        }
     }
 
     public VoiceResponse HangUp(string speechPath)
@@ -139,6 +163,7 @@ public class TwilioService
                 response.Play(new Uri(uri));
             }
         }
+
         response.Hangup();
         return response;
     }
@@ -233,7 +258,7 @@ public class TwilioService
 
         var connect = new Connect();
         var host = _settings.CallbackHost.Split("://").Last();
-        connect.Stream(url: $"wss://{host}/twilio/stream/{conversationId}");
+        connect.Stream(url: $"wss://{host}/twilio/stream/{agent.Id}/{conversationId}");
         response.Append(connect);
 
         return response;

@@ -6,8 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="EntityFramework" Version="6.4.4" />
-    <PackageVersion Include="Google_GenerativeAI" Version="2.5.5" />
-    <PackageVersion Include="Google_GenerativeAI.Live" Version="2.5.5" />
+    <PackageVersion Include="Google_GenerativeAI" Version="2.5.8" />
+    <PackageVersion Include="Google_GenerativeAI.Live" Version="2.5.8" />
     <PackageVersion Include="LLMSharp.Google.Palm" Version="1.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.StaticFiles" Version="$(AspNetCoreVersion)" />
@@ -21,6 +21,7 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="SharpHook" Version="5.3.9" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.7" />
+    <PackageVersion Include="System.ClientModel" Version="1.3.0" />
     <PackageVersion Include="System.ComponentModel.Annotations" Version="5.0.0" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
     <PackageVersion Include="System.Memory.Data" Version="8.0.0" />
@@ -59,7 +60,7 @@
     <PackageVersion Include="LLamaSharp" Version="0.21.0" />
     <PackageVersion Include="FaissMask" Version="0.4.2" />
     <PackageVersion Include="FastText.NetWrapper" Version="1.3.1" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="9.4.0-preview.1.25207.5" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="9.4.3-preview.1.25230.7" />
     <PackageVersion Include="System.Text.Encodings.Web" Version="8.0.0" />
     <PackageVersion Include="MongoDB.Driver" Version="3.1.0" />
     <PackageVersion Include="Docnet.Core" Version="2.7.0-alpha.1" />
@@ -111,10 +112,10 @@
     <PackageVersion Include="MSTest.TestAdapter" Version="3.1.1" />
     <PackageVersion Include="MSTest.TestFramework" Version="3.1.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />  
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <PackageVersion Include="ModelContextProtocol" Version="0.1.0-preview.5" /> 
-    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="0.1.0-preview.5" />
+    <PackageVersion Include="ModelContextProtocol" Version="0.1.0-preview.8" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="0.1.0-preview.8" />
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="BotSharp.Core" Version="$(BotSharpVersion)" />

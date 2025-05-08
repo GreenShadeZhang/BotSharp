@@ -52,6 +52,45 @@ public class ModelTokenUsage
 
     [JsonPropertyName("output_tokens")]
     public int OutputTokens { get; set; }
+
+    [JsonPropertyName("input_token_details")]
+    public InputTokenDetail? InputTokenDetails { get; set; }
+
+    [JsonPropertyName("output_token_details")]
+    public OutputTokenDetail? OutputTokenDetails { get; set; }
+}
+
+public class InputTokenDetail
+{
+    [JsonPropertyName("text_tokens")]
+    public int? TextTokens { get; set; }
+
+    [JsonPropertyName("audio_tokens")]
+    public int? AudioTokens { get; set; }
+
+    [JsonPropertyName("cached_tokens")]
+    public int? CachedTokens { get; set; }
+
+    [JsonPropertyName("cached_tokens_details")]
+    public CachedTokenDetail? CachedTokenDetails { get; set; }
+}
+
+public class CachedTokenDetail
+{
+    [JsonPropertyName("text_tokens")]
+    public int? TextTokens { get; set; }
+
+    [JsonPropertyName("audio_tokens")]
+    public int? AudioTokens { get; set; }
+}
+
+public class OutputTokenDetail
+{
+    [JsonPropertyName("text_tokens")]
+    public int? TextTokens { get; set; }
+
+    [JsonPropertyName("audio_tokens")]
+    public int? AudioTokens { get; set; }
 }
 
 public class ModelResponseDoneOutput
@@ -89,7 +128,32 @@ public class ResponseDoneStatusDetail
     public string Type { get; set; } = null!;
 
     [JsonPropertyName("reason")]
-    public string Reason { get; set; } = null!;
+    public string? Reason { get; set; } = null!;
+
+    [JsonPropertyName("error")]
+    public ResponseDoneErrorStatus? Error { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"{Type}: {Reason} ({Error})";
+    }
+}
+
+public class ResponseDoneErrorStatus
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = null!;
+
+    [JsonPropertyName("message")]
+    public string? Message { get; set; } = null!;
+
+    [JsonPropertyName("code")]
+    public string? Code { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"{Type}: {Message} ({Code})";
+    }
 }
 
 public class ResponseDoneOutputContent

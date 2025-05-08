@@ -5,9 +5,7 @@ namespace BotSharp.Core.Agents.Services;
 
 public partial class AgentService
 {
-#if !DEBUG
     [SharpCache(10)]
-#endif
     public async Task<PagedItems<Agent>> GetAgents(AgentFilter filter)
     {
         var agents = _db.GetAgents(filter);
@@ -27,30 +25,36 @@ public partial class AgentService
         };
     }
 
-#if !DEBUG
     [SharpCache(10)]
-#endif
-    public async Task<List<IdName>> GetAgentOptions(List<string>? agentIds)
+    public async Task<List<IdName>> GetAgentOptions(List<string>? agentIdsOrNames, bool byName = false)
     {
-        var agents = _db.GetAgents(new AgentFilter
-        {
-            AgentIds = !agentIds.IsNullOrEmpty() ? agentIds : null
-        });
+        var agents = byName ? 
+            _db.GetAgents(new AgentFilter
+            {
+                AgentNames = !agentIdsOrNames.IsNullOrEmpty() ? agentIdsOrNames : null
+            }) :
+            _db.GetAgents(new AgentFilter
+            {
+                AgentIds = !agentIdsOrNames.IsNullOrEmpty() ? agentIdsOrNames : null
+            });
+
         return agents?.Select(x => new IdName(x.Id, x.Name))?.OrderBy(x => x.Name)?.ToList() ?? [];
     }
 
-#if !DEBUG
     [SharpCache(10)]
-#endif
     public async Task<Agent> GetAgent(string id)
     {
-        var profile = _db.GetAgent(id);
+         if (string.IsNullOrWhiteSpace(id))
+         {
+             return null;
+         }
 
-        if (profile == null)
-        {
-            _logger.LogError($"Can't find agent {id}");
-            return null;
-        }
+         var profile = _db.GetAgent(id);
+         if (profile == null)
+         {
+             _logger.LogError($"Can't find agent {id}");
+             return null;
+         }
 
         // Load llm config
         var agentSetting = _services.GetRequiredService<AgentSettings>();

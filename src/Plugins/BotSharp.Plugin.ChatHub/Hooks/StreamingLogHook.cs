@@ -85,7 +85,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         await SendContentLog(conversationId, input);
     }
 
-    public async Task OnSessionUpdated(Agent agent, string instruction, FunctionDef[] functions)
+    public async Task OnSessionUpdated(Agent agent, string instruction, FunctionDef[] functions, bool isInit = false)
     {
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
@@ -97,6 +97,8 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
             log += $"\r\n\r\n[FUNCTIONS]:\r\n\r\n{string.Join("\r\n\r\n", functions.Select(x => JsonSerializer.Serialize(x, BotSharpOptions.defaultJsonOptions)))}";
         }
         _logger.LogInformation(log);
+
+        if (isInit) return;
 
         var message = new RoleDialogModel(AgentRole.Assistant, log)
         {
@@ -146,7 +148,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
 
         if (message.FunctionName == "route_to_agent") return;
 
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
         message.FunctionArgs = message.FunctionArgs ?? "{}";
         var args = message.FunctionArgs.FormatJson();
         var log = $"*{message.Indication.Replace("\r", string.Empty).Replace("\n", string.Empty)}* \r\n\r\n **{message.FunctionName}**()";
@@ -169,7 +171,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
 
         if (message.FunctionName == "route_to_agent") return;
 
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
         message.FunctionArgs = message.FunctionArgs ?? "{}";
         var log = $"{message.FunctionName} =>\r\n*{message.Content?.Trim()}*";
 
@@ -196,7 +198,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
 
         var log = tokenStats.Prompt;
 
@@ -226,7 +228,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
 
         if (message.Role == AgentRole.Assistant)
         {
-            var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+            var agent = await _agentService.GetAgent(message.CurrentAgentId);
             var log = $"{GetMessageContent(message)}";
             if (message.RichContent != null || message.SecondaryRichContent != null)
             {
@@ -251,7 +253,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         if (string.IsNullOrEmpty(conversationId)) return;
 
         var log = $"{GetMessageContent(message)}";
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
 
         var input = new ContentLogInputModel(conversationId, message)
         {
@@ -268,7 +270,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         if (string.IsNullOrEmpty(conversationId)) return;
 
         var log = $"Conversation ended";
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
 
         var input = new ContentLogInputModel(conversationId, message)
         {
@@ -290,7 +292,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         }
         var routing = _services.GetRequiredService<IRoutingService>();
         var agentId = routing.Context.GetCurrentAgentId();
-        var agent = await _agentService.LoadAgent(agentId);
+        var agent = await _agentService.GetAgent(agentId);
 
         var input = new ContentLogInputModel()
         {
@@ -324,7 +326,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var agent = await _agentService.LoadAgent(agentId);
+        var agent = await _agentService.GetAgent(agentId);
 
         // Agent queue log
         var log = $"{agent.Name} is enqueued";
@@ -351,8 +353,8 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var agent = await _agentService.LoadAgent(agentId);
-        var currentAgent = await _agentService.LoadAgent(currentAgentId);
+        var agent = await _agentService.GetAgent(agentId);
+        var currentAgent = await _agentService.GetAgent(currentAgentId);
 
         // Agent queue log
         var log = $"{agent.Name} is dequeued";
@@ -379,8 +381,8 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var fromAgent = await _agentService.LoadAgent(fromAgentId);
-        var toAgent = await _agentService.LoadAgent(toAgentId);
+        var fromAgent = await _agentService.GetAgent(fromAgentId);
+        var toAgent = await _agentService.GetAgent(toAgentId);
 
         // Agent queue log
         var log = $"Agent queue is replaced from {fromAgent.Name} to {toAgent.Name}";
@@ -432,7 +434,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
         var log = JsonSerializer.Serialize(instruct, _options.JsonSerializerOptions);
         log = $"```json\r\n{log}\r\n```";
 
@@ -451,7 +453,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         var conversationId = _state.GetConversationId();
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var agent = await _agentService.LoadAgent(message.CurrentAgentId);
+        var agent = await _agentService.GetAgent(message.CurrentAgentId);
         var log = $"Revised user goal agent to {instruct.OriginalAgent}";
 
         var input = new ContentLogInputModel(conversationId, message)
@@ -482,8 +484,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Failed to send content log in {nameof(StreamingLogHook)} (conversation id: {conversationId})." +
-                $"\r\n{ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"Failed to send content log in {nameof(StreamingLogHook)} (conversation id: {conversationId}).");
         }
     }
 
@@ -502,8 +503,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Failed to send state log in {nameof(StreamingLogHook)} (conversation id: {conversationId})." +
-                $"\r\n{ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"Failed to send state log in {nameof(StreamingLogHook)} (conversation id: {conversationId}).");
         }
     }
 
@@ -522,8 +522,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Failed to send agent queue log in {nameof(StreamingLogHook)} (conversation id: {conversationId})." +
-                $"\r\n{ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"Failed to send agent queue log in {nameof(StreamingLogHook)} (conversation id: {conversationId}).");
         }
     }
 
@@ -542,8 +541,7 @@ public class StreamingLogHook : ConversationHookBase, IContentGeneratingHook, IR
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Failed to send state change in {nameof(StreamingLogHook)} (conversation id: {conversationId})." +
-                $"\r\n{ex.Message}\r\n{ex.InnerException}");
+            _logger.LogWarning(ex, $"Failed to send state change in {nameof(StreamingLogHook)} (conversation id: {conversationId}).");
         }
     }
 

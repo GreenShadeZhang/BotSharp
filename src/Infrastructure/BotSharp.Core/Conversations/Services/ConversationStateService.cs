@@ -15,6 +15,7 @@
 ******************************************************************************/
 
 using BotSharp.Abstraction.Conversations.Enums;
+using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.SideCar;
 
 namespace BotSharp.Core.Conversations.Services;
@@ -69,9 +70,11 @@ public class ConversationStateService : IConversationStateService
             return this;
         }
 
+        var options = _services.GetRequiredService<BotSharpOptions>();
+
         var defaultRound = -1;
         var preValue = string.Empty;
-        var currentValue = value.ToString();
+        var currentValue = value.ConvertToString(options.JsonSerializerOptions);
         var curActive = true;
         StateKeyValue? pair = null;
         StateValue? prevLeafNode = null;
@@ -83,7 +86,7 @@ public class ConversationStateService : IConversationStateService
             preValue = prevLeafNode?.Data ?? string.Empty;
         }
 
-        _logger.LogInformation($"[STATE] {name} = {value}");
+        _logger.LogDebug($"[STATE] {name} = {value}");
         var routingCtx = _services.GetRequiredService<IRoutingContext>();
 
         var isNoChange = ContainsState(name)
@@ -218,7 +221,7 @@ public class ConversationStateService : IConversationStateService
 
             var data = leafNode.Data ?? string.Empty;
             endNodes[state.Key] = data;
-            _logger.LogInformation($"[STATE] {key} : {data}");
+            _logger.LogDebug($"[STATE] {key} : {data}");
         }
 
         _logger.LogInformation($"Loaded conversation states: {conversationId}");

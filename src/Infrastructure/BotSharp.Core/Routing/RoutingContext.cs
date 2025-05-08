@@ -86,10 +86,12 @@ public class RoutingContext : IRoutingContext
         if (!Guid.TryParse(agentId, out _))
         {
             var agentService = _services.GetRequiredService<IAgentService>();
-            agentId = agentService.GetAgents(new AgentFilter
+            var agents = agentService.GetAgentOptions([agentId], byName: true).Result;
+
+            if (agents.Count > 0)
             {
-                AgentNames = [agentId]
-            }).Result.Items.First().Id;
+                agentId = agents.First().Id;
+            }
         }
 
         if (_stack.Count == 0 || _stack.Peek() != agentId)
@@ -129,7 +131,7 @@ public class RoutingContext : IRoutingContext
 
         // Run the routing rule
         var agency = _services.GetRequiredService<IAgentService>();
-        var agent = agency.LoadAgent(currentAgentId).Result;
+        var agent = agency.GetAgent(currentAgentId).Result;
 
         var message = new RoleDialogModel(AgentRole.User, $"Try to route to agent {agent.Name}")
         {
@@ -292,7 +294,7 @@ public class RoutingContext : IRoutingContext
 
         // Set next handling agent for lazy routing mode
         var states = _services.GetRequiredService<IConversationStateService>();
-        var routingMode = states.GetState(StateConst.ROUTING_MODE, "hard");
+        var routingMode = states.GetState(StateConst.ROUTING_MODE, "eager");
         if (routingMode == "lazy")
         {
             var agentId = GetCurrentAgentId();

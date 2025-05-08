@@ -26,15 +26,13 @@ public interface IRoutingService
     /// <returns></returns>
     RoutingRule[] GetRulesByAgentId(string id);
 
-    List<RoutingHandlerDef> GetHandlers(Agent router);
-
     //void ResetRecursiveCounter();
     //int GetRecursiveCounter();
     //void SetRecursiveCounter(int counter);
 
     Task<bool> InvokeAgent(string agentId, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived);
     Task<bool> InvokeFunction(string name, RoleDialogModel messages);
-    Task<RoleDialogModel> InstructLoop(RoleDialogModel message, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived);
+    Task<RoleDialogModel> InstructLoop(Agent agent, RoleDialogModel message, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived);
 
     /// <summary>
     /// Talk to a specific Agent directly, bypassing the Router
@@ -42,7 +40,7 @@ public interface IRoutingService
     /// <param name="agent"></param>
     /// <param name="message"></param>
     /// <returns></returns>
-    Task<RoleDialogModel> InstructDirect(Agent agent, RoleDialogModel message, Func<RoleDialogModel, Task> onStreamResponseReceived);
+    Task<RoleDialogModel> InstructDirect(Agent agent, RoleDialogModel message, List<RoleDialogModel> dialogs, Func<RoleDialogModel, Task> onStreamResponseReceived);
 
     Task<string> GetConversationContent(List<RoleDialogModel> dialogs, int maxDialogCount = 100);
 

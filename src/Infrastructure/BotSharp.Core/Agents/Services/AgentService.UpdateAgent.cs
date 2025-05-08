@@ -30,6 +30,7 @@ public partial class AgentService
         record.MergeUtility = agent.MergeUtility;
         record.MaxMessageCount = agent.MaxMessageCount;
         record.Type = agent.Type;
+        record.Mode = agent.Mode;
         record.Profiles = agent.Profiles ?? [];
         record.Labels = agent.Labels ?? [];
         record.RoutingRules = agent.RoutingRules ?? [];
@@ -97,6 +98,7 @@ public partial class AgentService
                        .SetDisabled(foundAgent.Disabled)
                        .SetMergeUtility(foundAgent.MergeUtility)
                        .SetAgentType(foundAgent.Type)
+                       .SetAgentMode(foundAgent.Mode)
                        .SetProfiles(foundAgent.Profiles)
                        .SetLabels(foundAgent.Labels)
                        .SetRoutingRules(foundAgent.RoutingRules)
@@ -197,7 +199,7 @@ public partial class AgentService
                 var samples = GetSamplesFromFile(dir);
                 return agent.SetInstruction(defaultInstruction)
                             .SetChannelInstructions(channelInstructions)
-                            .SetTemplates(templates)                             
+                            .SetTemplates(templates)
                             .SetFunctions(functions)
                             .SetResponses(responses)
                             .SetSamples(samples);

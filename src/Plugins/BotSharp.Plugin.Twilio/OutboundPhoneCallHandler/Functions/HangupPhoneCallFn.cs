@@ -45,7 +45,7 @@ public class HangupPhoneCallFn : IFunctionCallback
 
         // Generate initial assistant audio
         string initAudioFile = null;
-        if (!string.IsNullOrEmpty(args.ResponseContent))
+        if (!string.IsNullOrEmpty(args.ResponseContent) && _twilioSetting.GenerateEndingAudio)
         {
             var completion = CompletionProvider.GetAudioSynthesizer(_services);
             var data = await completion.GenerateAudioAsync(args.ResponseContent);

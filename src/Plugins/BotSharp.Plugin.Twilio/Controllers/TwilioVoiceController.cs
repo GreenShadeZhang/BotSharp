@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Twilio.Http;
 using Task = System.Threading.Tasks.Task;
+using BotSharp.Abstraction.Infrastructures;
 
 namespace BotSharp.Plugin.Twilio.Controllers;
 
@@ -176,7 +177,7 @@ public class TwilioVoiceController : TwilioController
                     ActionOnEmptyResult = true
                 };
 
-                if (request.Attempts == 3)
+                if (request.Attempts == 5)
                 {
                     instruction.SpeechPaths.Add($"twilio/say-it-again-{Random.Shared.Next(1, 5)}.mp3");
                 }
@@ -214,8 +215,8 @@ public class TwilioVoiceController : TwilioController
 
         var reply = await sessionManager.GetAssistantReplyAsync(request.ConversationId, request.SeqNum);
         VoiceResponse response;
-        
-        if (request.AIResponseWaitTime > 5)
+
+        if (request.AIResponseWaitTime > 10)
         {
             // Wait AI Response Timeout
             await HookEmitter.Emit<ITwilioSessionHook>(_services, async hook =>
@@ -256,11 +257,19 @@ public class TwilioVoiceController : TwilioController
                 {
                     AgentId = request.AgentId,
                     ConversationId = request.ConversationId,
-                    SpeechPaths = [$"twilio/voice/speeches/{request.ConversationId}/{reply.SpeechFileName}"],
                     CallbackPath = $"twilio/voice/receive/{nextSeqNum}?agent-id={request.AgentId}&conversation-id={request.ConversationId}&{twilio.GenerateStatesParameter(request.States)}",
                     ActionOnEmptyResult = true,
                     Hints = reply.Hints
                 };
+
+                if (!string.IsNullOrEmpty(reply.SpeechFileName))
+                {
+                    instruction.SpeechPaths = [$"twilio/voice/speeches/{request.ConversationId}/{reply.SpeechFileName}"];
+                }
+                else
+                {
+                    instruction.Text = reply.Content;
+                }
 
                 await HookEmitter.Emit<ITwilioSessionHook>(_services, async hook =>
                 {
@@ -333,40 +342,46 @@ public class TwilioVoiceController : TwilioController
     public async Task<ActionResult> PhoneCallStatus(ConversationalVoiceRequest request)
     {
         var twilio = _services.GetRequiredService<TwilioService>();
-        if (request.CallStatus == "completed")
+
+        // Define the options with the predicate
+        var emitOptions = new HookEmitOption<ITwilioCallStatusHook>
         {
-            if (twilio.MachineDetected(request))
-            {
-                // voicemail
-                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                    async hook => await hook.OnVoicemailLeft(request));
-            }
-            else
-            {
-                // phone call completed
-                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                    async x => await x.OnUserDisconnected(request));
-            }
-        }
-        else if (request.CallStatus == "busy")
+            ShouldExecute = hook => hook.IsMatch(request)
+        };
+
+        switch (request.CallStatus)
         {
-            await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                async x => await x.OnCallBusyStatus(request));
-        }
-        else if (request.CallStatus == "no-answer")
-        {
-            await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                async x => await x.OnCallNoAnswerStatus(request));
-        }
-        else if (request.CallStatus == "canceled")
-        {
-            await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                async x => await x.OnCallCanceledStatus(request));
-        }
-        else if (request.CallStatus == "failed")
-        {
-            await HookEmitter.Emit<ITwilioCallStatusHook>(_services, 
-                async x => await x.OnCallFailedStatus(request));
+            case "completed":
+                if (twilio.MachineDetected(request))
+                {
+                    // voicemail
+                    await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnVoicemailLeft(request), emitOptions);
+                }
+                else
+                {
+                    // phone call completed
+                    await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnUserDisconnected(request), emitOptions);
+                }
+                break;
+
+            case "busy":
+                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnCallBusyStatus(request), emitOptions);
+                break;
+
+            case "no-answer":
+                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnCallNoAnswerStatus(request), emitOptions);
+                break;
+
+            case "canceled":
+                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnCallCanceledStatus(request), emitOptions);
+                break;
+
+            case "failed":
+                await HookEmitter.Emit<ITwilioCallStatusHook>(_services, hook => hook.OnCallFailedStatus(request), emitOptions);
+                break;
+            default:
+                _logger.LogError($"Unknown call status: {request.CallStatus}, {request.CallSid}");
+                break;
         }
 
         return Ok();

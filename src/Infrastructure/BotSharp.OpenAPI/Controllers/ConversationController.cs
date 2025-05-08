@@ -33,7 +33,7 @@ public class ConversationController : ControllerBase
         var conv = new Conversation
         {
             AgentId = agentId,
-            Channel = channel == default ? ConversationChannel.OpenAPI : channel.Value,
+            Channel = channel == default ? ConversationChannel.OpenAPI : channel.Value.ToString(),
             Tags = config.Tags ?? new(),
             TaskId = config.TaskId
         };
@@ -353,7 +353,8 @@ public class ConversationController : ControllerBase
 
     #region Send message
     [HttpPost("/conversation/{agentId}/{conversationId}")]
-    public async Task<ChatResponseModel> SendMessage([FromRoute] string agentId,
+    public async Task<ChatResponseModel> SendMessage(
+        [FromRoute] string agentId,
         [FromRoute] string conversationId,
         [FromBody] NewMessageModel input)
     {
@@ -585,11 +586,26 @@ public class ConversationController : ControllerBase
     #region Private methods
     private void SetStates(IConversationService conv, NewMessageModel input)
     {
-        conv.States.SetState("channel", input.Channel, source: StateSource.External)
-           .SetState("provider", input.Provider, source: StateSource.External)
-           .SetState("model", input.Model, source: StateSource.External)
-           .SetState("temperature", input.Temperature, source: StateSource.External)
-           .SetState("sampling_factor", input.SamplingFactor, source: StateSource.External);
+        if (string.IsNullOrEmpty(conv.States.GetState("channel")))
+        {
+            conv.States.SetState("channel", input.Channel, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("provider")))
+        {
+            conv.States.SetState("provider", input.Provider, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("model")))
+        {
+            conv.States.SetState("model", input.Model, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("temperature")))
+        {
+            conv.States.SetState("temperature", input.Temperature, source: StateSource.External);
+        }
+        if (string.IsNullOrEmpty(conv.States.GetState("sampling_factor")))
+        {
+            conv.States.SetState("sampling_factor", input.SamplingFactor, source: StateSource.External);
+        }
     }
 
     private FileContentResult BuildFileResult(string file)
