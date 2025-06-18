@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class DialogMetaData
+public class DialogMetaDataElement
 {
     public string Role { get; set; }
     public string AgentId { get; set; }

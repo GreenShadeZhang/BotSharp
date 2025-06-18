@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
@@ -10,5 +11,5 @@ public class TranslationMemory
     public string HashText { get; set; }
 
     [Column(TypeName = "json")]
-    public List<TranslationMemoryInfo> Translations { get; set; } = new List<TranslationMemoryInfo>();
+    public List<TranslationMemoryElement> Translations { get; set; } = new List<TranslationMemoryElement>();
 }

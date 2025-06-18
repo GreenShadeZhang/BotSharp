@@ -1,14 +1,14 @@
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class McpTool
+public class McpToolElement
 {
     public string Name { get; set; } = default!;
     public string ServerId { get; set; } = default!;
     public bool Disabled { get; set; }
-    public List<McpFunction> Functions { get; set; } = [];
+    public List<McpFunctionElement> Functions { get; set; } = [];
 }
 
-public class McpFunction
+public class McpFunctionElement
 {
     public string Name { get; set; } = default!;
 }

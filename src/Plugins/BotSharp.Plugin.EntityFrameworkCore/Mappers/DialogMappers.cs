@@ -1,12 +1,13 @@
 using BotSharp.Abstraction.Conversations.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class DialogMappers
 {
-    public static Entities.Dialog ToEntity(this DialogElement dialog)
+    public static Models.DialogEfElement ToEntity(this DialogElement dialog)
     {
-        return new Entities.Dialog
+        return new Models.DialogEfElement
         {
             MetaData = dialog.MetaData.ToEntity(),
             Content = dialog.Content,
@@ -17,7 +18,7 @@ public static class DialogMappers
         };
     }
 
-    public static DialogElement ToModel(this Entities.Dialog dialog)
+    public static DialogElement ToModel(this Models.DialogEfElement dialog)
     {
         return new DialogElement
         {
@@ -30,7 +31,7 @@ public static class DialogMappers
         };
     }
 
-    public static DialogMetaData ToModel(this Entities.DialogMetaData meta)
+    public static DialogMetaData ToModel(this DialogMetaDataElement meta)
     {
         return new DialogMetaData
         {
@@ -43,9 +44,9 @@ public static class DialogMappers
         };
     }
 
-    public static Entities.DialogMetaData ToEntity(this DialogMetaData meta)
+    public static DialogMetaDataElement ToEntity(this DialogMetaData meta)
     {
-        return new Entities.DialogMetaData
+        return new DialogMetaDataElement
         {
             Role = meta.Role,
             AgentId = meta.AgentId,

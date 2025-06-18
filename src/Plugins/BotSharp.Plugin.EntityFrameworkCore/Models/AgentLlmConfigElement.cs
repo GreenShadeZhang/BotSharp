@@ -1,6 +1,6 @@
-﻿namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class AgentLlmConfig
+public class AgentLlmConfigElement
 {
     public string? Provider { get; set; }
     public string? Model { get; set; }

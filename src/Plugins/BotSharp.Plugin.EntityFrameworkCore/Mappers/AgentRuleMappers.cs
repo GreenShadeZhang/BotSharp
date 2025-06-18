@@ -1,12 +1,13 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class AgentRuleMappers
 {
-    public static Entities.AgentRule ToEntity(this AgentRule model)
+    public static AgentRuleElement ToEntity(this AgentRule model)
     {
-        return new Entities.AgentRule
+        return new AgentRuleElement
         {
             TriggerName = model.TriggerName,
             Disabled = model.Disabled,
@@ -14,7 +15,7 @@ public static class AgentRuleMappers
         };
     }
 
-    public static AgentRule ToModel(this Entities.AgentRule entity)
+    public static AgentRule ToModel(this AgentRuleElement entity)
     {
         return new AgentRule
         {

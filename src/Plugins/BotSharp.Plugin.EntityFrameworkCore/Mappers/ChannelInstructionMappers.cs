@@ -1,19 +1,20 @@
 ﻿using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class ChannelInstructionMappers
 {
-    public static Entities.ChannelInstruction ToEntity(this ChannelInstruction model)
+    public static ChannelInstructionElement ToEntity(this ChannelInstruction model)
     {
-        return new Entities.ChannelInstruction
+        return new ChannelInstructionElement
         {
             Channel = model.Channel,
             Instruction = model.Instruction
         };
     }
 
-    public static ChannelInstruction ToModel(this Entities.ChannelInstruction model)
+    public static ChannelInstruction ToModel(this ChannelInstructionElement model)
     {
         return new ChannelInstruction
         {

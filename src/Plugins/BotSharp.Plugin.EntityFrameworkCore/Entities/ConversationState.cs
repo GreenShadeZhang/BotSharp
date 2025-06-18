@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
@@ -10,5 +11,5 @@ public class ConversationState
     public List<State> States { get; set; } = new List<State>();
 
     [Column(TypeName = "json")]
-    public List<BreakpointInfo> Breakpoints { get; set; } = new List<BreakpointInfo>();
+    public List<BreakpointInfoElement> Breakpoints { get; set; } = new List<BreakpointInfoElement>();
 }

@@ -1,20 +1,21 @@
 ﻿using BotSharp.Abstraction.Functions.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 using System.Text.Json;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class FunctionDefMappers
 {
-    public static Entities.FunctionDef ToEntity(this FunctionDef model)
+    public static FunctionDefElement ToEntity(this FunctionDef model)
     {
-        return new Entities.FunctionDef
+        return new FunctionDefElement
         {
             Name = model.Name,
             Description = model.Description,
             Channels = model.Channels,
             VisibilityExpression = model.VisibilityExpression,
             Impact = model.Impact,
-            Parameters = new Entities.FunctionParametersDef
+            Parameters = new FunctionParametersDefElement
             {
                 Type = model.Parameters.Type,
                 Properties = JsonSerializer.Serialize(model.Parameters.Properties),
@@ -23,7 +24,7 @@ public static class FunctionDefMappers
         };
     }
 
-    public static FunctionDef ToModel(this Entities.FunctionDef model)
+    public static FunctionDef ToModel(this FunctionDefElement model)
     {
         return new FunctionDef
         {

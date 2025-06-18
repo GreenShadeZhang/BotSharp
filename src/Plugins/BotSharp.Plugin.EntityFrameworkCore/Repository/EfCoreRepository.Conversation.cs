@@ -1,6 +1,7 @@
 using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -33,7 +34,7 @@ public partial class EfCoreRepository
         {
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
-            Dialogs = new List<Entities.Dialog>()
+            Dialogs = new List<DialogEfElement>()
         };
 
         var stateDoc = new Entities.ConversationState
@@ -41,7 +42,7 @@ public partial class EfCoreRepository
             Id = Guid.NewGuid().ToString(),
             ConversationId = convDoc.Id,
             States = new List<Entities.State>(),
-            Breakpoints = new List<Entities.BreakpointInfo>()
+            Breakpoints = new List<BreakpointInfoElement>()
         };
 
         _context.Conversations.Add(convDoc);
@@ -182,7 +183,7 @@ public partial class EfCoreRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var newBreakpoint = new Entities.BreakpointInfo()
+        var newBreakpoint = new BreakpointInfoElement()
         {
             MessageId = breakpoint.MessageId,
             Breakpoint = breakpoint.Breakpoint,
@@ -555,7 +556,7 @@ public partial class EfCoreRepository
             // Truncate breakpoints
             if (!foundStates.Breakpoints.IsNullOrEmpty())
             {
-                var breakpoints = foundStates.Breakpoints ?? new List<Entities.BreakpointInfo>();
+                var breakpoints = foundStates.Breakpoints ?? new List<BreakpointInfoElement>();
                 var truncatedBreakpoints = breakpoints.Where(x => x.CreatedTime < refTime).ToList();
                 foundStates.Breakpoints = truncatedBreakpoints;
             }

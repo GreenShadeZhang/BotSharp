@@ -1,6 +1,6 @@
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class AgentKnowledgeBase
+public class AgentKnowledgeBaseElement
 {
     public string Name { get; set; } = default!;
     public string Type { get; set; } = default!;

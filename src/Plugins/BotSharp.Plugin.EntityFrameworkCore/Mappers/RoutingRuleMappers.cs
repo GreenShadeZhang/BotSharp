@@ -1,12 +1,13 @@
 using BotSharp.Abstraction.Routing.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class RoutingRuleMappers
 {
-    public static Entities.RoutingRule ToEntity(this RoutingRule model)
+    public static RoutingRuleElement ToEntity(this RoutingRule model)
     {
-        return new Entities.RoutingRule
+        return new RoutingRuleElement
         {
             Field = model.Field,
             Description = model.Description,
@@ -17,7 +18,7 @@ public static class RoutingRuleMappers
         };
     }
 
-    public static RoutingRule ToModel(this Entities.RoutingRule rule, string agentId, string agentName)
+    public static RoutingRule ToModel(this RoutingRuleElement rule, string agentId, string agentName)
     {
         return new RoutingRule
         {

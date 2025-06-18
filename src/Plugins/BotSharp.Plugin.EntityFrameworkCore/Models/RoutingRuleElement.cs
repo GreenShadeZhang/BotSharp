@@ -1,6 +1,6 @@
-﻿namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class RoutingRule
+public class RoutingRuleElement
 {
     public string Field { get; set; }
     public string Description { get; set; }

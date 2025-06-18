@@ -1,5 +1,6 @@
 using BotSharp.Abstraction.Agents.Models;
 using BotSharp.Abstraction.Routing.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
@@ -20,28 +21,28 @@ public class Agent
     public int? MaxMessageCount { get; set; }
 
     [Column(TypeName = "json")]
-    public List<ChannelInstruction> ChannelInstructions { get; set; }
+    public List<ChannelInstructionElement> ChannelInstructions { get; set; }
 
     [Column(TypeName = "json")]
-    public List<AgentTemplate> Templates { get; set; }
+    public List<AgentTemplateElement> Templates { get; set; }
 
     [Column(TypeName = "json")]
-    public List<FunctionDef> Functions { get; set; }
+    public List<FunctionDefElement> Functions { get; set; }
 
     [Column(TypeName = "json")]
-    public List<AgentResponse> Responses { get; set; }
+    public List<AgentResponseElement> Responses { get; set; }
 
     [Column(TypeName = "json")]
     public List<string> Samples { get; set; }
 
     [Column(TypeName = "json")]
-    public List<AgentUtility> Utilities { get; set; }
+    public List<AgentUtilityElement> Utilities { get; set; }
 
     [Column(TypeName = "json")]
-    public List<McpTool> McpTools { get; set; }
+    public List<McpToolElement> McpTools { get; set; }
 
     [Column(TypeName = "json")]
-    public List<AgentKnowledgeBase> KnowledgeBases { get; set; }
+    public List<AgentKnowledgeBaseElement> KnowledgeBases { get; set; }
 
     [Column(TypeName = "json")]
     public List<string> Profiles { get; set; }
@@ -50,13 +51,13 @@ public class Agent
     public List<string> Labels { get; set; }
 
     [Column(TypeName = "json")]
-    public List<RoutingRule> RoutingRules { get; set; }
+    public List<RoutingRuleElement> RoutingRules { get; set; }
 
     [Column(TypeName = "json")]
-    public List<AgentRule> Rules { get; set; }
+    public List<AgentRuleElement> Rules { get; set; }
 
     [Column(TypeName = "json")]
-    public AgentLlmConfig? LlmConfig { get; set; }
+    public AgentLlmConfigElement? LlmConfig { get; set; }
     
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }

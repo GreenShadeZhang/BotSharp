@@ -1,20 +1,21 @@
 ﻿using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class AgentTemplateMappers
 {
 
-    public static Entities.AgentTemplate ToEntity(this AgentTemplate model)
+    public static AgentTemplateElement ToEntity(this AgentTemplate model)
     {
-        return new Entities.AgentTemplate
+        return new AgentTemplateElement
         {
             Name = model.Name,
             Content = model.Content
         };
     }
 
-    public static AgentTemplate ToModel(this Entities.AgentTemplate model)
+    public static AgentTemplate ToModel(this AgentTemplateElement model)
     {
         return new AgentTemplate
         {

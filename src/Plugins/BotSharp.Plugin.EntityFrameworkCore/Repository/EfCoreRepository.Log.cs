@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Loggers.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -50,7 +51,7 @@ public partial class EfCoreRepository
         var conversationId = log.ConversationId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
         var messageId = log.MessageId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
 
-        var logElement = new Entities.PromptLog
+        var logElement = new PromptLogElement
         {
             MessageId = messageId,
             AgentId = log.AgentId,
@@ -67,7 +68,7 @@ public partial class EfCoreRepository
             {
                 Id = Guid.NewGuid().ToString(),
                 ConversationId = conversationId,
-                Logs = new List<Entities.PromptLog> { logElement }
+                Logs = new List<PromptLogElement> { logElement }
             };
 
             _context.LlmCompletionLogs.Add(llmCompletionLog);

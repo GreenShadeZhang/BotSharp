@@ -43,16 +43,16 @@ public partial class EfCoreRepository
                     Instruction = x.Instruction,
                     ChannelInstructions = x.ChannelInstructions?
                                  .Select(i => i.ToEntity())?
-                                 .ToList() ?? new List<Entities.ChannelInstruction>(),
+                                 .ToList() ?? new List<ChannelInstructionElement>(),
                     Templates = x.Templates?
                                  .Select(t => t.ToEntity())?
-                                 .ToList() ?? new List<Entities.AgentTemplate>(),
+                                 .ToList() ?? new List<AgentTemplateElement>(),
                     Functions = x.Functions?
                                  .Select(f => f.ToEntity())?
-                                 .ToList() ?? new List<Entities.FunctionDef>(),
+                                 .ToList() ?? new List<FunctionDefElement>(),
                     Responses = x.Responses?
                                  .Select(r => r.ToEntity())?
-                                 .ToList() ?? new List<Entities.AgentResponse>(),
+                                 .ToList() ?? new List<AgentResponseElement>(),
                     Samples = x.Samples ?? new List<string>(),
                     //Utilities = x.Utilities ?? new List<string>(),
                     IsPublic = x.IsPublic,
@@ -62,7 +62,7 @@ public partial class EfCoreRepository
                     Profiles = x.Profiles,
                     RoutingRules = x.RoutingRules?
                                     .Select(r => r.ToEntity())?
-                                    .ToList() ?? new List<Entities.RoutingRule>(),
+                                    .ToList() ?? new List<RoutingRuleElement>(),
                     LlmConfig = x.LlmConfig.ToEntity(),
                     CreatedTime = x.CreatedDateTime,
                     UpdatedTime = x.UpdatedDateTime

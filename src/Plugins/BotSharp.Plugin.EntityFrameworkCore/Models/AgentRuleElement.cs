@@ -1,6 +1,6 @@
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class AgentRule
+public class AgentRuleElement
 {
     public string TriggerName { get; set; } = default!;
     public bool Disabled { get; set; }

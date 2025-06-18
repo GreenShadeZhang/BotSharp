@@ -65,7 +65,7 @@ public partial class EfCoreRepository
                     continue;
                 }
 
-                var newItem = new Entities.TranslationMemoryInfo
+                var newItem = new TranslationMemoryElement
                 {
                     TranslatedText = input.TranslatedText,
                     Language = input.Language
@@ -79,7 +79,7 @@ public partial class EfCoreRepository
                         Id = Guid.NewGuid().ToString(),
                         OriginalText = input.OriginalText,
                         HashText = input.HashText,
-                        Translations = new List<Entities.TranslationMemoryInfo> { newItem }
+                        Translations = new List<TranslationMemoryElement> { newItem }
                     });
                 }
                 else
@@ -89,7 +89,7 @@ public partial class EfCoreRepository
 
                     if (foundMemory.Translations == null)
                     {
-                        foundMemory.Translations = new List<Entities.TranslationMemoryInfo> { newItem };
+                        foundMemory.Translations = new List<TranslationMemoryElement> { newItem };
                     }
                     else
                     {

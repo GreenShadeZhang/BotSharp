@@ -1,12 +1,13 @@
 ﻿using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class AgentResponseMappers
 {
-    public static Entities.AgentResponse ToEntity(this AgentResponse model)
+    public static AgentResponseElement ToEntity(this AgentResponse model)
     {
-        return new Entities.AgentResponse
+        return new AgentResponseElement
         {
             Prefix = model.Prefix,
             Intent = model.Intent,
@@ -14,7 +15,7 @@ public static class AgentResponseMappers
         };
     }
 
-    public static AgentResponse ToModel(this Entities.AgentResponse model)
+    public static AgentResponse ToModel(this AgentResponseElement model)
     {
         return new AgentResponse
         {

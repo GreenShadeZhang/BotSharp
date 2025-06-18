@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class PromptLog
+public class PromptLogElement
 {
     public string MessageId { get; set; }
     public string AgentId { get; set; }

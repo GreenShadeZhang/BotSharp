@@ -1,8 +1,8 @@
-﻿namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class Dialog
+public class DialogEfElement
 {
-    public DialogMetaData MetaData { get; set; }
+    public DialogMetaDataElement MetaData { get; set; }
     public string Content { get; set; }
     public string? SecondaryContent { get; set; }
     public string? RichContent { get; set; }

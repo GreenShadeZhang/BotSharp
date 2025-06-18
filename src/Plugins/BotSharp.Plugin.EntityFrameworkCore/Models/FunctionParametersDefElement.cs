@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class FunctionParametersDef
+public class FunctionParametersDefElement
 {
     public string Type { get; set; }
     public string Properties { get; set; }

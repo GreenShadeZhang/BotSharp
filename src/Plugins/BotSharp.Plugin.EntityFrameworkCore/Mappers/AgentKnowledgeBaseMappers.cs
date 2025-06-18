@@ -1,12 +1,13 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class AgentKnowledgeBaseMappers
 {
-    public static Entities.AgentKnowledgeBase ToEntity(this AgentKnowledgeBase model)
+    public static AgentKnowledgeBaseElement ToEntity(this AgentKnowledgeBase model)
     {
-        return new Entities.AgentKnowledgeBase
+        return new AgentKnowledgeBaseElement
         {
             Name = model.Name,
             Type = model.Type,
@@ -15,7 +16,7 @@ public static class AgentKnowledgeBaseMappers
         };
     }
 
-    public static AgentKnowledgeBase ToModel(this Entities.AgentKnowledgeBase entity)
+    public static AgentKnowledgeBase ToModel(this AgentKnowledgeBaseElement entity)
     {
         return new AgentKnowledgeBase
         {

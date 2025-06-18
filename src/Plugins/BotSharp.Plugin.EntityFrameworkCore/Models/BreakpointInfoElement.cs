@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class BreakpointInfo
+public class BreakpointInfoElement
 {
     public string? MessageId { get; set; }
     public DateTime Breakpoint { get; set; }

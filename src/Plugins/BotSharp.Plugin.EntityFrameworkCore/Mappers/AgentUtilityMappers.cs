@@ -1,18 +1,19 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class AgentUtilityMappers
 {
-    public static Entities.AgentUtility ToEntity(this AgentUtility model)
+    public static AgentUtilityElement ToEntity(this AgentUtility model)
     {
-        return new Entities.AgentUtility
+        return new AgentUtilityElement
         {
             Name = model.Name,
         };
     }
 
-    public static AgentUtility ToModel(this Entities.AgentUtility entity)
+    public static AgentUtility ToModel(this AgentUtilityElement entity)
     {
         return new AgentUtility
         {

@@ -1,21 +1,22 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class McpToolMappers
 {
-    public static Entities.McpTool ToEntity(this McpTool model)
+    public static McpToolElement ToEntity(this McpTool model)
     {
-        return new Entities.McpTool
+        return new McpToolElement
         {
             Name = model.Name,
             ServerId = model.ServerId,
             Disabled = model.Disabled,
-            Functions = model.Functions?.Select(f => new Entities.McpFunction { Name = f.Name })?.ToList() ?? []
+            Functions = model.Functions?.Select(f => new McpFunctionElement { Name = f.Name })?.ToList() ?? []
         };
     }
 
-    public static McpTool ToModel(this Entities.McpTool entity)
+    public static McpTool ToModel(this McpToolElement entity)
     {
         return new McpTool
         {

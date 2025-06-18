@@ -1,6 +1,6 @@
-﻿namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class AgentResponse
+public class AgentResponseElement
 {
     public string Prefix { get; set; }
     public string Intent { get; set; }

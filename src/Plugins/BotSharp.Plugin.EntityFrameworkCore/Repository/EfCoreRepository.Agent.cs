@@ -1,5 +1,6 @@
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
+using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -210,7 +211,7 @@ public partial class EfCoreRepository
         if (string.IsNullOrWhiteSpace(agentId)) return;
 
         var instructionElements = channelInstructions?.Select(x => x.ToEntity())?
-                                                      .ToList() ?? new List<Entities.ChannelInstruction>();
+                                                      .ToList() ?? new List<ChannelInstructionElement>();
 
         var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
 
@@ -293,7 +294,7 @@ public partial class EfCoreRepository
         if (agent != null)
         {
             agent.MergeUtility = mergeUtility;
-            agent.Utilities = utilities?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentUtility>();
+            agent.Utilities = utilities?.Select(x => x.ToEntity()).ToList() ?? new List<AgentUtilityElement>();
             agent.UpdatedTime = DateTime.UtcNow;
             _context.SaveChanges();
         }
@@ -379,17 +380,17 @@ public partial class EfCoreRepository
             agentData.InheritAgentId = agent.InheritAgentId;
             agentData.IconUrl = agent.IconUrl;
             agentData.Profiles = agent.Profiles;
-            agentData.Labels = agent.Labels; agentData.RoutingRules = agent.RoutingRules?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.RoutingRule>();
+            agentData.Labels = agent.Labels; agentData.RoutingRules = agent.RoutingRules?.Select(x => x.ToEntity()).ToList() ?? new List<RoutingRuleElement>();
             agentData.Instruction = agent.Instruction;
-            agentData.ChannelInstructions = agent.ChannelInstructions?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.ChannelInstruction>();
-            agentData.Templates = agent.Templates?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentTemplate>();
-            agentData.Functions = agent.Functions?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.FunctionDef>();
-            agentData.Responses = agent.Responses?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentResponse>();
+            agentData.ChannelInstructions = agent.ChannelInstructions?.Select(x => x.ToEntity()).ToList() ?? new List<ChannelInstructionElement>();
+            agentData.Templates = agent.Templates?.Select(x => x.ToEntity()).ToList() ?? new List<AgentTemplateElement>();
+            agentData.Functions = agent.Functions?.Select(x => x.ToEntity()).ToList() ?? new List<FunctionDefElement>();
+            agentData.Responses = agent.Responses?.Select(x => x.ToEntity()).ToList() ?? new List<AgentResponseElement>();
             agentData.Samples = agent.Samples ?? new List<string>();
-            agentData.Utilities = agent.Utilities?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentUtility>();
-            agentData.McpTools = agent.McpTools?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.McpTool>();
-            agentData.KnowledgeBases = agent.KnowledgeBases?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentKnowledgeBase>();
-            agentData.Rules = agent.Rules?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentRule>();
+            agentData.Utilities = agent.Utilities?.Select(x => x.ToEntity()).ToList() ?? new List<AgentUtilityElement>();
+            agentData.McpTools = agent.McpTools?.Select(x => x.ToEntity()).ToList() ?? new List<McpToolElement>();
+            agentData.KnowledgeBases = agent.KnowledgeBases?.Select(x => x.ToEntity()).ToList() ?? new List<AgentKnowledgeBaseElement>();
+            agentData.Rules = agent.Rules?.Select(x => x.ToEntity()).ToList() ?? new List<AgentRuleElement>();
             agentData.LlmConfig = agent.LlmConfig?.ToEntity();
             agentData.IsPublic = agent.IsPublic;
             agentData.UpdatedTime = DateTime.UtcNow;
