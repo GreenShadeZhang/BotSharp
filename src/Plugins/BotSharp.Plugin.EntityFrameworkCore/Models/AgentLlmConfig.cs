@@ -6,4 +6,5 @@ public class AgentLlmConfig
     public string? Model { get; set; }
     public bool IsInherit { get; set; }
     public int MaxRecursionDepth { get; set; }
+    public int? MaxOutputTokens { get; set; }
 }

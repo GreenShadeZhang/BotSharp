@@ -1,7 +1,4 @@
-using BotSharp.Abstraction.Agents.Models;
-using BotSharp.Abstraction.Functions.Models;
 using BotSharp.Abstraction.Repositories.Filters;
-using BotSharp.Abstraction.Routing.Models;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
@@ -26,14 +23,14 @@ public partial class EfCoreRepository
             case AgentField.Disabled:
                 UpdateAgentDisabled(agent.Id, agent.Disabled);
                 break;
-            case AgentField.Type:
-                UpdateAgentType(agent.Id, agent.Type);
+            case AgentField.RoutingMode:
+                UpdateAgentRoutingMode(agent.Id, agent.Mode);
                 break;
             case AgentField.InheritAgentId:
                 UpdateAgentInheritAgentId(agent.Id, agent.InheritAgentId);
                 break;
-            case AgentField.Profile:
-                UpdateAgentProfiles(agent.Id, agent.Profiles);
+            case AgentField.Label:
+                UpdateAgentLabels(agent.Id, agent.Labels);
                 break;
             case AgentField.RoutingRule:
                 UpdateAgentRoutingRules(agent.Id, agent.RoutingRules);
@@ -57,7 +54,19 @@ public partial class EfCoreRepository
                 UpdateAgentLlmConfig(agent.Id, agent.LlmConfig);
                 break;
             case AgentField.Utility:
-                UpdateAgentUtilities(agent.Id, agent.Utilities);
+                UpdateAgentUtilities(agent.Id, agent.MergeUtility, agent.Utilities);
+                break;
+            case AgentField.McpTool:
+                UpdateAgentMcpTools(agent.Id, agent.McpTools);
+                break;
+            case AgentField.KnowledgeBase:
+                UpdateAgentKnowledgeBases(agent.Id, agent.KnowledgeBases);
+                break;
+            case AgentField.Rule:
+                UpdateAgentRules(agent.Id, agent.Rules);
+                break;
+            case AgentField.MaxMessageCount:
+                UpdateAgentMaxMessageCount(agent.Id, agent.MaxMessageCount);
                 break;
             case AgentField.All:
                 UpdateAgentAllFields(agent);
@@ -131,6 +140,17 @@ public partial class EfCoreRepository
         }
     }
 
+    private void UpdateAgentRoutingMode(string agentId, string? mode)
+    {
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+        if (agent != null)
+        {
+            agent.Mode = mode;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+
     private void UpdateAgentInheritAgentId(string agentId, string? inheritAgentId)
     {
         var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
@@ -151,6 +171,19 @@ public partial class EfCoreRepository
         if (agent != null)
         {
             agent.Profiles = profiles;
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+
+    public void UpdateAgentLabels(string agentId, List<string> labels)
+    {
+        if (labels == null) return;
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+
+        if (agent != null)
+        {
+            agent.Labels = labels;
             agent.UpdatedTime = DateTime.UtcNow;
             _context.SaveChanges();
         }
@@ -251,8 +284,7 @@ public partial class EfCoreRepository
             _context.SaveChanges();
         }
     }
-
-    private void UpdateAgentUtilities(string agentId, List<AgentUtility> utilities)
+    private void UpdateAgentUtilities(string agentId, bool mergeUtility, List<AgentUtility> utilities)
     {
         if (utilities == null) return;
 
@@ -260,7 +292,59 @@ public partial class EfCoreRepository
 
         if (agent != null)
         {
-            //agent.Utilities = utilities;
+            agent.MergeUtility = mergeUtility;
+            agent.Utilities = utilities?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentUtility>();
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+    private void UpdateAgentMcpTools(string agentId, List<McpTool> mcpTools)
+    {
+        if (mcpTools == null) return;
+
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+
+        if (agent != null)
+        {
+            agent.McpTools = mcpTools.Select(x => x.ToEntity()).ToList();
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+    private void UpdateAgentKnowledgeBases(string agentId, List<AgentKnowledgeBase> knowledgeBases)
+    {
+        if (knowledgeBases == null) return;
+
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+
+        if (agent != null)
+        {
+            agent.KnowledgeBases = knowledgeBases.Select(x => x.ToEntity()).ToList();
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+    private void UpdateAgentRules(string agentId, List<AgentRule> rules)
+    {
+        if (rules == null) return;
+
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+
+        if (agent != null)
+        {
+            agent.Rules = rules.Select(x => x.ToEntity()).ToList();
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+        }
+    }
+
+    private void UpdateAgentMaxMessageCount(string agentId, int? maxMessageCount)
+    {
+        var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+
+        if (agent != null)
+        {
+            agent.MaxMessageCount = maxMessageCount;
             agent.UpdatedTime = DateTime.UtcNow;
             _context.SaveChanges();
         }
@@ -279,7 +363,6 @@ public partial class EfCoreRepository
             _context.SaveChanges();
         }
     }
-
     private void UpdateAgentAllFields(Agent agent)
     {
         var agentData = _context.Agents.FirstOrDefault(x => x.Id == agent.Id);
@@ -289,26 +372,24 @@ public partial class EfCoreRepository
             agentData.Name = agent.Name;
             agentData.Description = agent.Description;
             agentData.Disabled = agent.Disabled;
+            agentData.MergeUtility = agent.MergeUtility;
             agentData.Type = agent.Type;
+            agentData.Mode = agent.Mode;
+            agentData.MaxMessageCount = agent.MaxMessageCount;
+            agentData.InheritAgentId = agent.InheritAgentId;
+            agentData.IconUrl = agent.IconUrl;
             agentData.Profiles = agent.Profiles;
-            agentData.RoutingRules = agent.RoutingRules?
-                        .Select(r => r.ToEntity())?
-                        .ToList() ?? new List<Entities.RoutingRule>();
+            agentData.Labels = agent.Labels; agentData.RoutingRules = agent.RoutingRules?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.RoutingRule>();
             agentData.Instruction = agent.Instruction;
-            agentData.ChannelInstructions = agent.ChannelInstructions?
-                            .Select(i => i.ToEntity())?
-                            .ToList() ?? new List<Entities.ChannelInstruction>();
-            agentData.Templates = agent.Templates?
-                            .Select(t => t.ToEntity())?
-                            .ToList() ?? new List<Entities.AgentTemplate>();
-            agentData.Functions = agent.Functions?
-                            .Select(f => f.ToEntity())?
-                            .ToList() ?? new List<Entities.FunctionDef>();
-            agentData.Responses = agent.Responses?
-                            .Select(r => r.ToEntity())?
-                            .ToList() ?? new List<Entities.AgentResponse>();
+            agentData.ChannelInstructions = agent.ChannelInstructions?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.ChannelInstruction>();
+            agentData.Templates = agent.Templates?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentTemplate>();
+            agentData.Functions = agent.Functions?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.FunctionDef>();
+            agentData.Responses = agent.Responses?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentResponse>();
             agentData.Samples = agent.Samples ?? new List<string>();
-            //agentData.Utilities = agent.Utilities ?? new List<AgentUtility>();
+            agentData.Utilities = agent.Utilities?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentUtility>();
+            agentData.McpTools = agent.McpTools?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.McpTool>();
+            agentData.KnowledgeBases = agent.KnowledgeBases?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentKnowledgeBase>();
+            agentData.Rules = agent.Rules?.Select(x => x.ToEntity()).ToList() ?? new List<Entities.AgentRule>();
             agentData.LlmConfig = agent.LlmConfig?.ToEntity();
             agentData.IsPublic = agent.IsPublic;
             agentData.UpdatedTime = DateTime.UtcNow;
@@ -402,7 +483,6 @@ public partial class EfCoreRepository
         _context.SaveChanges();
         return true;
     }
-
     public void BulkInsertAgents(List<Agent> agents)
     {
         if (agents.IsNullOrEmpty()) return;
@@ -414,29 +494,26 @@ public partial class EfCoreRepository
             IconUrl = x.IconUrl,
             Description = x.Description,
             Instruction = x.Instruction,
-            ChannelInstructions = x.ChannelInstructions?
-                            .Select(i => i.ToEntity())?
-                            .ToList() ?? new List<Entities.ChannelInstruction>(),
-            Templates = x.Templates?
-                            .Select(t => t.ToEntity())?
-                            .ToList() ?? new List<Entities.AgentTemplate>(),
-            Functions = x.Functions?
-                            .Select(f => f.ToEntity())?
-                            .ToList() ?? new List<Entities.FunctionDef>(),
-            Responses = x.Responses?
-                            .Select(r => r.ToEntity())?
-                            .ToList() ?? new List<Entities.AgentResponse>(),
-            Samples = x.Samples ?? new List<string>(),
-            //Utilities = x.Utilities ?? new List<Entities.AgentUtility>(),
+            ChannelInstructions = x.ChannelInstructions?.Select(x => x.ToEntity()).ToList() ?? [],
+            Templates = x.Templates?.Select(x => x.ToEntity()).ToList() ?? [],
+            Functions = x.Functions?.Select(x => x.ToEntity()).ToList() ?? [],
+            Responses = x.Responses?.Select(x => x.ToEntity()).ToList() ?? [],
+            Samples = x.Samples ?? [],
+            Utilities = x.Utilities?.Select(x => x.ToEntity()).ToList() ?? [],
+            McpTools = x.McpTools?.Select(x => x.ToEntity()).ToList() ?? [],
+            KnowledgeBases = x.KnowledgeBases?.Select(x => x.ToEntity()).ToList() ?? [],
+            Rules = x.Rules?.Select(x => x.ToEntity()).ToList() ?? [],
             IsPublic = x.IsPublic,
-            Type = x.Type,
-            InheritAgentId = x.InheritAgentId,
             Disabled = x.Disabled,
-            Profiles = x.Profiles,
-            RoutingRules = x.RoutingRules?
-                            .Select(r => r.ToEntity())?
-                            .ToList() ?? new List<Entities.RoutingRule>(),
-            LlmConfig = x.LlmConfig.ToEntity(),
+            MergeUtility = x.MergeUtility,
+            Type = x.Type,
+            Mode = x.Mode,
+            InheritAgentId = x.InheritAgentId,
+            Profiles = x.Profiles ?? [],
+            Labels = x.Labels ?? [],
+            RoutingRules = x.RoutingRules?.Select(x => x.ToEntity()).ToList() ?? [],
+            LlmConfig = x.LlmConfig?.ToEntity(),
+            MaxMessageCount = x.MaxMessageCount,
             CreatedTime = x.CreatedDateTime,
             UpdatedTime = x.UpdatedDateTime
         }).ToList();
@@ -512,7 +589,6 @@ public partial class EfCoreRepository
             return false;
         }
     }
-
     private Agent TransformAgentDocument(Entities.Agent? agentDoc)
     {
         if (agentDoc == null) return new Agent();
@@ -524,29 +600,26 @@ public partial class EfCoreRepository
             IconUrl = agentDoc.IconUrl,
             Description = agentDoc.Description,
             Instruction = agentDoc.Instruction,
-            ChannelInstructions = !agentDoc.ChannelInstructions.IsNullOrEmpty() ? agentDoc.ChannelInstructions
-                              .Select(i => i.ToModel())
-                              .ToList() : new List<ChannelInstruction>(),
-            Templates = !agentDoc.Templates.IsNullOrEmpty() ? agentDoc.Templates
-                             .Select(t => t.ToModel())
-                             .ToList() : new List<AgentTemplate>(),
-            Functions = !agentDoc.Functions.IsNullOrEmpty() ? agentDoc.Functions
-                             .Select(f => f.ToModel())
-                             .ToList() : new List<FunctionDef>(),
-            Responses = !agentDoc.Responses.IsNullOrEmpty() ? agentDoc.Responses
-                             .Select(r => r.ToModel())
-                             .ToList() : new List<AgentResponse>(),
-            RoutingRules = !agentDoc.RoutingRules.IsNullOrEmpty() ? agentDoc.RoutingRules
-                                .Select(r => r.ToModel(agentDoc.Id, agentDoc.Name))
-                                .ToList() : new List<RoutingRule>(),
-            LlmConfig = agentDoc.LlmConfig.ToModel(),
-            Samples = agentDoc.Samples ?? new List<string>(),
-            //Utilities = agentDoc.Utilities ?? new List<string>(),
+            Samples = agentDoc.Samples ?? [],
             IsPublic = agentDoc.IsPublic,
             Disabled = agentDoc.Disabled,
+            MergeUtility = agentDoc.MergeUtility,
             Type = agentDoc.Type,
+            Mode = agentDoc.Mode,
             InheritAgentId = agentDoc.InheritAgentId,
-            Profiles = agentDoc.Profiles,
+            Profiles = agentDoc.Profiles ?? [],
+            Labels = agentDoc.Labels ?? [],
+            MaxMessageCount = agentDoc.MaxMessageCount,
+            LlmConfig = agentDoc.LlmConfig?.ToModel(),
+            ChannelInstructions = agentDoc.ChannelInstructions?.Select(x => x.ToModel()).ToList() ?? [],
+            Templates = agentDoc.Templates?.Select(x => x.ToModel()).ToList() ?? [],
+            Functions = agentDoc.Functions?.Select(x => x.ToModel()).ToList() ?? [],
+            Responses = agentDoc.Responses?.Select(x => x.ToModel()).ToList() ?? [],
+            RoutingRules = agentDoc.RoutingRules?.Select(x => x.ToModel(agentDoc.Id, agentDoc.Name)).ToList() ?? [],
+            Utilities = agentDoc.Utilities?.Select(x => x.ToModel()).ToList() ?? [],
+            McpTools = agentDoc.McpTools?.Select(x => x.ToModel()).ToList() ?? [],
+            KnowledgeBases = agentDoc.KnowledgeBases?.Select(x => x.ToModel()).ToList() ?? [],
+            Rules = agentDoc.Rules?.Select(x => x.ToModel()).ToList() ?? []
         };
     }
 }

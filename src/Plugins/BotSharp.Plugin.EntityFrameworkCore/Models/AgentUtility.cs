@@ -8,4 +8,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
 public class AgentUtility
 {
+    public string Category { get; set; }
+    public string Name { get; set; }
+    public bool Disabled { get; set; }
 }

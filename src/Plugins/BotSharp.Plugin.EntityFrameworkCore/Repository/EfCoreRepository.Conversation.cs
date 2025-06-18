@@ -12,8 +12,7 @@ public partial class EfCoreRepository
     {
         if (conversation == null) return;
 
-        var utcNow = DateTime.UtcNow;
-        var convDoc = new Entities.Conversation
+        var utcNow = DateTime.UtcNow;        var convDoc = new Entities.Conversation
         {
             Id = !string.IsNullOrEmpty(conversation.Id) ? conversation.Id : Guid.NewGuid().ToString(),
             AgentId = conversation.AgentId,
@@ -21,8 +20,11 @@ public partial class EfCoreRepository
             Title = conversation.Title,
             TitleAlias = conversation.TitleAlias,
             Channel = conversation.Channel,
+            ChannelId = conversation.ChannelId,
             TaskId = conversation.TaskId,
             Status = conversation.Status,
+            Tags = conversation.Tags ?? [],
+            LatestStates = new(),
             CreatedTime = utcNow,
             UpdatedTime = utcNow
         };

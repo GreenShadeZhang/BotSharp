@@ -1,4 +1,4 @@
-﻿using BotSharp.Abstraction.Routing.Models;
+using BotSharp.Abstraction.Routing.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 

@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace BotSharp.Plugin.EntityFrameworkCore;
 
 public class BotSharpEfCoreDbContext : DbContext
-{
-    public DbSet<Agent> Agents { get; set; }
+{      
+    public DbSet<Entities.Agent> Agents { get; set; }
     public DbSet<AgentTask> AgentTasks { get; set; }
     public DbSet<ConversationContentLog> ConversationContentLogs { get; set; }
     public DbSet<ConversationDialog> ConversationDialogs { get; set; }
@@ -21,7 +21,7 @@ public class BotSharpEfCoreDbContext : DbContext
     public DbSet<LlmCompletionLog> LlmCompletionLogs { get; set; }
     public DbSet<Entities.Plugin> Plugins { get; set; }
     public DbSet<Entities.TranslationMemory> TranslationMemorys { get; set; }
-    public DbSet<UserAgent> UserAgents { get; set; }
+    public DbSet<Entities.UserAgent> UserAgents { get; set; }
     public DbSet<User> Users { get; set; }
     public BotSharpEfCoreDbContext(DbContextOptions<BotSharpEfCoreDbContext> options) : base(options) { }
     protected override void OnModelCreating(ModelBuilder modelBuilder)

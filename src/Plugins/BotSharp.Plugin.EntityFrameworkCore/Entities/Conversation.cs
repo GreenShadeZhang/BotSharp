@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
@@ -11,8 +12,16 @@ public class Conversation
     public string Title { get; set; }
     public string TitleAlias { get; set; }
     public string Channel { get; set; }
+    public string ChannelId { get; set; }
     public string Status { get; set; }
     public int DialogCount { get; set; }
+    
+    [Column(TypeName = "json")]
+    public List<string> Tags { get; set; } = [];
+    
+    [Column(TypeName = "json")]
+    public Dictionary<string, object> LatestStates { get; set; } = new();
+    
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }
 }

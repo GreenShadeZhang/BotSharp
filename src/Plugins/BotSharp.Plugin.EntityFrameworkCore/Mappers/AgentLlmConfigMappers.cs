@@ -12,6 +12,7 @@ public static class AgentLlmConfigMappers
             Model = model.Model,
             IsInherit = model.IsInherit,
             MaxRecursionDepth = model.MaxRecursionDepth,
+            MaxOutputTokens = model.MaxOutputTokens,
         };
     }
 
@@ -23,6 +24,7 @@ public static class AgentLlmConfigMappers
             Model = model.Model,
             IsInherit = model.IsInherit,
             MaxRecursionDepth = model.MaxRecursionDepth,
+            MaxOutputTokens = model.MaxOutputTokens,
         };
     }
 }

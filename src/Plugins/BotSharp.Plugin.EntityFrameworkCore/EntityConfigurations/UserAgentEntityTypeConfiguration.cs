@@ -5,14 +5,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace BotSharp.Plugin.EntityFrameworkCore.EntityConfigurations;
 
 class UserAgentEntityTypeConfiguration
-    : IEntityTypeConfiguration<UserAgent>
+    : IEntityTypeConfiguration<Entities.UserAgent>
 {
     private readonly string _tablePrefix;
     public UserAgentEntityTypeConfiguration(string tablePrefix)
     {
         _tablePrefix = tablePrefix;
     }
-    public void Configure(EntityTypeBuilder<UserAgent> configuration)
+    public void Configure(EntityTypeBuilder<Entities.UserAgent> configuration)
     {
         configuration
                 .ToTable($"{_tablePrefix}_UserAgents");
