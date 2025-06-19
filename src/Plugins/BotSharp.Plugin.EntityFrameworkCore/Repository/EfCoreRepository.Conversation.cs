@@ -1,7 +1,6 @@
 using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
-using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
@@ -10,11 +9,12 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
 public partial class EfCoreRepository
 {
-    public void CreateNewConversation(Conversation conversation)
+    public void CreateNewConversation(Abstraction.Conversations.Models.Conversation conversation)
     {
         if (conversation == null) return;
 
-        var utcNow = DateTime.UtcNow;        
+        var utcNow = DateTime.UtcNow;
+
         var convDoc = new Entities.Conversation
         {
             Id = !string.IsNullOrEmpty(conversation.Id) ? conversation.Id : Guid.NewGuid().ToString(),
@@ -32,24 +32,7 @@ public partial class EfCoreRepository
             UpdatedTime = utcNow
         };
 
-        var dialogDoc = new Entities.ConversationDialog
-        {
-            Id = Guid.NewGuid().ToString(),
-            ConversationId = convDoc.Id,
-            Dialogs = new List<DialogEfElement>()
-        };
-
-        var stateDoc = new Entities.ConversationState
-        {
-            Id = Guid.NewGuid().ToString(),
-            ConversationId = convDoc.Id,
-            States = new List<Entities.State>(),
-            Breakpoints = new List<BreakpointInfoElement>()
-        };
-
         _context.Conversations.Add(convDoc);
-        _context.ConversationDialogs.Add(dialogDoc);
-        _context.ConversationStates.Add(stateDoc);
         _context.SaveChanges();
     }
 
@@ -82,11 +65,22 @@ public partial class EfCoreRepository
         var dialogs = new List<DialogElement>();
         if (string.IsNullOrEmpty(conversationId)) return dialogs;
 
-        var foundDialog = _context.ConversationDialogs.FirstOrDefault(x => x.ConversationId == conversationId);
+        var foundDialog = _context.ConversationDialogs.Where(x => x.ConversationId == conversationId).ToList();
 
         if (foundDialog == null) return dialogs;
 
-        var formattedDialog = foundDialog.Dialogs?.Select(x => x.ToModel())?.ToList();
+        var formattedDialog = foundDialog?.Select(x =>
+        {
+            return new DialogElement
+            {
+                MetaData = x.MetaData.ToModel(),
+                Content = x.Content,
+                SecondaryContent = x.SecondaryContent,
+                RichContent = x.RichContent,
+                SecondaryRichContent = x.SecondaryRichContent,
+                Payload = x.Payload
+            };
+        })?.ToList();
         return formattedDialog ?? new List<DialogElement>();
     }
 
@@ -94,7 +88,20 @@ public partial class EfCoreRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var dialogElements = dialogs.Select(x => x.ToEntity()).ToList();
+        var dialogElements = dialogs.Select(x =>
+        {
+            return new Entities.ConversationDialog
+            {
+                Id = Guid.NewGuid().ToString(),
+                ConversationId = conversationId,
+                MetaData = x.MetaData.ToEntity(),
+                Content = x.Content,
+                SecondaryContent = x.SecondaryContent,
+                RichContent = x.RichContent,
+                SecondaryRichContent = x.SecondaryRichContent,
+                Payload = x.Payload
+            };
+        }).ToList();
 
         var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
         if (conv != null)
@@ -103,13 +110,7 @@ public partial class EfCoreRepository
             conv.DialogCount += dialogs.Count;
         }
 
-        var dialog = _context.ConversationDialogs.FirstOrDefault(x => x.ConversationId == conversationId);
-
-        if (dialog != null)
-        {
-            dialog.Dialogs.AddRange(dialogElements);
-            _context.ConversationDialogs.Update(dialog);
-        }
+        _context.ConversationDialogs.AddRange(dialogElements);
         _context.SaveChanges();
     }
 
@@ -145,13 +146,13 @@ public partial class EfCoreRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return false;
 
-        var foundDialog = _context.ConversationDialogs.FirstOrDefault(x => x.ConversationId == conversationId);
-        if (foundDialog == null || foundDialog.Dialogs.IsNullOrEmpty())
+        var foundDialogs = _context.ConversationDialogs.Where(x => x.ConversationId == conversationId).ToList();
+        if (foundDialogs == null || foundDialogs.IsNullOrEmpty())
         {
             return false;
         }
 
-        var dialogs = foundDialog.Dialogs;
+        var dialogs = foundDialogs;
         var candidates = dialogs.Where(x => x.MetaData.MessageId == request.Message.MetaData.MessageId
                                             && x.MetaData.Role == request.Message.MetaData.Role).ToList();
 
@@ -171,9 +172,9 @@ public partial class EfCoreRepository
             found.SecondaryRichContent = request.Message.RichContent;
         }
 
-        foundDialog.Dialogs = dialogs;
 
-        _context.ConversationDialogs.Update(foundDialog);
+        _context.ConversationDialogs.Update(found);
+        _context.SaveChanges();
         return true;
     }
 
@@ -221,9 +222,9 @@ public partial class EfCoreRepository
         };
     }
 
-    public ConversationState GetConversationStates(string conversationId)
+    public Abstraction.Conversations.Models.ConversationState GetConversationStates(string conversationId)
     {
-        var states = new ConversationState();
+        var states = new Abstraction.Conversations.Models.ConversationState();
         if (string.IsNullOrEmpty(conversationId)) return states;
 
         var foundStates = _context.ConversationStates.Include(c => c.States).ThenInclude(s => s.Values).FirstOrDefault(x => x.ConversationId == conversationId);
@@ -231,7 +232,7 @@ public partial class EfCoreRepository
         if (foundStates == null || foundStates.States.IsNullOrEmpty()) return states;
 
         var savedStates = foundStates.States.Select(x => x.ToModel()).ToList();
-        return new ConversationState(savedStates);
+        return new Abstraction.Conversations.Models.ConversationState(savedStates);
     }
 
     public void UpdateConversationStates(string conversationId, List<StateKeyValue> states)
@@ -588,8 +589,8 @@ public partial class EfCoreRepository
         excludeAgentIds ??= Enumerable.Empty<string>();
 
         var conversations = _context.Conversations
-            .Where(x => x.DialogCount <= messageLimit && 
-                       x.UpdatedTime < bufferTime && 
+            .Where(x => x.DialogCount <= messageLimit &&
+                       x.UpdatedTime < bufferTime &&
                        !excludeAgentIds.Contains(x.AgentId))
             .OrderBy(x => x.UpdatedTime)
             .Take(batchSize)
@@ -607,26 +608,26 @@ public partial class EfCoreRepository
             return deletedMessageIds;
         }
 
-        var foundDialog = _context.ConversationDialogs.FirstOrDefault(x => x.ConversationId == conversationId);
-        if (foundDialog == null || foundDialog.Dialogs.IsNullOrEmpty())
+        var foundDialogs = _context.ConversationDialogs.Where(x => x.ConversationId == conversationId).ToList();
+        if (foundDialogs == null || foundDialogs.IsNullOrEmpty())
         {
             return deletedMessageIds;
         }
 
-        var foundIdx = foundDialog.Dialogs.FindIndex(x => x.MetaData?.MessageId == messageId);
+        var foundIdx = foundDialogs.FindIndex(x => x.MetaData?.MessageId == messageId);
         if (foundIdx < 0)
         {
             return deletedMessageIds;
         }
 
-        deletedMessageIds = foundDialog.Dialogs.Where((x, idx) => idx >= foundIdx && !string.IsNullOrEmpty(x.MetaData?.MessageId))
+        deletedMessageIds = foundDialogs.Where((x, idx) => idx >= foundIdx && !string.IsNullOrEmpty(x.MetaData?.MessageId))
                                                .Select(x => x.MetaData.MessageId).Distinct().ToList();
 
         // Handle truncated dialogs
-        var truncatedDialogs = foundDialog.Dialogs.Where((x, idx) => idx < foundIdx).ToList();
+        var truncatedDialogs = foundDialogs.Where((x, idx) => idx < foundIdx).ToList();
 
         // Handle truncated states
-        var refTime = foundDialog.Dialogs.ElementAt(foundIdx).MetaData.CreateTime;
+        var refTime = foundDialogs.ElementAt(foundIdx).MetaData.CreateTime;
         var foundStates = _context.ConversationStates.FirstOrDefault(x => x.ConversationId == conversationId);
 
         if (foundStates != null)
@@ -667,8 +668,8 @@ public partial class EfCoreRepository
         }
 
         // Save dialogs
-        foundDialog.Dialogs = truncatedDialogs;
-        _context.ConversationDialogs.Update(foundDialog);
+        foundDialogs = truncatedDialogs;
+        _context.ConversationDialogs.UpdateRange(foundDialogs);
 
         // Update conversation
         var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);

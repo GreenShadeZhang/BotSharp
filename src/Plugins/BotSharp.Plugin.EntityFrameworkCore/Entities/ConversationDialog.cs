@@ -10,5 +10,10 @@ public class ConversationDialog
     public string ConversationId { get; set; }
 
     [Column(TypeName = "json")]
-    public List<DialogEfElement> Dialogs { get; set; }
+    public DialogMetaDataElement MetaData { get; set; }
+    public string Content { get; set; }
+    public string? SecondaryContent { get; set; }
+    public string? RichContent { get; set; }
+    public string? SecondaryRichContent { get; set; }
+    public string? Payload { get; set; }
 }
