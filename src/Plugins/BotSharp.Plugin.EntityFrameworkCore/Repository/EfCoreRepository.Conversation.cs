@@ -3,6 +3,7 @@ using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
@@ -13,7 +14,8 @@ public partial class EfCoreRepository
     {
         if (conversation == null) return;
 
-        var utcNow = DateTime.UtcNow;        var convDoc = new Entities.Conversation
+        var utcNow = DateTime.UtcNow;        
+        var convDoc = new Entities.Conversation
         {
             Id = !string.IsNullOrEmpty(conversation.Id) ? conversation.Id : Guid.NewGuid().ToString(),
             AgentId = conversation.AgentId,
@@ -53,30 +55,26 @@ public partial class EfCoreRepository
 
     public bool DeleteConversations(IEnumerable<string> conversationIds)
     {
-        if (conversationIds.IsNullOrEmpty()) return false;
+        if (conversationIds?.Any() != true) return false;
 
-        var convs = _context.Conversations.Where(x => conversationIds.Contains(x.Id)).ToList();
+        try
+        {
+            var conversations = _context.Conversations.Where(x => conversationIds.Contains(x.Id)).ToList();
+            var dialogs = _context.ConversationDialogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            var states = _context.ConversationStates.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
 
-        var dialogs = _context.ConversationDialogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            _context.Conversations.RemoveRange(conversations);
+            _context.ConversationDialogs.RemoveRange(dialogs);
+            _context.ConversationStates.RemoveRange(states);
 
-        var states = _context.ConversationStates.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
-
-        var exeLogs = _context.ExecutionLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
-
-        var promptLogs = _context.LlmCompletionLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
-
-        var contentLogs = _context.ConversationContentLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
-
-        var stateLogs = _context.ConversationStateLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
-
-        _context.Conversations.RemoveRange(convs);
-        _context.ConversationDialogs.RemoveRange(dialogs);
-        _context.ConversationStates.RemoveRange(states);
-        _context.ExecutionLogs.RemoveRange(exeLogs);
-        _context.LlmCompletionLogs.RemoveRange(promptLogs);
-        _context.ConversationContentLogs.RemoveRange(contentLogs);
-        _context.ConversationStateLogs.RemoveRange(stateLogs);
-        return _context.SaveChanges() > 0;
+            var deleted = _context.SaveChanges();
+            return deleted > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting conversations");
+            return false;
+        }
     }
 
     public List<DialogElement> GetConversationDialogs(string conversationId)
@@ -264,40 +262,49 @@ public partial class EfCoreRepository
         }
     }
 
-    public Conversation GetConversation(string conversationId)
+    public Conversation GetConversation(string conversationId, bool isLoadStates = false)
     {
         if (string.IsNullOrEmpty(conversationId)) return null;
 
         var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
-
-        var dialog = _context.ConversationDialogs.FirstOrDefault(x => x.ConversationId == conversationId);
-
-        var states = _context.ConversationStates.Include(c => c.States).ThenInclude(s => s.Values).FirstOrDefault(x => x.ConversationId == conversationId);
-
         if (conv == null) return null;
 
-        var dialogElements = dialog?.Dialogs?.Select(x => x.ToModel())?.ToList() ?? new List<DialogElement>();
-        var curStates = new Dictionary<string, string>();
-        states.States.ForEach(x =>
+        var result = new Conversation
         {
-            curStates[x.Key] = x.Values?.LastOrDefault()?.Data ?? string.Empty;
-        });
-
-        return new Conversation
-        {
-            Id = conv.Id.ToString(),
-            AgentId = conv.AgentId.ToString(),
-            UserId = conv.UserId.ToString(),
+            Id = conv.Id,
+            AgentId = conv.AgentId,
+            UserId = conv.UserId,
             Title = conv.Title,
             TitleAlias = conv.TitleAlias,
             Channel = conv.Channel,
+            ChannelId = conv.ChannelId,
             Status = conv.Status,
-            Dialogs = dialogElements,
-            States = curStates,
+            TaskId = conv.TaskId,
+            Tags = conv.Tags ?? new List<string>(),
             DialogCount = conv.DialogCount,
             CreatedTime = conv.CreatedTime,
             UpdatedTime = conv.UpdatedTime
         };
+
+        if (isLoadStates)
+        {
+            var states = _context.ConversationStates
+                .Include(c => c.States)
+                .ThenInclude(s => s.Values)
+                .FirstOrDefault(x => x.ConversationId == conversationId);
+
+            if (states?.States?.Any() == true)
+            {
+                var stateDict = new Dictionary<string, string>();
+                foreach (var state in states.States)
+                {
+                    stateDict[state.Key] = state.Values?.LastOrDefault()?.Data ?? string.Empty;
+                }
+                result.States = stateDict;
+            }
+        }
+
+        return result;
     }
 
     public PagedItems<Conversation> GetConversations(ConversationFilter filter)
@@ -449,56 +456,150 @@ public partial class EfCoreRepository
         }).ToList();
     }
 
-    public List<string> GetIdleConversations(int batchSize, int messageLimit, int bufferHours)
+    public bool UpdateConversationTags(string conversationId, List<string> toAddTags, List<string> toDeleteTags)
     {
-        var page = 1;
-        var batchLimit = 100;
-        var utcNow = DateTime.UtcNow;
-        var conversationIds = new List<string>();
+        if (string.IsNullOrWhiteSpace(conversationId)) return false;
 
-        if (batchSize <= 0 || batchSize > batchLimit)
+        try
         {
-            batchSize = batchLimit;
-        }
+            var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
+            if (conv == null) return false;
 
-        if (bufferHours <= 0)
-        {
-            bufferHours = 12;
-        }
+            conv.Tags ??= new List<string>();
 
-        if (messageLimit <= 0)
-        {
-            messageLimit = 2;
-        }
-
-        while (true)
-        {
-            var skip = (page - 1) * batchSize;
-            var candidates = _context.Conversations
-                                              .Where(x => x.DialogCount <= messageLimit && x.UpdatedTime <= utcNow.AddHours(-bufferHours))
-                                              .Skip(skip)
-                                              .Take(batchSize)
-                                              .Select(x => x.Id)
-                                              .ToList();
-
-            if (candidates.IsNullOrEmpty())
+            if (toDeleteTags?.Any() == true)
             {
-                break;
+                conv.Tags = conv.Tags.Where(t => !toDeleteTags.Contains(t)).ToList();
             }
 
-            conversationIds = conversationIds.Concat(candidates).Distinct().ToList();
-            if (conversationIds.Count >= batchSize)
+            if (toAddTags?.Any() == true)
             {
-                break;
+                foreach (var tag in toAddTags.Where(t => !conv.Tags.Contains(t)))
+                {
+                    conv.Tags.Add(tag);
+                }
             }
 
-            page++;
+            conv.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+            return true;
         }
-
-        return conversationIds.Take(batchSize).ToList();
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating conversation tags for {ConversationId}", conversationId);
+            return false;
+        }
     }
 
-    public IEnumerable<string> TruncateConversation(string conversationId, string messageId, bool cleanLog = false)
+    public bool AppendConversationTags(string conversationId, List<string> tags)
+    {
+        if (string.IsNullOrWhiteSpace(conversationId) || tags?.Any() != true) return false;
+
+        try
+        {
+            var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
+            if (conv == null) return false;
+
+            conv.Tags ??= new List<string>();
+            foreach (var tag in tags.Where(t => !conv.Tags.Contains(t)))
+            {
+                conv.Tags.Add(tag);
+            }
+
+            conv.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error appending conversation tags for {ConversationId}", conversationId);
+            return false;
+        }
+    }
+
+    public List<string> GetConversationStateSearchKeys(ConversationStateKeysFilter filter)
+    {
+        if (filter == null) return new List<string>();
+
+        var query = _context.ConversationStates
+            .Include(c => c.States)
+            .AsQueryable();
+
+        var keys = query.SelectMany(x => x.States.Select(s => s.Key))
+                       .Distinct()
+                       .ToList();
+
+        return keys;
+    }
+
+    public List<string> GetConversationsToMigrate(int batchSize = 100)
+    {
+        var conversations = _context.Conversations
+            .Where(x => x.LatestStates == null || x.LatestStates.Count == 0)
+            .Take(batchSize)
+            .Select(x => x.Id)
+            .ToList();
+
+        return conversations;
+    }
+
+    public bool MigrateConvsersationLatestStates(string conversationId)
+    {
+        if (string.IsNullOrWhiteSpace(conversationId)) return false;
+
+        try
+        {
+            var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
+            if (conv == null) return false;
+
+            var states = _context.ConversationStates
+                .Include(c => c.States)
+                .ThenInclude(s => s.Values)
+                .FirstOrDefault(x => x.ConversationId == conversationId);
+
+            if (states?.States?.Any() == true)
+            {
+                var latestStates = new Dictionary<string, object>();
+                foreach (var state in states.States)
+                {
+                    var latestValue = state.Values?.OrderByDescending(v => v.UpdateTime).FirstOrDefault();
+                    if (latestValue != null)
+                    {
+                        latestStates[state.Key] = latestValue.Data;
+                    }
+                }
+                conv.LatestStates = latestStates;
+                conv.UpdatedTime = DateTime.UtcNow;
+                _context.SaveChanges();
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error migrating conversation latest states for {ConversationId}", conversationId);
+            return false;
+        }
+    }
+
+    public List<string> GetIdleConversations(int batchSize, int messageLimit, int bufferHours, IEnumerable<string> excludeAgentIds)
+    {
+        var bufferTime = DateTime.UtcNow.AddHours(-bufferHours);
+        excludeAgentIds ??= Enumerable.Empty<string>();
+
+        var conversations = _context.Conversations
+            .Where(x => x.DialogCount <= messageLimit && 
+                       x.UpdatedTime < bufferTime && 
+                       !excludeAgentIds.Contains(x.AgentId))
+            .OrderBy(x => x.UpdatedTime)
+            .Take(batchSize)
+            .Select(x => x.Id)
+            .ToList();
+
+        return conversations;
+    }
+
+    public List<string> TruncateConversation(string conversationId, string messageId, bool cleanLog = false)
     {
         var deletedMessageIds = new List<string>();
         if (string.IsNullOrEmpty(conversationId) || string.IsNullOrEmpty(messageId))

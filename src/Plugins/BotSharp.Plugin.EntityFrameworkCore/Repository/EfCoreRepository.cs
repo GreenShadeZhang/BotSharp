@@ -3,6 +3,8 @@ using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Knowledges.Models;
 using BotSharp.Abstraction.Users.Models;
 using BotSharp.Abstraction.VectorStorage.Models;
+using BotSharp.Abstraction.Tasks.Models;
+using BotSharp.Abstraction.Repositories.Filters;
 using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;

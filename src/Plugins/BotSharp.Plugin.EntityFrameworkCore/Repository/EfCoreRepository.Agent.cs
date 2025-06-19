@@ -1,6 +1,7 @@
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
+using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -400,10 +401,27 @@ public partial class EfCoreRepository
     #endregion
 
 
-    public Agent? GetAgent(string agentId)
+    public Agent? GetAgent(string agentId, bool basicsOnly = false)
     {
         var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
         if (agent == null) return null;
+
+        if (basicsOnly)
+        {
+            return new Agent
+            {
+                Id = agent.Id,
+                Name = agent.Name,
+                IconUrl = agent.IconUrl,
+                Description = agent.Description,
+                IsPublic = agent.IsPublic,
+                Disabled = agent.Disabled,
+                Type = agent.Type,
+                Mode = agent.Mode,
+                CreatedDateTime = agent.CreatedTime,
+                UpdatedDateTime = agent.UpdatedTime
+            };
+        }
 
         return TransformAgentDocument(agent);
     }
@@ -523,22 +541,62 @@ public partial class EfCoreRepository
         _context.SaveChanges();
     }
 
-    public void BulkInsertUserAgents(List<UserAgent> userAgents)
+    public List<UserAgent> GetUserAgents(string userId)
     {
-        if (userAgents.IsNullOrEmpty()) return;
+        if (string.IsNullOrWhiteSpace(userId)) return new List<UserAgent>();
 
-        var userAgentDocs = userAgents.Select(x => new Entities.UserAgent
+        var userAgents = _context.UserAgents.Where(x => x.UserId == userId).ToList();
+        return userAgents.Select(x => new UserAgent
         {
-            Id = !string.IsNullOrEmpty(x.Id) ? x.Id : Guid.NewGuid().ToString(),
+            Id = x.Id,
+            UserId = x.UserId,
             AgentId = x.AgentId,
-            UserId = !string.IsNullOrEmpty(x.UserId) ? x.UserId : string.Empty,
-            //Editable = x.Editable,
+            Actions = x.Actions,
             CreatedTime = x.CreatedTime,
             UpdatedTime = x.UpdatedTime
         }).ToList();
+    }
 
-        _context.UserAgents.AddRange(userAgentDocs);
+    public void BulkInsertUserAgents(List<UserAgent> userAgents)
+    {
+        if (userAgents?.Any() != true) return;
+
+        var userAgentEntities = userAgents.Select(x => new Entities.UserAgent
+        {
+            Id = !string.IsNullOrEmpty(x.Id) ? x.Id : Guid.NewGuid().ToString(),
+            UserId = x.UserId,
+            AgentId = x.AgentId,
+            Actions = x.Actions.ToList(),
+            CreatedTime = DateTime.UtcNow,
+            UpdatedTime = DateTime.UtcNow
+        });
+
+        _context.UserAgents.AddRange(userAgentEntities);
         _context.SaveChanges();
+    }
+
+    public bool AppendAgentLabels(string agentId, List<string> labels)
+    {
+        try
+        {
+            var agent = _context.Agents.FirstOrDefault(x => x.Id == agentId);
+            if (agent == null || labels?.Any() != true) return false;
+
+            agent.Labels ??= new List<string>();
+            foreach (var label in labels.Where(l => !agent.Labels.Contains(l)))
+            {
+                agent.Labels.Add(label);
+            }
+            
+            agent.UpdatedTime = DateTime.UtcNow;
+            _context.SaveChanges();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error appending agent labels for {AgentId}", agentId);
+            return false;
+        }
     }
 
     public bool DeleteAgents()

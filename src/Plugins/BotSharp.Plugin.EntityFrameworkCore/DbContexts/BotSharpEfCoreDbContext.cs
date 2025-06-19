@@ -19,10 +19,17 @@ public class BotSharpEfCoreDbContext : DbContext
     public DbSet<ConversationStateLog> ConversationStateLogs { get; set; }
     public DbSet<ExecutionLog> ExecutionLogs { get; set; }
     public DbSet<LlmCompletionLog> LlmCompletionLogs { get; set; }
-    public DbSet<Entities.Plugin> Plugins { get; set; }
-    public DbSet<Entities.TranslationMemory> TranslationMemorys { get; set; }
+    public DbSet<Entities.Plugin> Plugins { get; set; }    public DbSet<Entities.TranslationMemory> TranslationMemorys { get; set; }
     public DbSet<Entities.UserAgent> UserAgents { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<Role> Roles { get; set; }
+    public DbSet<RoleAgent> RoleAgents { get; set; }
+    public DbSet<CrontabItem> CrontabItems { get; set; }
+    public DbSet<GlobalStat> GlobalStats { get; set; }
+    public DbSet<InstructionLog> InstructionLogs { get; set; }
+    public DbSet<KnowledgeCollectionConfig> KnowledgeCollectionConfigs { get; set; }
+    public DbSet<KnowledgeDocument> KnowledgeDocuments { get; set; }
+    
     public BotSharpEfCoreDbContext(DbContextOptions<BotSharpEfCoreDbContext> options) : base(options) { }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,10 +61,22 @@ public class BotSharpEfCoreDbContext : DbContext
 
         modelBuilder.ApplyConfiguration(new PluginEntityTypeConfiguration(tablePrefix));
 
-        modelBuilder.ApplyConfiguration(new TranslationMemoryEntityTypeConfiguration(tablePrefix));
-
-        modelBuilder.ApplyConfiguration(new UserAgentEntityTypeConfiguration(tablePrefix));
+        modelBuilder.ApplyConfiguration(new TranslationMemoryEntityTypeConfiguration(tablePrefix));        modelBuilder.ApplyConfiguration(new UserAgentEntityTypeConfiguration(tablePrefix));
 
         modelBuilder.ApplyConfiguration(new UserEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new RoleEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new RoleAgentEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new CrontabItemEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new GlobalStatEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new InstructionLogEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new KnowledgeCollectionConfigEntityTypeConfiguration(tablePrefix));
+        
+        modelBuilder.ApplyConfiguration(new KnowledgeDocumentEntityTypeConfiguration(tablePrefix));
     }
 }

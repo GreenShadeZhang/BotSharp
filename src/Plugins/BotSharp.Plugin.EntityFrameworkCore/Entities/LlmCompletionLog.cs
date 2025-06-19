@@ -5,9 +5,11 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
 public class LlmCompletionLog
 {
-    public string Id { get; set; }
-    public string ConversationId { get; set; }
-
-    [Column(TypeName = "json")]
-    public List<PromptLogElement> Logs { get; set; }
+    public string Id { get; set; } = default!;
+    public string ConversationId { get; set; } = default!;
+    public string MessageId { get; set; } = default!;
+    public string AgentId { get; set; } = default!;
+    public string Prompt { get; set; } = default!;
+    public string? Response { get; set; }
+    public DateTime CreatedTime { get; set; }
 }
