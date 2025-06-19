@@ -8,7 +8,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore;
 
 public class BotSharpEfCoreDbContext : DbContext
 {      
-    public DbSet<Agent> Agents { get; set; }
+    public DbSet<Entities.Agent> Agents { get; set; }
     public DbSet<AgentTask> AgentTasks { get; set; }
     public DbSet<ConversationContentLog> ConversationContentLogs { get; set; }
     public DbSet<ConversationDialog> ConversationDialogs { get; set; }
