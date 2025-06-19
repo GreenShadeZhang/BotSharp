@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.EntityConfigurations;
 
-class AgentEntityTypeConfiguration
-    : IEntityTypeConfiguration<Entities.Agent>
+public class AgentEntityTypeConfiguration: IEntityTypeConfiguration<Entities.Agent>
 {
     private readonly string _tablePrefix;
     public AgentEntityTypeConfiguration(string tablePrefix)
