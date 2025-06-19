@@ -27,29 +27,11 @@ public class InstructionLogEntityTypeConfiguration : IEntityTypeConfiguration<In
             .HasMaxLength(36)
             .IsRequired();
             
-        builder.Property(e => e.ConversationId)
-            .HasMaxLength(36)
-            .IsRequired();
-            
-        builder.Property(e => e.MessageId)
-            .HasMaxLength(36)
-            .IsRequired();
-            
-        builder.Property(e => e.Instruction)
-            .HasColumnType("TEXT")
-            .IsRequired();
-            
-        builder.Property(e => e.Response)
-            .HasColumnType("TEXT")
-            .IsRequired();
-            
         builder.Property(e => e.CreatedTime)
             .IsRequired();
 
         // Indexes
         builder.HasIndex(e => e.AgentId);
-        builder.HasIndex(e => e.ConversationId);
-        builder.HasIndex(e => e.MessageId);
         builder.HasIndex(e => e.CreatedTime);
     }
 }

@@ -1,5 +1,8 @@
 using BotSharp.Abstraction.Loggers.Models;
 using BotSharp.Abstraction.Repositories.Filters;
+using BotSharp.Plugin.EntityFrameworkCore.Entities;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -44,7 +47,7 @@ public partial class EfCoreRepository
     #endregion
 
     #region LLM Completion Log
-    public void SaveLlmCompletionLog(LlmCompletionLog log)
+    public void SaveLlmCompletionLog(Abstraction.Loggers.Models.LlmCompletionLog log)
     {
         if (log == null) return;
 
@@ -189,16 +192,37 @@ public partial class EfCoreRepository
 
         try
         {
-            var logEntities = logs.Select(x => new Entities.InstructionLog
+            var logEntities = new List<InstructionLog>();
+            foreach (var log in logs)
             {
-                Id = Guid.NewGuid().ToString(),
-                AgentId = x.AgentId,
-                ConversationId = x.ConversationId,
-                MessageId = x.MessageId,
-                Instruction = x.Instruction,
-                Response = x.Response,
-                CreatedTime = x.CreateTime
-            });
+                var logEntitie = new Entities.InstructionLog
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    AgentId = log.AgentId,
+                    Provider = log.Provider,
+                    Model = log.Model,
+                    TemplateName = log.TemplateName,
+                    UserMessage = log.UserMessage,
+                    SystemInstruction = log.SystemInstruction,
+                    CompletionText = log.CompletionText,
+                    UserId = log.UserId,
+                    CreatedTime = log.CreatedTime
+                };
+                foreach (var pair in log.States)
+                {
+                    try
+                    {
+
+                        logEntitie.States[pair.Key] = JsonDocument.Parse(pair.Value);
+                    }
+                    catch
+                    {
+
+                        logEntitie.States[pair.Key] = JsonDocument.Parse("{}"); ;
+                    }
+                }
+                logEntities.Add(logEntitie);
+            }
 
             _context.InstructionLogs.AddRange(logEntities);
             _context.SaveChanges();
@@ -217,30 +241,36 @@ public partial class EfCoreRepository
 
         if (filter != null)
         {
-            if (!string.IsNullOrWhiteSpace(filter.AgentId))
+            // Filter logs
+            if (!filter.AgentIds.IsNullOrEmpty())
             {
-                query = query.Where(x => x.AgentId == filter.AgentId);
+                foreach (var agentId in filter.AgentIds)
+                {
+                    query = query.Where(x => x.AgentId == agentId);
+                }
+            }
+            if (!filter.Providers.IsNullOrEmpty())
+            {
+                foreach (var providers in filter.Providers)
+                {
+                    query = query.Where(x => x.Provider == providers);
+                }
+            }
+            if (!filter.Models.IsNullOrEmpty())
+            {
+                foreach (var model in filter.Models)
+                {
+                    query = query.Where(x => x.Model == model);
+                }
+            }
+            if (!filter.TemplateNames.IsNullOrEmpty())
+            {
+                foreach (var templateName in filter.TemplateNames)
+                {
+                    query = query.Where(x => x.TemplateName == templateName);
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.ConversationId))
-            {
-                query = query.Where(x => x.ConversationId == filter.ConversationId);
-            }
-
-            if (!string.IsNullOrWhiteSpace(filter.MessageId))
-            {
-                query = query.Where(x => x.MessageId == filter.MessageId);
-            }
-
-            if (filter.StartTime.HasValue)
-            {
-                query = query.Where(x => x.CreatedTime >= filter.StartTime.Value);
-            }
-
-            if (filter.EndTime.HasValue)
-            {
-                query = query.Where(x => x.CreatedTime <= filter.EndTime.Value);
-            }
         }
 
         var totalCount = query.Count();
@@ -249,12 +279,16 @@ public partial class EfCoreRepository
                        .Take(filter?.Size ?? 10)
                        .Select(x => new InstructionLogModel
                        {
+                           Id = x.Id,
                            AgentId = x.AgentId,
-                           ConversationId = x.ConversationId,
-                           MessageId = x.MessageId,
-                           Instruction = x.Instruction,
-                           Response = x.Response,
-                           CreateTime = x.CreatedTime
+                           Provider = x.Provider,
+                           Model = x.Model,
+                           TemplateName = x.TemplateName,
+                           UserMessage = x.UserMessage,
+                           SystemInstruction = x.SystemInstruction,
+                           CompletionText = x.CompletionText,
+                           UserId = x.UserId,
+                           CreatedTime = x.CreatedTime
                        })
                        .ToList();
 
@@ -271,45 +305,33 @@ public partial class EfCoreRepository
 
         if (filter != null)
         {
-            if (!string.IsNullOrWhiteSpace(filter.AgentId))
+            if (!filter.AgentIds.IsNullOrEmpty())
             {
-                query = query.Where(x => x.AgentId == filter.AgentId);
+                query = query.Where(x => filter.AgentIds.Contains(x.AgentId));
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.ConversationId))
+            if (!filter.UserIds.IsNullOrEmpty())
             {
-                query = query.Where(x => x.ConversationId == filter.ConversationId);
+                query = query.Where(x => filter.UserIds.Contains(x.UserId));
             }
 
-            if (filter.StartTime.HasValue)
-            {
-                query = query.Where(x => x.CreatedTime >= filter.StartTime.Value);
-            }
+            // 按创建时间降序排序，获取指定数量的日志
+            var logs = query
+                .OrderByDescending(x => x.CreatedTime)
+                .Take(filter.LogLimit)
+                .ToList();
 
-            if (filter.EndTime.HasValue)
-            {
-                query = query.Where(x => x.CreatedTime <= filter.EndTime.Value);
-            }
+            // 提取所有states的键并去重
+            var keys = logs
+                .SelectMany(x => x.States.Keys)
+                .Distinct()
+                .Take(filter.KeyLimit)
+                .ToList();
+
+            return keys;
         }
 
-        var keys = new List<string>();
-
-        switch (filter?.KeyType?.ToLower())
-        {
-            case "agent":
-                keys = query.Select(x => x.AgentId).Distinct().ToList();
-                break;
-            case "conversation":
-                keys = query.Select(x => x.ConversationId).Distinct().ToList();
-                break;
-            case "message":
-                keys = query.Select(x => x.MessageId).Distinct().ToList();
-                break;
-            default:
-                break;
-        }
-
-        return keys;
+        return new List<string>();
     }
     #endregion
 }

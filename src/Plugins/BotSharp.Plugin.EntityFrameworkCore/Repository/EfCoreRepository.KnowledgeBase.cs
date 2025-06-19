@@ -9,7 +9,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
 public partial class EfCoreRepository
 {
-    #region Knowledge Base
+    #region Knowledge Collection Configs
     public bool AddKnowledgeCollectionConfigs(List<VectorCollectionConfig> configs, bool reset = false)
     {
         if (configs?.Any() != true) return false;
@@ -37,8 +37,6 @@ public partial class EfCoreRepository
                     existing.VectorStore = new KnowledgeVectorStoreConfigElement
                     {
                         Provider = config.VectorStore?.Provider,
-                        Model = config.VectorStore?.Model,
-                        Dimension = config.VectorStore?.Dimension ?? 0
                     };
                     existing.TextEmbedding = new KnowledgeEmbeddingConfigElement
                     {
@@ -58,8 +56,6 @@ public partial class EfCoreRepository
                         VectorStore = new KnowledgeVectorStoreConfigElement
                         {
                             Provider = config.VectorStore?.Provider,
-                            Model = config.VectorStore?.Model,
-                            Dimension = config.VectorStore?.Dimension ?? 0
                         },
                         TextEmbedding = new KnowledgeEmbeddingConfigElement
                         {
@@ -133,10 +129,8 @@ public partial class EfCoreRepository
             VectorStore = new VectorStoreConfig
             {
                 Provider = x.VectorStore?.Provider,
-                Model = x.VectorStore?.Model,
-                Dimension = x.VectorStore?.Dimension ?? 0
             },
-            TextEmbedding = new EmbeddingConfig
+            TextEmbedding = new KnowledgeEmbeddingConfig
             {
                 Provider = x.TextEmbedding?.Provider,
                 Model = x.TextEmbedding?.Model,
@@ -144,8 +138,10 @@ public partial class EfCoreRepository
             }
         });
     }
+    #endregion
 
-    public bool SaveKnolwedgeBaseFileMeta(KnowledgeDocMetaData metaData)
+    #region Knowledge Documents
+    public bool SaveKnowledgeBaseFileMeta(KnowledgeDocMetaData metaData)
     {
         if (metaData == null || string.IsNullOrWhiteSpace(metaData.Collection) || 
             string.IsNullOrWhiteSpace(metaData.VectorStoreProvider)) return false;
@@ -163,9 +159,10 @@ public partial class EfCoreRepository
                 existing.FileSource = metaData.FileSource;
                 existing.ContentType = metaData.ContentType;
                 existing.VectorStoreProvider = metaData.VectorStoreProvider;
-                existing.VectorDataIds = metaData.VectorDataIds ?? new List<string>();
+                existing.VectorDataIds = metaData.VectorDataIds?.ToList() ?? new List<string>();
                 existing.CreateDate = metaData.CreateDate;
                 existing.CreateUserId = metaData.CreateUserId;
+                // 处理 RefData 如果需要
             }
             else
             {
@@ -178,9 +175,10 @@ public partial class EfCoreRepository
                     ContentType = metaData.ContentType,
                     FileId = metaData.FileId,
                     VectorStoreProvider = metaData.VectorStoreProvider,
-                    VectorDataIds = metaData.VectorDataIds ?? new List<string>(),
+                    VectorDataIds = metaData.VectorDataIds?.ToList() ?? new List<string>(),
                     CreateDate = metaData.CreateDate,
                     CreateUserId = metaData.CreateUserId
+                    // 处理 RefData 如果需要
                 };
                 _context.KnowledgeDocuments.Add(newDoc);
             }
@@ -195,7 +193,7 @@ public partial class EfCoreRepository
         }
     }
 
-    public bool DeleteKnolwedgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
+    public bool DeleteKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
     {
         if (string.IsNullOrWhiteSpace(collectionName) || string.IsNullOrWhiteSpace(vectorStoreProvider)) 
             return false;
@@ -212,6 +210,11 @@ public partial class EfCoreRepository
             }
 
             var docsToDelete = query.ToList();
+            if (!docsToDelete.Any())
+            {
+                return false;
+            }
+            
             _context.KnowledgeDocuments.RemoveRange(docsToDelete);
             var deleted = _context.SaveChanges();
             return deleted > 0;
@@ -228,50 +231,99 @@ public partial class EfCoreRepository
         if (string.IsNullOrWhiteSpace(collectionName) || string.IsNullOrWhiteSpace(vectorStoreProvider))
             return new PagedItems<KnowledgeDocMetaData> { Items = new List<KnowledgeDocMetaData>(), Count = 0 };
 
-        var query = _context.KnowledgeDocuments.Where(x => 
-            x.Collection == collectionName && 
-            x.VectorStoreProvider == vectorStoreProvider);
-
-        if (filter != null)
+        try
         {
-            if (filter.FileIds?.Any() == true)
+            var query = _context.KnowledgeDocuments.Where(x => 
+                x.Collection == collectionName && 
+                x.VectorStoreProvider == vectorStoreProvider);
+
+            if (filter != null)
             {
-                query = query.Where(x => filter.FileIds.Contains(x.FileId));
+                if (filter.FileIds?.Any() == true)
+                {
+                    query = query.Where(x => filter.FileIds.Contains(x.FileId));
+                }
+                
+                if (filter.FileNames?.Any() == true)
+                {
+                    query = query.Where(x => filter.FileNames.Contains(x.FileName));
+                }
+                
+                if (filter.FileSources?.Any() == true)
+                {
+                    query = query.Where(x => filter.FileSources.Contains(x.FileSource));
+                }
+                
+                if (filter.ContentTypes?.Any() == true)
+                {
+                    query = query.Where(x => filter.ContentTypes.Contains(x.ContentType));
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.FileSource))
-            {
-                query = query.Where(x => x.FileSource == filter.FileSource);
-            }
+            var totalCount = query.Count();
+            
+            // 应用排序，默认按创建日期降序
+            var orderedQuery = !string.IsNullOrEmpty(filter?.Sort) 
+                ? (filter.Order?.ToLower() == "asc"
+                    ? ApplySortAscending(query, filter.Sort)
+                    : ApplySortDescending(query, filter.Sort))
+                : query.OrderByDescending(x => x.CreateDate);
+            
+            var docs = orderedQuery
+                .Skip(filter?.Offset ?? 0)
+                .Take(filter?.Size ?? 10)
+                .ToList();
 
-            if (!string.IsNullOrWhiteSpace(filter.CreateUserId))
+            var items = docs.Select(x => new KnowledgeDocMetaData
             {
-                query = query.Where(x => x.CreateUserId == filter.CreateUserId);
-            }
+                Collection = x.Collection,
+                FileName = x.FileName,
+                FileSource = x.FileSource,
+                ContentType = x.ContentType,
+                FileId = x.FileId,
+                VectorStoreProvider = x.VectorStoreProvider,
+                VectorDataIds = x.VectorDataIds,
+                // RefData = ..., // 如果需要映射 RefData
+                CreateDate = x.CreateDate,
+                CreateUserId = x.CreateUserId
+            }).ToList();
+
+            return new PagedItems<KnowledgeDocMetaData>
+            {
+                Items = items,
+                Count = totalCount
+            };
         }
-
-        var totalCount = query.Count();
-        var docs = query.Skip(filter?.Offset ?? 0)
-                        .Take(filter?.Size ?? 10)
-                        .ToList();
-
-        var items = docs.Select(x => new KnowledgeDocMetaData
+        catch (Exception ex)
         {
-            Collection = x.Collection,
-            FileName = x.FileName,
-            FileSource = x.FileSource,
-            ContentType = x.ContentType,
-            FileId = x.FileId,
-            VectorStoreProvider = x.VectorStoreProvider,
-            VectorDataIds = x.VectorDataIds,
-            CreateDate = x.CreateDate,
-            CreateUserId = x.CreateUserId
-        }).ToList();
-
-        return new PagedItems<KnowledgeDocMetaData>
+            _logger.LogError(ex, "Error retrieving knowledge base file meta");
+            return new PagedItems<KnowledgeDocMetaData> { Items = new List<KnowledgeDocMetaData>(), Count = 0 };
+        }
+    }
+    
+    private IQueryable<KnowledgeDocument> ApplySortAscending(IQueryable<KnowledgeDocument> query, string sortField)
+    {
+        return sortField.ToLower() switch
         {
-            Items = items,
-            Count = totalCount
+            "filename" => query.OrderBy(x => x.FileName),
+            "filesource" => query.OrderBy(x => x.FileSource),
+            "contenttype" => query.OrderBy(x => x.ContentType),
+            "createdate" => query.OrderBy(x => x.CreateDate),
+            "createuserid" => query.OrderBy(x => x.CreateUserId),
+            _ => query.OrderBy(x => x.CreateDate)
+        };
+    }
+    
+    private IQueryable<KnowledgeDocument> ApplySortDescending(IQueryable<KnowledgeDocument> query, string sortField)
+    {
+        return sortField.ToLower() switch
+        {
+            "filename" => query.OrderByDescending(x => x.FileName),
+            "filesource" => query.OrderByDescending(x => x.FileSource),
+            "contenttype" => query.OrderByDescending(x => x.ContentType),
+            "createdate" => query.OrderByDescending(x => x.CreateDate),
+            "createuserid" => query.OrderByDescending(x => x.CreateUserId),
+            _ => query.OrderByDescending(x => x.CreateDate)
         };
     }
     #endregion
