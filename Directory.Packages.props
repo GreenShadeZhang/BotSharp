@@ -12,7 +12,9 @@
     <PackageVersion Include="LLMSharp.Google.Palm" Version="1.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.StaticFiles" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.17" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.17" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.17" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />

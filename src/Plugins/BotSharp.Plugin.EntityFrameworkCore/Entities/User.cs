@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Users.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
@@ -26,5 +27,7 @@ public class User
     public List<string> Permissions { get; set; } = new();
     public DateTime CreatedTime { get; set; }
     public DateTime UpdatedTime { get; set; }
+
+    [Column(TypeName = "json")]
     public Dashboard? Dashboard { get; set; }
 }

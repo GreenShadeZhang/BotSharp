@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Conversations.Enums;
 using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
@@ -23,7 +24,7 @@ public partial class EfCoreRepository
             Title = conversation.Title,
             TitleAlias = conversation.TitleAlias,
             Channel = conversation.Channel,
-            ChannelId = conversation.ChannelId,
+            ChannelId = conversation.ChannelId ?? ConversationChannel.OpenAPI,
             TaskId = conversation.TaskId,
             Status = conversation.Status,
             Tags = conversation.Tags ?? [],

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
@@ -16,6 +17,7 @@ public class InstructionLog
     public string CompletionText { get; set; } = default!;
     public string? UserId { get; set; }
 
+    [Column(TypeName = "json")]
     public Dictionary<string, JsonDocument> States { get; set; } = new();
     public DateTime CreatedTime { get; set; }
 }

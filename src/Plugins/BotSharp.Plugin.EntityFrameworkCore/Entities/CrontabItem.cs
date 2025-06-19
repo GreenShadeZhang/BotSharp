@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
 
@@ -18,6 +19,8 @@ public class CrontabItem
     public int ExpireSeconds { get; set; }
     public DateTime? LastExecutionTime { get; set; }
     public bool LessThan60Seconds { get; set; } = false;
+
+    [Column(TypeName = "json")]
     public IEnumerable<CronTaskElement> Tasks { get; set; } = [];
     public DateTime CreatedTime { get; set; } = DateTime.UtcNow;
 

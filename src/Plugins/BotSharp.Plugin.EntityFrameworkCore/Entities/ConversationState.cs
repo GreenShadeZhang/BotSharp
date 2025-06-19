@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 
@@ -8,6 +8,7 @@ public class ConversationState
 {
     public string Id { get; set; }
     public string ConversationId { get; set; }
+
     public List<State> States { get; set; } = new List<State>();
 
     [Column(TypeName = "json")]
