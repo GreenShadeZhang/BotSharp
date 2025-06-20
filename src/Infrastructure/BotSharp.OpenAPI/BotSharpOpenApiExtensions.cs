@@ -1,10 +1,13 @@
 using BotSharp.Abstraction.Messaging.JsonConverters;
 using BotSharp.Core.Users.Services;
 using BotSharp.OpenAPI.BackgroundServices;
+using BotSharp.OpenAPI.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Logging;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Text.Json.Serialization;
 
 namespace BotSharp.OpenAPI;
@@ -34,9 +37,7 @@ public static class BotSharpOpenApiExtensions
                 options.JsonSerializerOptions.Converters.Add(new TemplateMessageJsonConverter());
             });
 
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/
 
         services.AddHttpContextAccessor();
 
@@ -68,12 +69,12 @@ public static class BotSharpOpenApiExtensions
 
         app.UseCors(policy);
 
-        app.UseSwagger();
+        //app.UseSwagger();
 
         if (env.IsDevelopment())
         {
             IdentityModelEventSource.ShowPII = true;
-            app.UseSwaggerUI();
+            //app.UseSwaggerUI();
             app.UseDeveloperExceptionPage();
         }
 
@@ -133,6 +134,55 @@ public static class BotSharpOpenApiExtensions
         });
 
         return app;
+    }
+
+    /// <summary>
+    /// Add Swagger/OpenAPI with OIDC authentication
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="config"></param>
+    /// <param name="origins"></param>
+    /// <param name="env"></param>
+    /// <param name="autoCreateUser">是否自动创建用户</param>
+    /// <returns></returns>
+    public static IServiceCollection AddBotSharpOpenAPIWithOidcAuth(this IServiceCollection services,
+        IConfiguration config,
+        string[] origins,
+        IHostEnvironment env,
+        bool autoCreateUser = true)
+    {
+        // 添加基础OpenAPI服务
+        services.AddBotSharpOpenAPI(config, origins, env);
+
+        // 添加OIDC认证
+        services.AddBotSharpOidcAuthentication(config, env, autoCreateUser);
+
+        //// 重新配置Swagger以支持OIDC认证
+        //services.Configure<SwaggerGenOptions>(c =>
+        //{
+        //    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        //    {
+        //        In = ParameterLocation.Header,
+        //        Description = "Please insert JWT token with Bearer into field",
+        //        Name = "Authorization",
+        //        Type = SecuritySchemeType.ApiKey
+        //    });
+        //    c.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        //        {
+        //            new OpenApiSecurityScheme
+        //            {
+        //                Reference = new OpenApiReference
+        //                {
+        //                    Type = ReferenceType.SecurityScheme,
+        //                    Id = "Bearer"
+        //                }
+        //            },
+        //            Array.Empty<string>()
+        //        }
+        //    });
+        //});
+
+        return services;
     }
 }
 

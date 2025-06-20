@@ -27,7 +27,7 @@ builder.Services.AddBotSharpCore(builder.Configuration, options =>
 {
     options.JsonSerializerOptions.Converters.Add(new RichContentJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new TemplateMessageJsonConverter());
-}).AddBotSharpOpenAPI(builder.Configuration, allowedOrigins, builder.Environment)
+}).AddBotSharpOpenAPIWithOidcAuth(builder.Configuration, allowedOrigins, builder.Environment)
   .AddBotSharpMCP(builder.Configuration)
   .AddBotSharpLogger(builder.Configuration);
 
@@ -53,7 +53,7 @@ app.UseMiddleware<ChatStreamMiddleware>();
 
 // Use BotSharp
 app.UseBotSharp()
-    .UseBotSharpOpenAPI(app.Environment, false)
+    .UseBotSharpOpenAPI(app.Environment, true)
     .UseBotSharpUI();
 
 app.Run();
