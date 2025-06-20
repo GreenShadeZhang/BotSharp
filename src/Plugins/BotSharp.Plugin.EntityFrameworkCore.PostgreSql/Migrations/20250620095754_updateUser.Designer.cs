@@ -7,6 +7,7 @@ using BotSharp.Plugin.EntityFrameworkCore;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -15,9 +16,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 {
     [DbContext(typeof(BotSharpEfCoreDbContext))]
-    partial class BotSharpEfCoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250620095754_updateUser")]
+    partial class updateUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

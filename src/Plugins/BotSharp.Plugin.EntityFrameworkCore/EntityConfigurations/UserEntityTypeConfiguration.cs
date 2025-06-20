@@ -27,11 +27,11 @@ class UserEntityTypeConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
 
         configuration.Property(u => u.FirstName)
-            .HasMaxLength(50)
+            .HasMaxLength(64)
             .IsRequired();
 
         configuration.Property(u => u.LastName)
-            .HasMaxLength(50);
+            .HasMaxLength(64);
 
         configuration.Property(u => u.Email)
             .HasMaxLength(100);
@@ -40,31 +40,31 @@ class UserEntityTypeConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(20);
 
         configuration.Property(u => u.Source)
-            .HasMaxLength(50)
+            .HasMaxLength(64)
             .IsRequired();
 
         configuration.Property(u => u.ExternalId)
             .HasMaxLength(100);
 
         configuration.Property(u => u.Type)
-            .HasMaxLength(50)
+            .HasMaxLength(64)
             .IsRequired();
 
         configuration.Property(u => u.Role)
-            .HasMaxLength(50)
+            .HasMaxLength(64)
             .IsRequired();
 
         configuration.Property(u => u.VerificationCode)
-            .HasMaxLength(10);
+            .HasMaxLength(64);
 
         configuration.Property(u => u.RegionCode)
-            .HasMaxLength(10);
+            .HasMaxLength(64);
 
         configuration.Property(u => u.AffiliateId)
-            .HasMaxLength(50);
+            .HasMaxLength(512);
 
         configuration.Property(u => u.EmployeeId)
-            .HasMaxLength(50);
+            .HasMaxLength(512);
 
         configuration.Property(u => u.Permissions)
             .HasConversion(
