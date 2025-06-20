@@ -24,7 +24,7 @@ builder.Services.AddBotSharpCore(builder.Configuration, options =>
 {
     options.JsonSerializerOptions.Converters.Add(new RichContentJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new TemplateMessageJsonConverter());
-}).AddBotSharpOpenAPI(builder.Configuration, allowedOrigins, builder.Environment, true);
+}).AddBotSharpOpenAPI(builder.Configuration, allowedOrigins, builder.Environment);
 
 var dbSettings = new BotSharpDatabaseSettings();
 builder.Configuration.Bind("Database", dbSettings);

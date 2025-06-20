@@ -39,7 +39,7 @@ public class ServiceBuilder
                 services.AddBotSharpCore(context.Configuration, options =>
                 {
                 })
-                .AddBotSharpOpenAPI(context.Configuration, [], context.HostingEnvironment, true)
+                .AddBotSharpOpenAPI(context.Configuration, [], context.HostingEnvironment)
                 .AddBotSharpLogger(context.Configuration);
             });
 

@@ -1,146 +1,28 @@
 using BotSharp.Abstraction.Messaging.JsonConverters;
 using BotSharp.Core.Users.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using BotSharp.OpenAPI.BackgroundServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Logging;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.Net.Http.Headers;
-using Microsoft.OpenApi.Models;
-using Microsoft.IdentityModel.JsonWebTokens;
-using BotSharp.OpenAPI.BackgroundServices;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Authentication;
 
 namespace BotSharp.OpenAPI;
 
 public static class BotSharpOpenApiExtensions
 {
     private static string policy = "BotSharpCorsPolicy";
+
     /// <summary>
-    /// Add Swagger/OpenAPI
+    /// Add Swagger/OpenAPI without authentication
     /// </summary>
     /// <param name="services"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    public static IServiceCollection AddBotSharpOpenAPI(this IServiceCollection services,
-        IConfiguration config,
-        string[] origins,
-        IHostEnvironment env,
-        bool enableValidation)
+    public static IServiceCollection AddBotSharpOpenAPI(this IServiceCollection services, IConfiguration config, string[] origins, IHostEnvironment env)
     {
         services.AddScoped<IUserIdentity, UserIdentity>();
         services.AddHostedService<ConversationTimeoutService>();
-
-        // Add bearer authentication
-        var schema = "MIXED_SCHEME";
-        var builder = services.AddAuthentication(options =>
-        {
-            // custom scheme defined in .AddPolicyScheme() below
-            // inspired from https://weblog.west-wind.com/posts/2022/Mar/29/Combining-Bearer-Token-and-Cookie-Auth-in-ASPNET
-            options.DefaultScheme = schema;
-            options.DefaultChallengeScheme = schema;
-            options.DefaultAuthenticateScheme = schema;
-        }).AddJwtBearer(o =>
-        {
-            o.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidIssuer = config["Jwt:Issuer"],
-                ValidAudience = config["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"])),
-                ValidateIssuer = enableValidation,
-                ValidateAudience = enableValidation,
-                ValidateLifetime = enableValidation && !env.IsDevelopment(),
-                ValidateIssuerSigningKey = enableValidation
-            };
-
-            if (!enableValidation)
-            {
-                o.TokenValidationParameters.SignatureValidator = (string token, TokenValidationParameters parameters) =>
-                    new JsonWebToken(token);
-            }
-        }).AddCookie(options =>
-        {
-            // Add these lines for cross-origin cookie support
-            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        }).AddPolicyScheme(schema, "Mixed authentication", options =>
-        {
-            // runs on each request
-            options.ForwardDefaultSelector = context =>
-            {
-                // filter by auth type
-                string authorization = context.Request.Headers[HeaderNames.Authorization];
-                if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
-                    return JwtBearerDefaults.AuthenticationScheme;
-                else if (context.Request.Cookies.ContainsKey(".AspNetCore.Cookies"))
-                    return CookieAuthenticationDefaults.AuthenticationScheme;
-                else if (context.Request.Path.StartsWithSegments("/sso") && context.Request.Method == "GET")
-                    return CookieAuthenticationDefaults.AuthenticationScheme;
-                else if (context.Request.Path.ToString().StartsWith("/signin-") && context.Request.Method == "GET")
-                    return CookieAuthenticationDefaults.AuthenticationScheme;
-
-                // otherwise always check for cookie auth
-                return JwtBearerDefaults.AuthenticationScheme;
-            };
-        });
-
-        #region OpenId
-        // GitHub OAuth
-        if (!string.IsNullOrWhiteSpace(config["OAuth:GitHub:ClientId"]) && !string.IsNullOrWhiteSpace(config["OAuth:GitHub:ClientSecret"]))
-        {
-            builder = builder.AddGitHub(options =>
-            {
-                options.ClientId = config["OAuth:GitHub:ClientId"];
-                options.ClientSecret = config["OAuth:GitHub:ClientSecret"];
-                options.Events.OnTicketReceived = OnTicketReceivedContext;
-            });
-        }
-
-        // Google Identiy OAuth
-        if (!string.IsNullOrWhiteSpace(config["OAuth:Google:ClientId"]) && !string.IsNullOrWhiteSpace(config["OAuth:Google:ClientSecret"]))
-        {
-            builder = builder.AddGoogle(options =>
-            {
-                options.ClientId = config["OAuth:Google:ClientId"];
-                options.ClientSecret = config["OAuth:Google:ClientSecret"];
-                options.Events.OnTicketReceived = OnTicketReceivedContext;
-            });
-        }
-
-        // Keycloak Identiy OAuth
-        if (!string.IsNullOrWhiteSpace(config["OAuth:Keycloak:ClientId"]) && !string.IsNullOrWhiteSpace(config["OAuth:Keycloak:ClientSecret"]))
-        {
-            builder = builder.AddKeycloak(options =>
-            {
-                options.BaseAddress = new Uri(config["OAuth:Keycloak:BaseAddress"]);
-                options.Realm = config["OAuth:Keycloak:Realm"];
-                options.ClientId = config["OAuth:Keycloak:ClientId"];
-                options.ClientSecret = config["OAuth:Keycloak:ClientSecret"];
-                options.AccessType = AspNet.Security.OAuth.Keycloak.KeycloakAuthenticationAccessType.Confidential;
-                int version = Convert.ToInt32(config["OAuth:Keycloak:Version"] ?? "22");
-                options.Version = new Version(version, 0);
-                options.Events.OnTicketReceived = OnTicketReceivedContext;
-            });
-        }
-
-        // Wexin OAuth
-        if (!string.IsNullOrWhiteSpace(config["OAuth:Wexin:ClientId"]) && !string.IsNullOrWhiteSpace(config["OAuth:Wexin:ClientSecret"]))
-        {
-            builder = builder.AddWeixin(options =>
-            {
-                options.ClientId = config["OAuth:GitHub:ClientId"];
-                options.ClientSecret = config["OAuth:GitHub:ClientSecret"];
-                options.Scope.Add("user:email");
-                options.Backchannel = builder.Services.BuildServiceProvider()
-                    .GetRequiredService<IHttpClientFactory>()
-                    .CreateClient();
-                options.Events.OnTicketReceived = OnTicketReceivedContext;
-            });
-        }
-        #endregion
 
         // Add services to the container.
         services.AddControllers()
@@ -154,31 +36,7 @@ public static class BotSharpOpenApiExtensions
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(
-            c =>
-            {
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
-                    In = ParameterLocation.Header,
-                    Description = "Please insert JWT with Bearer into field",
-                    Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey
-                });
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement {
-                   {
-                     new OpenApiSecurityScheme
-                     {
-                       Reference = new OpenApiReference
-                       {
-                         Type = ReferenceType.SecurityScheme,
-                         Id = "Bearer"
-                       }
-                      },
-                      Array.Empty<string>()
-                   }
-                });
-            }
-        );
+        services.AddSwaggerGen();
 
         services.AddHttpContextAccessor();
 
@@ -194,23 +52,14 @@ public static class BotSharpOpenApiExtensions
         return services;
     }
 
-    private static async Task OnTicketReceivedContext(TicketReceivedContext context)
-    {
-        var services = context.HttpContext.RequestServices;
-        var hooks = services.GetServices<IAuthenticationHook>();
-        foreach (var hook in hooks)
-        {
-            await hook.OAuthCompleted(context);
-        }
-    }
-
     /// <summary>
     /// Use Swagger/OpenAPI
     /// </summary>
-    /// <param name="services"></param>
-    /// <param name="config"></param>
+    /// <param name="app"></param>
+    /// <param name="env"></param>
+    /// <param name="useAuthentication">是否使用认证中间件</param>
     /// <returns></returns>
-    public static IApplicationBuilder UseBotSharpOpenAPI(this IApplicationBuilder app, IHostEnvironment env)
+    public static IApplicationBuilder UseBotSharpOpenAPI(this IApplicationBuilder app, IHostEnvironment env, bool useAuthentication = true)
     {
         if (app == null)
         {
@@ -228,11 +77,19 @@ public static class BotSharpOpenApiExtensions
             app.UseDeveloperExceptionPage();
         }
 
-        app.UseAuthentication();
+        // 只在需要时添加认证中间件
+        if (useAuthentication)
+        {
+            app.UseAuthentication();
+        }
 
         app.UseRouting();
 
-        app.UseAuthorization();
+        // 只在需要时添加授权中间件
+        if (useAuthentication)
+        {
+            app.UseAuthorization();
+        }
 
         app.UseEndpoints(
             endpoints =>
