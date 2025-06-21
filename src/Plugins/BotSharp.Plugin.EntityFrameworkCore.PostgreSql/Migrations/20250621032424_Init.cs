@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using BotSharp.Abstraction.Users.Models;
+using BotSharp.Plugin.EntityFrameworkCore.Entities;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -10,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -96,6 +97,9 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 {
                     Id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     ConversationId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    AgentId = table.Column<string>(type: "text", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    UpdatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     MetaData = table.Column<DialogMetaDataElement>(type: "json", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
                     SecondaryContent = table.Column<string>(type: "text", nullable: true),
@@ -123,7 +127,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     Status = table.Column<string>(type: "text", nullable: false),
                     DialogCount = table.Column<int>(type: "integer", nullable: false),
                     Tags = table.Column<List<string>>(type: "json", nullable: false),
-                    LatestStates = table.Column<Dictionary<string, object>>(type: "json", nullable: false),
+                    LatestStates = table.Column<Dictionary<string, JsonDocument>>(type: "json", nullable: false),
                     CreatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -153,6 +157,10 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 {
                     Id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     ConversationId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    AgentId = table.Column<string>(type: "text", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    UpdatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    States = table.Column<List<State>>(type: "json", nullable: false),
                     Breakpoints = table.Column<List<BreakpointInfoElement>>(type: "json", nullable: false)
                 },
                 constraints: table =>
@@ -353,22 +361,22 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 {
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
                     UserName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    FirstName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    LastName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    FirstName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    LastName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Phone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     Salt = table.Column<string>(type: "text", nullable: false),
                     Password = table.Column<string>(type: "text", nullable: false),
-                    Source = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Source = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     ExternalId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    VerificationCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
+                    Type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    Role = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    VerificationCode = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     VerificationCodeExpireAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Verified = table.Column<bool>(type: "boolean", nullable: false),
-                    RegionCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    AffiliateId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    EmployeeId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    RegionCode = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
+                    AffiliateId = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    EmployeeId = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
                     IsDisabled = table.Column<bool>(type: "boolean", nullable: false),
                     Permissions = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
                     CreatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -378,27 +386,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_BotSharp_Users", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "BotSharp_States",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Key = table.Column<string>(type: "text", nullable: false),
-                    Versioning = table.Column<bool>(type: "boolean", nullable: false),
-                    Readonly = table.Column<bool>(type: "boolean", nullable: false),
-                    ConversationStateId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BotSharp_States", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_BotSharp_States_BotSharp_ConversationStates_ConversationSta~",
-                        column: x => x.ConversationStateId,
-                        principalTable: "BotSharp_ConversationStates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -424,31 +411,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         name: "FK_BotSharp_RoleAgent_BotSharp_Role_RoleId",
                         column: x => x.RoleId,
                         principalTable: "BotSharp_Role",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "BotSharp_StateValues",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Data = table.Column<string>(type: "text", nullable: false),
-                    MessageId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
-                    Active = table.Column<bool>(type: "boolean", nullable: false),
-                    ActiveRounds = table.Column<int>(type: "integer", nullable: false),
-                    DataType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Source = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    UpdateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    StateId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BotSharp_StateValues", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_BotSharp_StateValues_BotSharp_States_StateId",
-                        column: x => x.StateId,
-                        principalTable: "BotSharp_States",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -664,42 +626,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_States_ConversationStateId",
-                table: "BotSharp_States",
-                column: "ConversationStateId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_States_Id",
-                table: "BotSharp_States",
-                column: "Id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_States_Key",
-                table: "BotSharp_States",
-                column: "Key");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StateValues_Data",
-                table: "BotSharp_StateValues",
-                column: "Data");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StateValues_Id",
-                table: "BotSharp_StateValues",
-                column: "Id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StateValues_MessageId",
-                table: "BotSharp_StateValues",
-                column: "MessageId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StateValues_StateId",
-                table: "BotSharp_StateValues",
-                column: "StateId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_BotSharp_TranslationMemorys_Id",
                 table: "BotSharp_TranslationMemorys",
                 column: "Id");
@@ -759,6 +685,9 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 name: "BotSharp_ConversationStateLogs");
 
             migrationBuilder.DropTable(
+                name: "BotSharp_ConversationStates");
+
+            migrationBuilder.DropTable(
                 name: "BotSharp_CrontabItem");
 
             migrationBuilder.DropTable(
@@ -786,9 +715,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 name: "BotSharp_RoleAgent");
 
             migrationBuilder.DropTable(
-                name: "BotSharp_StateValues");
-
-            migrationBuilder.DropTable(
                 name: "BotSharp_TranslationMemorys");
 
             migrationBuilder.DropTable(
@@ -802,12 +728,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
             migrationBuilder.DropTable(
                 name: "BotSharp_Role");
-
-            migrationBuilder.DropTable(
-                name: "BotSharp_States");
-
-            migrationBuilder.DropTable(
-                name: "BotSharp_ConversationStates");
         }
     }
 }

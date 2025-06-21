@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using BotSharp.Abstraction.Users.Models;
 using BotSharp.Plugin.EntityFrameworkCore;
+using BotSharp.Plugin.EntityFrameworkCore.Entities;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -197,7 +198,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     b.Property<int>("DialogCount")
                         .HasColumnType("integer");
 
-                    b.Property<Dictionary<string, object>>("LatestStates")
+                    b.Property<Dictionary<string, JsonDocument>>("LatestStates")
                         .IsRequired()
                         .HasColumnType("json");
 
@@ -295,6 +296,10 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
@@ -320,6 +325,13 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     b.Property<string>("SecondaryRichContent")
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("UpdatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
@@ -335,6 +347,10 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<List<BreakpointInfoElement>>("Breakpoints")
                         .IsRequired()
                         .HasColumnType("json");
@@ -343,6 +359,17 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<List<State>>("States")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<DateTime>("UpdatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -793,94 +820,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     b.ToTable("BotSharp_RoleAgent", (string)null);
                 });
 
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.State", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ConversationStateId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("Readonly")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("Versioning")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConversationStateId");
-
-                    b.HasIndex("Id");
-
-                    b.HasIndex("Key");
-
-                    b.ToTable("BotSharp_States", (string)null);
-                });
-
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.StateValue", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<bool>("Active")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("ActiveRounds")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DataType")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("MessageId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("StateId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("UpdateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Data")
-                        .HasDatabaseName("IX_StateValues_Data");
-
-                    b.HasIndex("Id")
-                        .IsUnique()
-                        .HasDatabaseName("IX_StateValues_Id");
-
-                    b.HasIndex("MessageId")
-                        .HasDatabaseName("IX_StateValues_MessageId");
-
-                    b.HasIndex("StateId")
-                        .HasDatabaseName("IX_StateValues_StateId");
-
-                    b.ToTable("BotSharp_StateValues", (string)null);
-                });
-
             modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.TranslationMemory", b =>
                 {
                     b.Property<string>("Id")
@@ -1072,41 +1011,9 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.State", b =>
-                {
-                    b.HasOne("BotSharp.Plugin.EntityFrameworkCore.Entities.ConversationState", "ConversationState")
-                        .WithMany("States")
-                        .HasForeignKey("ConversationStateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ConversationState");
-                });
-
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.StateValue", b =>
-                {
-                    b.HasOne("BotSharp.Plugin.EntityFrameworkCore.Entities.State", "State")
-                        .WithMany("Values")
-                        .HasForeignKey("StateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("State");
-                });
-
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.ConversationState", b =>
-                {
-                    b.Navigation("States");
-                });
-
             modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.Role", b =>
                 {
                     b.Navigation("RoleAgents");
-                });
-
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.State", b =>
-                {
-                    b.Navigation("Values");
                 });
 #pragma warning restore 612, 618
         }
