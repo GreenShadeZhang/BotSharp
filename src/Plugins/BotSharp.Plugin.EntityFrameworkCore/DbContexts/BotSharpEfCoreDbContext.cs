@@ -26,8 +26,8 @@ public class BotSharpEfCoreDbContext : DbContext
     public DbSet<GlobalStat> GlobalStats { get; set; }
     public DbSet<InstructionLog> InstructionLogs { get; set; }
     public DbSet<KnowledgeCollectionConfig> KnowledgeCollectionConfigs { get; set; }
-    public DbSet<KnowledgeDocument> KnowledgeDocuments { get; set; }
-    
+    public DbSet<KnowledgeCollectionFileMeta> KnowledgeCollectionFileMetas { get; set; }
+
     public BotSharpEfCoreDbContext(DbContextOptions<BotSharpEfCoreDbContext> options) : base(options) { }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +71,6 @@ public class BotSharpEfCoreDbContext : DbContext
         
         modelBuilder.ApplyConfiguration(new KnowledgeCollectionConfigEntityTypeConfiguration(tablePrefix));
         
-        modelBuilder.ApplyConfiguration(new KnowledgeDocumentEntityTypeConfiguration(tablePrefix));
+        modelBuilder.ApplyConfiguration(new KnowledgeCollectionFileMetaEntityTypeConfiguration(tablePrefix));
     }
 }

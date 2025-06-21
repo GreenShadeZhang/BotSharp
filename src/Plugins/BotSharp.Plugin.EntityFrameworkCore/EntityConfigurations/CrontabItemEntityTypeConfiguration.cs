@@ -27,27 +27,8 @@ public class CrontabItemEntityTypeConfiguration : IEntityTypeConfiguration<Cront
         builder.Property(e => e.ConversationId)
             .HasMaxLength(36)
             .IsRequired();
-            
-        builder.Property(e => e.Title)
-            .HasMaxLength(512);
-            
-        builder.Property(e => e.Description)
-            .HasMaxLength(2048);
-            
-            
-        builder.Property(e => e.AgentId)
-            .HasMaxLength(36);
-            
-        builder.Property(e => e.UserId)
-            .HasMaxLength(36);
-            
-            
-        builder.Property(e => e.CreatedTime)
-            .IsRequired();
-            
-        // Indexes
-        builder.HasIndex(e => e.ConversationId).IsUnique();
-        builder.HasIndex(e => e.AgentId);
-        builder.HasIndex(e => e.UserId);
+
+        builder
+            .HasIndex(a => a.ConversationId);
     }
 }

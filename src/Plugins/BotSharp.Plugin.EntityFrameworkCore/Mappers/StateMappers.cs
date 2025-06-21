@@ -4,30 +4,30 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class StateMappers
 {
-    public static Entities.State ToEntity(this StateKeyValue state)
+    public static StateElement ToEntity(this StateKeyValue state)
     {
-        return new Entities.State
+        return new StateElement
         {
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
-            Values = state.Values?.Select(x => x.ToEntity())?.ToList() ?? new List<Entities.StateValue>()
+            Values = state.Values?.Select(x => x.ToEntity())?.ToList() ?? new List<StateValueElement>()
         };
     }
 
-    public static Entities.State ToEntity(this StateKeyValue state, Entities.ConversationState conversationState)
+    public static StateElement ToEntity(this StateKeyValue state, Entities.ConversationState conversationState)
     {
         var stateId = Guid.NewGuid().ToString();
-        return new Entities.State
+        return new StateElement
         {
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
-            Values = state.Values?.Select(x => x.ToEntity(stateId))?.ToList() ?? new List<Entities.StateValue>()
+            Values = state.Values?.Select(x => x.ToEntity(stateId))?.ToList() ?? new List<StateValueElement>()
         };
     }
 
-    public static StateKeyValue ToModel(this Entities.State state)
+    public static StateKeyValue ToModel(this StateElement state)
     {
         return new StateKeyValue
         {
@@ -38,9 +38,9 @@ public static class StateMappers
         };
     }
 
-    public static Entities.StateValue ToEntity(this StateValue element)
+    public static StateValueElement ToEntity(this StateValue element)
     {
-        return new Entities.StateValue
+        return new StateValueElement
         {
             Data = element.Data,
             MessageId = element.MessageId,
@@ -53,9 +53,9 @@ public static class StateMappers
     }
 
 
-    public static Entities.StateValue ToEntity(this StateValue element, string stateId)
+    public static StateValueElement ToEntity(this StateValue element, string stateId)
     {
-        return new Entities.StateValue
+        return new StateValueElement
         {
             Data = element.Data,
             MessageId = element.MessageId,
@@ -67,7 +67,7 @@ public static class StateMappers
         };
     }
 
-    public static StateValue ToModel(this Entities.StateValue element)
+    public static StateValue ToModel(this StateValueElement element)
     {
         return new StateValue
         {

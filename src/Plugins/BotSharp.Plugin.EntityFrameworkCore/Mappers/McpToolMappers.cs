@@ -1,6 +1,3 @@
-using BotSharp.Abstraction.Agents.Models;
-using BotSharp.Plugin.EntityFrameworkCore.Models;
-
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
 public static class McpToolMappers

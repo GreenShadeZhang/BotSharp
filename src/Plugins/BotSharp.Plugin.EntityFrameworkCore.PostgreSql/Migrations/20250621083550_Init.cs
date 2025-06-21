@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using BotSharp.Abstraction.Users.Models;
-using BotSharp.Plugin.EntityFrameworkCore.Entities;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -160,7 +159,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     AgentId = table.Column<string>(type: "text", nullable: false),
                     UserId = table.Column<string>(type: "text", nullable: false),
                     UpdatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    States = table.Column<List<State>>(type: "json", nullable: false),
+                    States = table.Column<List<StateElement>>(type: "json", nullable: false),
                     Breakpoints = table.Column<List<BreakpointInfoElement>>(type: "json", nullable: false)
                 },
                 constraints: table =>
@@ -173,13 +172,13 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
-                    UserId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
-                    AgentId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    AgentId = table.Column<string>(type: "text", nullable: false),
                     ConversationId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
                     ExecutionResult = table.Column<string>(type: "text", nullable: false),
                     Cron = table.Column<string>(type: "text", nullable: false),
-                    Title = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    Description = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: false),
                     ExecutionCount = table.Column<int>(type: "integer", nullable: false),
                     MaxExecutionCount = table.Column<int>(type: "integer", nullable: false),
                     ExpireSeconds = table.Column<int>(type: "integer", nullable: false),
@@ -194,30 +193,17 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "BotSharp_ExecutionLogs",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    ConversationId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Logs = table.Column<List<string>>(type: "json", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BotSharp_ExecutionLogs", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "BotSharp_GlobalStat",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
                     AgentId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
-                    Count = table.Column<string>(type: "TEXT", nullable: false),
-                    LlmCost = table.Column<string>(type: "TEXT", nullable: false),
+                    Count = table.Column<string>(type: "json", nullable: false),
+                    LlmCost = table.Column<string>(type: "json", nullable: false),
                     RecordTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Interval = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
+                    Interval = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -250,10 +236,12 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    VectorStore = table.Column<string>(type: "TEXT", nullable: false),
-                    TextEmbedding = table.Column<string>(type: "TEXT", nullable: false)
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<string>(type: "text", nullable: false),
+                    VectorStore_Provider = table.Column<string>(type: "text", nullable: false),
+                    TextEmbedding_Provider = table.Column<string>(type: "text", nullable: false),
+                    TextEmbedding_Model = table.Column<string>(type: "text", nullable: false),
+                    TextEmbedding_Dimension = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -261,23 +249,24 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "BotSharp_KnowledgeDocument",
+                name: "BotSharp_KnowledgeCollectionFileMetas",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
-                    Collection = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Collection = table.Column<string>(type: "text", nullable: false),
                     FileId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FileName = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    FileSource = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    ContentType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    VectorStoreProvider = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    VectorDataIds = table.Column<string>(type: "TEXT", nullable: false),
-                    CreateDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreateUserId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false)
+                    FileName = table.Column<string>(type: "text", nullable: false),
+                    FileSource = table.Column<string>(type: "text", nullable: false),
+                    ContentType = table.Column<string>(type: "text", nullable: false),
+                    VectorStoreProvider = table.Column<string>(type: "text", nullable: false),
+                    VectorDataIds = table.Column<IEnumerable<string>>(type: "json", nullable: false),
+                    RefData = table.Column<KnowledgeFileMetaRefElement>(type: "json", nullable: true),
+                    CreatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreateUserId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BotSharp_KnowledgeDocument", x => x.Id);
+                    table.PrimaryKey("PK_BotSharp_KnowledgeCollectionFileMetas", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -501,46 +490,9 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 column: "Id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_CrontabItem_AgentId",
-                table: "BotSharp_CrontabItem",
-                column: "AgentId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_BotSharp_CrontabItem_ConversationId",
                 table: "BotSharp_CrontabItem",
-                column: "ConversationId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_CrontabItem_UserId",
-                table: "BotSharp_CrontabItem",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_ExecutionLogs_ConversationId",
-                table: "BotSharp_ExecutionLogs",
                 column: "ConversationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_ExecutionLogs_Id",
-                table: "BotSharp_ExecutionLogs",
-                column: "Id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_GlobalStat_AgentId",
-                table: "BotSharp_GlobalStat",
-                column: "AgentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_GlobalStat_AgentId_StartTime_EndTime",
-                table: "BotSharp_GlobalStat",
-                columns: new[] { "AgentId", "StartTime", "EndTime" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_GlobalStat_RecordTime",
-                table: "BotSharp_GlobalStat",
-                column: "RecordTime");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BotSharp_InstructionLog_AgentId",
@@ -551,43 +503,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 name: "IX_BotSharp_InstructionLog_CreatedTime",
                 table: "BotSharp_InstructionLog",
                 column: "CreatedTime");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeCollectionConfig_Name",
-                table: "BotSharp_KnowledgeCollectionConfig",
-                column: "Name",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeCollectionConfig_Type",
-                table: "BotSharp_KnowledgeCollectionConfig",
-                column: "Type");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeDocument_Collection",
-                table: "BotSharp_KnowledgeDocument",
-                column: "Collection");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeDocument_Collection_VectorStoreProvider_F~",
-                table: "BotSharp_KnowledgeDocument",
-                columns: new[] { "Collection", "VectorStoreProvider", "FileId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeDocument_CreateDate",
-                table: "BotSharp_KnowledgeDocument",
-                column: "CreateDate");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeDocument_FileId",
-                table: "BotSharp_KnowledgeDocument",
-                column: "FileId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BotSharp_KnowledgeDocument_VectorStoreProvider",
-                table: "BotSharp_KnowledgeDocument",
-                column: "VectorStoreProvider");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BotSharp_LlmCompletionLogs_ConversationId",
@@ -691,9 +606,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 name: "BotSharp_CrontabItem");
 
             migrationBuilder.DropTable(
-                name: "BotSharp_ExecutionLogs");
-
-            migrationBuilder.DropTable(
                 name: "BotSharp_GlobalStat");
 
             migrationBuilder.DropTable(
@@ -703,7 +615,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                 name: "BotSharp_KnowledgeCollectionConfig");
 
             migrationBuilder.DropTable(
-                name: "BotSharp_KnowledgeDocument");
+                name: "BotSharp_KnowledgeCollectionFileMetas");
 
             migrationBuilder.DropTable(
                 name: "BotSharp_LlmCompletionLogs");

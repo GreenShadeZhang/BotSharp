@@ -664,7 +664,7 @@ public partial class EfCoreRepository
             // Truncate states
             if (!foundStates.States.IsNullOrEmpty())
             {
-                var truncatedStates = new List<Entities.State>();
+                var truncatedStates = new List<StateElement>();
                 foreach (var state in foundStates.States)
                 {
                     if (!state.Versioning)
@@ -743,7 +743,7 @@ public partial class EfCoreRepository
         return pascalCase.ToString();
     }
 
-    private Dictionary<string, JsonDocument> BuildLatestStates(List<Entities.State> states)
+    private Dictionary<string, JsonDocument> BuildLatestStates(List<StateElement> states)
     {
         var endNodes = new Dictionary<string, JsonDocument>();
         if (states.IsNullOrEmpty())

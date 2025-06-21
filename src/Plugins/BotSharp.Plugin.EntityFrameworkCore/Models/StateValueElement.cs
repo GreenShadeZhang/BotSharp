@@ -1,6 +1,6 @@
-namespace BotSharp.Plugin.EntityFrameworkCore.Entities;
+namespace BotSharp.Plugin.EntityFrameworkCore.Models;
 
-public class StateValue
+public class StateValueElement
 {
     public string Data { get; set; }
     public string? MessageId { get; set; }

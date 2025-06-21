@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Text.Json;
 using BotSharp.Abstraction.Users.Models;
 using BotSharp.Plugin.EntityFrameworkCore;
-using BotSharp.Plugin.EntityFrameworkCore.Entities;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -360,7 +359,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<List<State>>("States")
+                    b.Property<List<StateElement>>("States")
                         .IsRequired()
                         .HasColumnType("json");
 
@@ -421,8 +420,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("AgentId")
                         .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ConversationId")
                         .IsRequired()
@@ -438,8 +436,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
+                        .HasColumnType("text");
 
                     b.Property<int>("ExecutionCount")
                         .HasColumnType("integer");
@@ -466,48 +463,17 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("text");
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AgentId");
-
-                    b.HasIndex("ConversationId")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("BotSharp_CrontabItem", (string)null);
-                });
-
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.ExecutionLog", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ConversationId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<List<string>>("Logs")
-                        .IsRequired()
-                        .HasColumnType("json");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
 
-                    b.HasIndex("Id");
-
-                    b.ToTable("BotSharp_ExecutionLogs", (string)null);
+                    b.ToTable("BotSharp_CrontabItem", (string)null);
                 });
 
             modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.GlobalStat", b =>
@@ -523,19 +489,18 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("Count")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("json");
 
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Interval")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<string>("LlmCost")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("json");
 
                     b.Property<DateTime>("RecordTime")
                         .HasColumnType("timestamp with time zone");
@@ -544,13 +509,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AgentId");
-
-                    b.HasIndex("RecordTime");
-
-                    b.HasIndex("AgentId", "StartTime", "EndTime")
-                        .IsUnique();
 
                     b.ToTable("BotSharp_GlobalStat", (string)null);
                 });
@@ -615,33 +573,18 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("TextEmbedding")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("VectorStore")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.HasIndex("Type");
 
                     b.ToTable("BotSharp_KnowledgeCollectionConfig", (string)null);
                 });
 
-            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.KnowledgeDocument", b =>
+            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.KnowledgeCollectionFileMeta", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(36)
@@ -649,58 +592,44 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.Property<string>("Collection")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("text");
 
                     b.Property<string>("CreateUserId")
                         .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("FileId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FileSource")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text");
 
-                    b.Property<string>("VectorDataIds")
+                    b.Property<KnowledgeFileMetaRefElement>("RefData")
+                        .HasColumnType("json");
+
+                    b.Property<IEnumerable<string>>("VectorDataIds")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("json");
 
                     b.Property<string>("VectorStoreProvider")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Collection");
-
-                    b.HasIndex("CreateDate");
-
-                    b.HasIndex("FileId");
-
-                    b.HasIndex("VectorStoreProvider");
-
-                    b.HasIndex("Collection", "VectorStoreProvider", "FileId")
-                        .IsUnique();
-
-                    b.ToTable("BotSharp_KnowledgeDocument", (string)null);
+                    b.ToTable("BotSharp_KnowledgeCollectionFileMetas", (string)null);
                 });
 
             modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.LlmCompletionLog", b =>
@@ -990,6 +919,56 @@ namespace BotSharp.Plugin.EntityFrameworkCore.PostgreSql.Migrations
                     b.HasIndex("Id");
 
                     b.ToTable("BotSharp_UserAgents", (string)null);
+                });
+
+            modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.KnowledgeCollectionConfig", b =>
+                {
+                    b.OwnsOne("BotSharp.Plugin.EntityFrameworkCore.Models.KnowledgeEmbeddingConfigElement", "TextEmbedding", b1 =>
+                        {
+                            b1.Property<string>("KnowledgeCollectionConfigId")
+                                .HasColumnType("character varying(36)");
+
+                            b1.Property<int>("Dimension")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Model")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("Provider")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.HasKey("KnowledgeCollectionConfigId");
+
+                            b1.ToTable("BotSharp_KnowledgeCollectionConfig");
+
+                            b1.WithOwner()
+                                .HasForeignKey("KnowledgeCollectionConfigId");
+                        });
+
+                    b.OwnsOne("BotSharp.Plugin.EntityFrameworkCore.Models.KnowledgeVectorStoreConfigElement", "VectorStore", b1 =>
+                        {
+                            b1.Property<string>("KnowledgeCollectionConfigId")
+                                .HasColumnType("character varying(36)");
+
+                            b1.Property<string>("Provider")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.HasKey("KnowledgeCollectionConfigId");
+
+                            b1.ToTable("BotSharp_KnowledgeCollectionConfig");
+
+                            b1.WithOwner()
+                                .HasForeignKey("KnowledgeCollectionConfigId");
+                        });
+
+                    b.Navigation("TextEmbedding")
+                        .IsRequired();
+
+                    b.Navigation("VectorStore")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BotSharp.Plugin.EntityFrameworkCore.Entities.RoleAgent", b =>
