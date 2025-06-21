@@ -445,8 +445,12 @@ public partial class EfCoreRepository
                 }
             }
         }
+        else 
+        {
+            query = query.OrderByDescending(c => c.CreatedTime);
+        }
 
-        var count = query.Count();
+            var count = query.Count();
 
         var conversations = query
             .Skip(pager.Offset)
