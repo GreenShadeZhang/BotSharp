@@ -16,6 +16,8 @@ public partial class EfCoreRepository
 
         var utcNow = DateTime.UtcNow;
 
+        var userId = !string.IsNullOrEmpty(conversation.UserId) ? conversation.UserId : string.Empty;
+
         var convDoc = new Entities.Conversation
         {
             Id = !string.IsNullOrEmpty(conversation.Id) ? conversation.Id : Guid.NewGuid().ToString(),
@@ -32,6 +34,19 @@ public partial class EfCoreRepository
             CreatedTime = utcNow,
             UpdatedTime = utcNow
         };
+
+        var stateDoc = new Entities.ConversationState
+        {
+            Id = Guid.NewGuid().ToString(),
+            ConversationId = convDoc.Id,
+            AgentId = conversation.AgentId,
+            UserId = userId,
+            States = [],
+            Breakpoints = [],
+            UpdatedTime = utcNow
+        };
+
+        _context.ConversationStates.Add(stateDoc);
 
         _context.Conversations.Add(convDoc);
         _context.SaveChanges();
@@ -223,9 +238,9 @@ public partial class EfCoreRepository
         };
     }
 
-    public Abstraction.Conversations.Models.ConversationState GetConversationStates(string conversationId)
+    public ConversationState GetConversationStates(string conversationId)
     {
-        var states = new Abstraction.Conversations.Models.ConversationState();
+        var states = new ConversationState();
         if (string.IsNullOrEmpty(conversationId)) return states;
 
         var foundStates = _context.ConversationStates.Include(c => c.States).ThenInclude(s => s.Values).FirstOrDefault(x => x.ConversationId == conversationId);
@@ -233,7 +248,7 @@ public partial class EfCoreRepository
         if (foundStates == null || foundStates.States.IsNullOrEmpty()) return states;
 
         var savedStates = foundStates.States.Select(x => x.ToModel()).ToList();
-        return new Abstraction.Conversations.Models.ConversationState(savedStates);
+        return new ConversationState(savedStates);
     }
 
     public void UpdateConversationStates(string conversationId, List<StateKeyValue> states)

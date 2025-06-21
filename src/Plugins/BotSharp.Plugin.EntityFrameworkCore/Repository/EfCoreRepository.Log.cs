@@ -103,7 +103,7 @@ public partial class EfCoreRepository
 
         if (filter != null)
         {
-            query = query.Where(x => x.CreatedTime >= filter.StartTime);
+            query = query.Where(x => x.CreatedTime <= filter.StartTime);
         }
 
         var totalCount = query.Count();
@@ -160,7 +160,7 @@ public partial class EfCoreRepository
 
         if (filter != null)
         {
-            query = query.Where(x => x.CreatedTime >= filter.StartTime);
+            query = query.Where(x => x.CreatedTime <= filter.StartTime);
         }
 
         var totalCount = query.Count();
