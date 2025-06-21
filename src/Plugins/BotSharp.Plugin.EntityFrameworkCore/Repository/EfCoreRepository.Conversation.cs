@@ -5,6 +5,7 @@ using BotSharp.Plugin.EntityFrameworkCore.Mappers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
+using System.Text.Json;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -255,14 +256,29 @@ public partial class EfCoreRepository
     {
         if (string.IsNullOrEmpty(conversationId) || states == null) return;
 
-        var foundStates = _context.ConversationStates.Include(c => c.States).ThenInclude(s => s.Values).Where(x => x.ConversationId == conversationId).ToList();
 
-        foreach (var state in foundStates)
+        var foundState = _context.ConversationStates.FirstOrDefault(x => x.ConversationId == conversationId);
+
+        if (foundState != null) 
         {
-            var saveStates = states.Select(x => x.ToEntity(state)).ToList();
-            state.States = saveStates;
-        }
-        _context.SaveChanges();
+            var saveStates = states.Select(x => x.ToEntity()).ToList();
+
+            foundState.States = saveStates;
+
+            // Update latest states
+            var endNodes = BuildLatestStates(saveStates);
+
+            var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
+
+            if (conv != null)
+            {
+                conv.LatestStates = endNodes;
+                conv.UpdatedTime = DateTime.UtcNow;
+            }
+
+
+            _context.SaveChanges();
+        }   
     }
 
     public void UpdateConversationStatus(string conversationId, string status)
@@ -566,29 +582,18 @@ public partial class EfCoreRepository
 
         try
         {
+            var foundStates = _context.ConversationStates.FirstOrDefault(x => x.Id == conversationId);
+            if (foundStates?.States == null) return false;
+            var states = foundStates.States.ToList();
+            var latestStates = BuildLatestStates(states);
             var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
-            if (conv == null) return false;
 
-            var states = _context.ConversationStates
-                .Include(c => c.States)
-                .ThenInclude(s => s.Values)
-                .FirstOrDefault(x => x.ConversationId == conversationId);
-
-            if (states?.States?.Any() == true)
+            if (conv != null)
             {
-                var latestStates = new Dictionary<string, object>();
-                foreach (var state in states.States)
-                {
-                    var latestValue = state.Values?.OrderByDescending(v => v.UpdateTime).FirstOrDefault();
-                    if (latestValue != null)
-                    {
-                        latestStates[state.Key] = latestValue.Data;
-                    }
-                }
                 conv.LatestStates = latestStates;
                 conv.UpdatedTime = DateTime.UtcNow;
-                _context.SaveChanges();
             }
+            _context.SaveChanges();
 
             return true;
         }
@@ -728,5 +733,35 @@ public partial class EfCoreRepository
         }
 
         return pascalCase.ToString();
+    }
+
+    private Dictionary<string, JsonDocument> BuildLatestStates(List<Entities.State> states)
+    {
+        var endNodes = new Dictionary<string, JsonDocument>();
+        if (states.IsNullOrEmpty())
+        {
+            return endNodes;
+        }
+
+        foreach (var pair in states)
+        {
+            var value = pair.Values?.LastOrDefault();
+            if (value == null || !value.Active) continue;
+
+            try
+            {
+                var jsonStr = JsonSerializer.Serialize(new { Data = JsonDocument.Parse(value.Data) }, _botSharpOptions.JsonSerializerOptions);
+                var json = JsonDocument.Parse(jsonStr);
+                endNodes[pair.Key] = json;
+            }
+            catch
+            {
+                var str = JsonSerializer.Serialize(new { Data = value.Data }, _botSharpOptions.JsonSerializerOptions);
+                var json = JsonDocument.Parse(str);
+                endNodes[pair.Key] = json;
+            }
+        }
+
+        return endNodes;
     }
 }

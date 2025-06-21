@@ -14,8 +14,6 @@ public class BotSharpEfCoreDbContext : DbContext
     public DbSet<ConversationDialog> ConversationDialogs { get; set; }
     public DbSet<Conversation> Conversations { get; set; }
     public DbSet<ConversationState> ConversationStates { get; set; }
-    public DbSet<State> States { get; set; }
-    public DbSet<StateValue> StateValues { get; set; }
     public DbSet<ConversationStateLog> ConversationStateLogs { get; set; }
     public DbSet<ExecutionLog> ExecutionLogs { get; set; }
     public DbSet<LlmCompletionLog> LlmCompletionLogs { get; set; }
@@ -49,10 +47,6 @@ public class BotSharpEfCoreDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ConversationEntityTypeConfiguration(tablePrefix));
 
         modelBuilder.ApplyConfiguration(new ConversationStateEntityTypeConfiguration(tablePrefix));
-
-        modelBuilder.ApplyConfiguration(new StateEntityTypeConfiguration(tablePrefix));
-
-        modelBuilder.ApplyConfiguration(new StateValueEntityTypeConfiguration(tablePrefix));
 
         modelBuilder.ApplyConfiguration(new ConversationStateLogEntityTypeConfiguration(tablePrefix));
 

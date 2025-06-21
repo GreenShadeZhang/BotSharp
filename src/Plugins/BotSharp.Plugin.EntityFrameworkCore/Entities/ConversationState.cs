@@ -12,6 +12,7 @@ public class ConversationState
     public string UserId { get; set; } = default!;
     public DateTime UpdatedTime { get; set; }
 
+    [Column(TypeName = "json")]
     public List<State> States { get; set; } = new List<State>();
 
     [Column(TypeName = "json")]

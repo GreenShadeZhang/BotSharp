@@ -1,4 +1,4 @@
-﻿using BotSharp.Abstraction.Conversations.Models;
+using BotSharp.Abstraction.Conversations.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
 
@@ -8,7 +8,6 @@ public static class StateMappers
     {
         return new Entities.State
         {
-            Id = Guid.NewGuid().ToString(),
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
@@ -21,11 +20,9 @@ public static class StateMappers
         var stateId = Guid.NewGuid().ToString();
         return new Entities.State
         {
-            Id = stateId,
             Key = state.Key,
             Versioning = state.Versioning,
             Readonly = state.Readonly,
-            ConversationStateId = conversationState.Id,
             Values = state.Values?.Select(x => x.ToEntity(stateId))?.ToList() ?? new List<Entities.StateValue>()
         };
     }
@@ -45,7 +42,6 @@ public static class StateMappers
     {
         return new Entities.StateValue
         {
-            Id = Guid.NewGuid().ToString(),
             Data = element.Data,
             MessageId = element.MessageId,
             Active = element.Active,
@@ -61,8 +57,6 @@ public static class StateMappers
     {
         return new Entities.StateValue
         {
-            Id = Guid.NewGuid().ToString(),
-            StateId = stateId,
             Data = element.Data,
             MessageId = element.MessageId,
             Active = element.Active,
