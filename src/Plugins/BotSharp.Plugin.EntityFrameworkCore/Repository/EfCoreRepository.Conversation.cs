@@ -62,11 +62,18 @@ public partial class EfCoreRepository
             var conversations = _context.Conversations.Where(x => conversationIds.Contains(x.Id)).ToList();
             var dialogs = _context.ConversationDialogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
             var states = _context.ConversationStates.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            var promptLogs = _context.LlmCompletionLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            var contentLogs = _context.ConversationContentLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            var crons = _context.CrontabItems.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
+            var stateLogs = _context.ConversationStateLogs.Where(x => conversationIds.Contains(x.ConversationId)).ToList();
 
             _context.Conversations.RemoveRange(conversations);
             _context.ConversationDialogs.RemoveRange(dialogs);
             _context.ConversationStates.RemoveRange(states);
-
+            _context.LlmCompletionLogs.RemoveRange(promptLogs);
+            _context.ConversationContentLogs.RemoveRange(contentLogs);
+            _context.CrontabItems.RemoveRange(crons);
+            _context.ConversationStateLogs.RemoveRange(stateLogs);
             var deleted = _context.SaveChanges();
             return deleted > 0;
         }

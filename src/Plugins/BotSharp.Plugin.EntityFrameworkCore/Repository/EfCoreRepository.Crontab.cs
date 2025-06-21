@@ -117,7 +117,7 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Repository
             var totalCount = query.Count();
             var items = query.OrderBy(x => x.CreatedTime)
                              .Skip(filter?.Offset ?? 0)
-                             .Take(filter?.Size ?? 10)
+                             .Take(filter?.Size ?? 10).ToList()
                              .Select(x => new CrontabItem
                              {
                                  UserId = x.UserId,

@@ -41,7 +41,8 @@ public class QdrantDb : IVectorDb
             _client = new QdrantClient
             (
                 host: _setting.Url,
-                https: true,
+                https: _setting.Https,
+                port: _setting.Port,
                 apiKey: _setting.ApiKey
             );
         }

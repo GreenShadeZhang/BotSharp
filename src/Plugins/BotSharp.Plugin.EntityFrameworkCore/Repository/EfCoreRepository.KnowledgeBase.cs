@@ -72,6 +72,11 @@ public partial class EfCoreRepository
                 _context.KnowledgeCollectionConfigs.AddRange(insertDocs);
             }
 
+            if (updateDocs.Any())
+            {
+                _context.KnowledgeCollectionConfigs.UpdateRange(updateDocs);
+            }
+
             _context.SaveChanges();
             return true;
         }

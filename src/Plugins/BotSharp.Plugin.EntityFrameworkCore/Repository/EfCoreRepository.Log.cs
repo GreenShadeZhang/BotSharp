@@ -8,44 +8,6 @@ namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
 public partial class EfCoreRepository
 {
-    #region Execution Log
-    public void AddExecutionLogs(string conversationId, List<string> logs)
-    {
-        if (string.IsNullOrEmpty(conversationId) || logs.IsNullOrEmpty()) return;
-
-        var executionLog = _context.ExecutionLogs.FirstOrDefault(x => x.ConversationId == conversationId);
-
-        if (executionLog == null)
-        {
-            executionLog = new Entities.ExecutionLog
-            {
-                Id = Guid.NewGuid().ToString(),
-                ConversationId = conversationId,
-                Logs = logs
-            };
-
-            _context.ExecutionLogs.Add(executionLog);
-        }
-        else
-        {
-            executionLog.Logs.AddRange(logs);
-        }
-
-        _context.SaveChanges();
-    }
-
-    public List<string> GetExecutionLogs(string conversationId)
-    {
-        var logs = new List<string>();
-        if (string.IsNullOrEmpty(conversationId)) return logs;
-
-        var logCollection = _context.ExecutionLogs.FirstOrDefault(x => x.ConversationId == conversationId);
-
-        logs = logCollection?.Logs ?? new List<string>();
-        return logs;
-    }
-    #endregion
-
     #region LLM Completion Log
     public void SaveLlmCompletionLog(Abstraction.Loggers.Models.LlmCompletionLog log)
     {
