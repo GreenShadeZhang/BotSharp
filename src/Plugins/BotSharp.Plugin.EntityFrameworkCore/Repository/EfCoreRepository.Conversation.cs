@@ -105,29 +105,30 @@ public partial class EfCoreRepository
     {
         if (string.IsNullOrEmpty(conversationId)) return;
 
-        var dialogElements = dialogs.Select(x =>
-        {
-            return new Entities.ConversationDialog
-            {
-                Id = Guid.NewGuid().ToString(),
-                ConversationId = conversationId,
-                MetaData = x.MetaData.ToEntity(),
-                Content = x.Content,
-                SecondaryContent = x.SecondaryContent,
-                RichContent = x.RichContent,
-                SecondaryRichContent = x.SecondaryRichContent,
-                Payload = x.Payload
-            };
-        }).ToList();
-
         var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
         if (conv != null)
         {
             conv.UpdatedTime = DateTime.UtcNow;
             conv.DialogCount += dialogs.Count;
+            var dialogElements = dialogs.Select(x =>
+            {
+                return new Entities.ConversationDialog
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    AgentId = conv.AgentId,
+                    UserId = conv.UserId,
+                    ConversationId = conversationId,
+                    UpdatedTime = DateTime.UtcNow,
+                    MetaData = x.MetaData.ToEntity(),
+                    Content = x.Content,
+                    SecondaryContent = x.SecondaryContent,
+                    RichContent = x.RichContent,
+                    SecondaryRichContent = x.SecondaryRichContent,
+                    Payload = x.Payload
+                };
+            }).ToList();
+            _context.ConversationDialogs.AddRange(dialogElements);
         }
-
-        _context.ConversationDialogs.AddRange(dialogElements);
         _context.SaveChanges();
     }
 
@@ -244,7 +245,7 @@ public partial class EfCoreRepository
         var states = new ConversationState();
         if (string.IsNullOrEmpty(conversationId)) return states;
 
-        var foundStates = _context.ConversationStates.Include(c => c.States).ThenInclude(s => s.Values).FirstOrDefault(x => x.ConversationId == conversationId);
+        var foundStates = _context.ConversationStates.FirstOrDefault(x => x.ConversationId == conversationId);
 
         if (foundStates == null || foundStates.States.IsNullOrEmpty()) return states;
 
@@ -259,7 +260,7 @@ public partial class EfCoreRepository
 
         var foundState = _context.ConversationStates.FirstOrDefault(x => x.ConversationId == conversationId);
 
-        if (foundState != null) 
+        if (foundState != null)
         {
             var saveStates = states.Select(x => x.ToEntity()).ToList();
 
@@ -278,7 +279,7 @@ public partial class EfCoreRepository
 
 
             _context.SaveChanges();
-        }   
+        }
     }
 
     public void UpdateConversationStatus(string conversationId, string status)
