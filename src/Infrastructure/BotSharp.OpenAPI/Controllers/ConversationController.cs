@@ -368,7 +368,13 @@ public class ConversationController : ControllerBase
                 response.Instruction = msg.Instruction;
                 response.Data = msg.Data;
             },
-            stremMsg => Task.CompletedTask);
+            async streamMsg =>
+            {
+                streamMsg.MessageId = inputMsg.MessageId;
+                await HookEmitter.Emit<IConversationHook>(_services, async hook =>
+                await hook.OnStreamResponseGenerated(streamMsg),
+                routing.Context.GetCurrentAgentId());
+            });
 
         var state = _services.GetRequiredService<IConversationStateService>();
         response.States = state.GetStates();

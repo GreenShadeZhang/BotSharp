@@ -64,6 +64,9 @@ public abstract class ConversationHookBase : IConversationHook
     public virtual Task OnResponseGenerated(RoleDialogModel message)
         => Task.CompletedTask;
 
+    public virtual Task OnStreamResponseGenerated(RoleDialogModel message)
+        => Task.CompletedTask;
+
     public virtual Task OnConversationInitialized(Conversation conversation)
         => Task.CompletedTask;
 

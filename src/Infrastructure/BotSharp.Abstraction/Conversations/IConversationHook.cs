@@ -71,6 +71,8 @@ public interface IConversationHook : IHookBase
 
     Task OnResponseGenerated(RoleDialogModel message);
 
+    Task OnStreamResponseGenerated(RoleDialogModel message);
+
     /// <summary>
     /// LLM detected the whole conversation is going to be end.
     /// </summary>
