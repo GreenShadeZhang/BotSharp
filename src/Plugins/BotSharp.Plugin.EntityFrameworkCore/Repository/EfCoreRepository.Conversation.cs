@@ -141,7 +141,7 @@ public partial class EfCoreRepository
 
     public void UpdateConversationTitle(string conversationId, string title)
     {
-        if (string.IsNullOrEmpty(conversationId)) return;
+        if (string.IsNullOrEmpty(conversationId) || string.IsNullOrEmpty(title)) return;
 
         var conv = _context.Conversations.FirstOrDefault(x => x.Id == conversationId);
 
