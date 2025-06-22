@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Infrastructures.Enums;
+using BotSharp.Abstraction.Routing.Enums;
 using BotSharp.Abstraction.Routing.Settings;
 
 namespace BotSharp.Core.Routing;
@@ -99,9 +100,8 @@ public class RoutingContext : IRoutingContext
             var preAgentId = _stack.Count == 0 ? agentId : _stack.Peek();
             _stack.Push(agentId);
 
-            HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-                await hook.OnAgentEnqueued(agentId, preAgentId, reason: reason)
-            ).Wait();
+            HookEmitter.Emit<IRoutingHook>(_services, async hook => await hook.OnAgentEnqueued(agentId, preAgentId, reason: reason),
+                agentId).Wait();
 
             UpdateLazyRoutingAgent(updateLazyRouting);
         }
@@ -120,9 +120,8 @@ public class RoutingContext : IRoutingContext
         var agentId = _stack.Pop();
         var currentAgentId = GetCurrentAgentId();
 
-        HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-            await hook.OnAgentDequeued(agentId, currentAgentId, reason: reason)
-        ).Wait();
+        HookEmitter.Emit<IRoutingHook>(_services, async hook => await hook.OnAgentDequeued(agentId, currentAgentId, reason: reason),
+            agentId).Wait();
 
         if (string.IsNullOrEmpty(currentAgentId))
         {
@@ -203,9 +202,8 @@ public class RoutingContext : IRoutingContext
             _stack.Pop();
             _stack.Push(agentId);
 
-            HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-                await hook.OnAgentReplaced(fromAgent, toAgent, reason: reason)
-            ).Wait();
+            HookEmitter.Emit<IRoutingHook>(_services, async hook => await hook.OnAgentReplaced(fromAgent, toAgent, reason: reason),
+                agentId).Wait();
         }
 
         UpdateLazyRoutingAgent(updateLazyRouting);
@@ -220,9 +218,8 @@ public class RoutingContext : IRoutingContext
 
         var agentId = GetCurrentAgentId();
         _stack.Clear();
-        HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-            await hook.OnAgentQueueEmptied(agentId, reason: reason)
-        ).Wait();
+        HookEmitter.Emit<IRoutingHook>(_services, async hook => await hook.OnAgentQueueEmptied(agentId, reason: reason),
+            agentId).Wait();
     }
 
     public void SetMessageId(string conversationId, string messageId)
@@ -294,8 +291,8 @@ public class RoutingContext : IRoutingContext
 
         // Set next handling agent for lazy routing mode
         var states = _services.GetRequiredService<IConversationStateService>();
-        var routingMode = states.GetState(StateConst.ROUTING_MODE, "eager");
-        if (routingMode == "lazy")
+        var routingMode = states.GetState(StateConst.ROUTING_MODE, RoutingMode.Eager);
+        if (routingMode == RoutingMode.Lazy)
         {
             var agentId = GetCurrentAgentId();
             if (agentId != BuiltInAgentId.Fallback)

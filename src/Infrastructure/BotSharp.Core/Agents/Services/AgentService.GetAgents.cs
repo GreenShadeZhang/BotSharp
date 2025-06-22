@@ -70,7 +70,24 @@ public partial class AgentService
         }
 
         profile.Plugin = GetPlugin(profile.Id);
+
+        AddDefaultInstruction(profile, profile.Instruction);
+
         return profile;
+    }
+
+    /// <summary>
+    /// Add default instruction to ChannelInstructions
+    /// </summary>
+    private void AddDefaultInstruction(Agent agent, string instruction)
+    {
+        //check if instruction is empty
+        if (string.IsNullOrWhiteSpace(instruction)) return;
+        //check if instruction is already set
+        if (agent.ChannelInstructions.Exists(p => p.Channel == string.Empty)) return;
+        //Add default instruction to ChannelInstructions
+        var defaultInstruction = new ChannelInstruction() { Channel = string.Empty, Instruction = instruction };
+        agent.ChannelInstructions.Insert(0, defaultInstruction);
     }
 
     public async Task InheritAgent(Agent agent)
@@ -93,6 +110,7 @@ public partial class AgentService
         if (string.IsNullOrWhiteSpace(agent.Instruction))
         {
             agent.Instruction = inheritedAgent.Instruction;
+            AddDefaultInstruction(agent, inheritedAgent.Instruction);
         }
     }
 }

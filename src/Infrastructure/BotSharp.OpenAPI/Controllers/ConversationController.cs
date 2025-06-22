@@ -3,6 +3,7 @@ using BotSharp.Abstraction.Files.Enums;
 using BotSharp.Abstraction.Files.Utilities;
 using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.Routing;
+using BotSharp.Abstraction.Users.Dtos;
 using BotSharp.Core.Infrastructures;
 
 namespace BotSharp.OpenAPI.Controllers;
@@ -108,7 +109,7 @@ public class ConversationController : ControllerBase
                     CreatedAt = message.CreatedAt,
                     Text = !string.IsNullOrEmpty(message.SecondaryContent) ? message.SecondaryContent : message.Content,
                     Data = message.Data,
-                    Sender = UserViewModel.FromUser(user),
+                    Sender = UserDto.FromUser(user),
                     Payload = message.Payload,
                     HasMessageFiles = fileMessages.Any(x => x.MessageId.IsEqualTo(message.MessageId) && x.FileSource == FileSourceType.User)
                 });
@@ -124,7 +125,7 @@ public class ConversationController : ControllerBase
                     Text = !string.IsNullOrEmpty(message.SecondaryContent) ? message.SecondaryContent : message.Content,
                     Function = message.FunctionName,
                     Data = message.Data,
-                    Sender = new UserViewModel
+                    Sender = new()
                     {
                         FirstName = agent?.Name ?? "Unkown",
                         Role = message.Role,
@@ -142,55 +143,29 @@ public class ConversationController : ControllerBase
     {
         var service = _services.GetRequiredService<IConversationService>();
         var userService = _services.GetRequiredService<IUserService>();
+        var settings = _services.GetRequiredService<PluginSettings>();
+
         var (isAdmin, user) = await userService.IsAdminUser(_user.Id);
-        if (user == null)
-        {
-            return null;
-        }
 
         var filter = new ConversationFilter
         {
             Id = conversationId,
-            UserId = !isAdmin ? user.Id : null,
+            UserId = !isAdmin ? user?.Id : null,
             IsLoadLatestStates = isLoadStates
         };
+
         var conversations = await service.GetConversations(filter);
-        if (conversations.Items.IsNullOrEmpty())
-        {
-            return null;
-        }
+        var conv = !conversations.Items.IsNullOrEmpty()
+                ? ConversationViewModel.FromSession(conversations.Items.First())
+                : new();
 
-        var result = ConversationViewModel.FromSession(conversations.Items.First());
-        var state = _services.GetRequiredService<IConversationStateService>();
-        user = await userService.GetUser(result.User.Id);
-        result.User = UserViewModel.FromUser(user);
+        user = !string.IsNullOrEmpty(conv?.User?.Id)
+                ? await userService.GetUser(conv.User.Id)
+                : null;
 
-        return result;
-    }
-
-    [HttpPost("/conversation/summary")]
-    public async Task<string> GetConversationSummary([FromBody] ConversationSummaryModel input)
-    {
-        var service = _services.GetRequiredService<IConversationService>();
-        return await service.GetConversationSummary(input.ConversationIds);
-    }
-
-    [HttpGet("/conversation/{conversationId}/user")]
-    public async Task<UserViewModel> GetConversationUser([FromRoute] string conversationId)
-    {
-        var service = _services.GetRequiredService<IConversationService>();
-        var conversations = await service.GetConversations(new ConversationFilter
-        {
-            Id = conversationId
-        });
-
-        var userService = _services.GetRequiredService<IUserService>();
-        var conversation = conversations?.Items?.FirstOrDefault();
-        var userId = conversation == null ? _user.Id : conversation.UserId;
-        var user = await userService.GetUser(userId);
         if (user == null)
         {
-            return new UserViewModel
+            user = new User
             {
                 Id = _user.Id,
                 UserName = _user.UserName,
@@ -201,7 +176,16 @@ public class ConversationController : ControllerBase
             };
         }
 
-        return UserViewModel.FromUser(user);
+        conv.User = UserViewModel.FromUser(user);
+        conv.IsRealtimeEnabled = settings?.Assemblies?.Contains("BotSharp.Core.Realtime") ?? false;
+        return conv;
+    }
+
+    [HttpPost("/conversation/summary")]
+    public async Task<string> GetConversationSummary([FromBody] ConversationSummaryModel input)
+    {
+        var service = _services.GetRequiredService<IConversationService>();
+        return await service.GetConversationSummary(input);
     }
 
     [HttpPut("/conversation/{conversationId}/update-title")]
@@ -344,7 +328,8 @@ public class ConversationController : ControllerBase
         };
 
         await HookEmitter.Emit<IConversationHook>(_services, async hook =>
-            await hook.OnNotificationGenerated(inputMsg)
+            await hook.OnNotificationGenerated(inputMsg),
+            routing.Context.GetCurrentAgentId()
         );
 
         return response;

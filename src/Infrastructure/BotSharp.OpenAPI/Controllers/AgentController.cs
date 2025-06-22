@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Abstraction.Infrastructures.Attributes;
 
 namespace BotSharp.OpenAPI.Controllers;
 
@@ -108,6 +109,7 @@ public class AgentController : ControllerBase
         return AgentViewModel.FromAgent(createdAgent);
     }
 
+    [BotSharpAuth]
     [HttpPost("/refresh-agents")]
     public async Task<string> RefreshAgents()
     {
@@ -157,15 +159,10 @@ public class AgentController : ControllerBase
     }
 
     [HttpGet("/agent/utility/options")]
-    public IEnumerable<AgentUtility> GetAgentUtilityOptions()
+    public async Task<IEnumerable<AgentUtility>> GetAgentUtilityOptions()
     {
-        var utilities = new List<AgentUtility>();
-        var hooks = _services.GetServices<IAgentUtilityHook>();
-        foreach (var hook in hooks)
-        {
-            hook.AddUtilities(utilities);
-        }
-        return utilities.Where(x => !string.IsNullOrWhiteSpace(x.Name)).OrderBy(x => x.Name).ToList();
+        var agentService = _services.GetRequiredService<IAgentService>();
+        return await agentService.GetAgentUtilityOptions();
     }
  
     [HttpGet("/agent/labels")]

@@ -1,3 +1,5 @@
+using BotSharp.Abstraction.Realtime.Models.Session;
+using BotSharp.Core.Session;
 using Microsoft.AspNetCore.Http;
 using System.Net.WebSockets;
 
@@ -52,6 +54,7 @@ public class ChatStreamMiddleware
         _session?.Dispose();
         _session = new BotSharpRealtimeSession(services, webSocket, new ChatSessionOptions
         {
+            Provider = "BotSharp Chat Stream",
             BufferSize = 1024 * 16,
             JsonOptions = BotSharpOptions.defaultJsonOptions
         });
@@ -92,8 +95,7 @@ public class ChatStreamMiddleware
             }
         }
 
-
-        await _session.Disconnect();
+        await _session.DisconnectAsync();
         _session.Dispose();
     }
 
@@ -103,7 +105,7 @@ public class ChatStreamMiddleware
         {
             if (_session != null)
             {
-                await _session.SendEvent(data);
+                await _session.SendEventAsync(data);
             }
         });
     }

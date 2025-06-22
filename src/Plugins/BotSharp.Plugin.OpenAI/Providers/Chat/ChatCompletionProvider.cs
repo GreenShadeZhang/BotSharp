@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Hooks;
 using OpenAI.Chat;
 
 namespace BotSharp.Plugin.OpenAI.Providers.Chat;
@@ -10,6 +11,11 @@ public class ChatCompletionProvider : IChatCompletion
 
     protected string _model;
     private List<string> renderedInstructions = [];
+
+    private readonly Dictionary<string, float> _defaultTemperature = new()
+    {
+        { "o4-mini", 1.0f }
+    };
 
     public virtual string Provider => "openai";
     public string Model => _model;
@@ -26,7 +32,7 @@ public class ChatCompletionProvider : IChatCompletion
 
     public async Task<RoleDialogModel> GetChatCompletions(Agent agent, List<RoleDialogModel> conversations)
     {
-        var contentHooks = _services.GetServices<IContentGeneratingHook>().ToList();
+        var contentHooks = _services.GetHooks<IContentGeneratingHook>(agent.Id);
 
         // Before chat completion hook
         foreach (var hook in contentHooks)
@@ -99,7 +105,7 @@ public class ChatCompletionProvider : IChatCompletion
         Func<RoleDialogModel, Task> onMessageReceived,
         Func<RoleDialogModel, Task> onFunctionExecuting)
     {
-        var hooks = _services.GetServices<IContentGeneratingHook>().ToList();
+        var hooks = _services.GetHooks<IContentGeneratingHook>(agent.Id);
 
         // Before chat completion hook
         foreach (var hook in hooks)
@@ -212,7 +218,6 @@ public class ChatCompletionProvider : IChatCompletion
     protected (string, IEnumerable<ChatMessage>, ChatCompletionOptions) PrepareOptions(Agent agent, List<RoleDialogModel> conversations)
     {
         var agentService = _services.GetRequiredService<IAgentService>();
-        var state = _services.GetRequiredService<IConversationStateService>();
         var fileStorage = _services.GetRequiredService<IFileStorageService>();
         var settingsService = _services.GetRequiredService<ILlmProviderService>();
         var settings = settingsService.GetSetting(Provider, _model);
@@ -220,16 +225,7 @@ public class ChatCompletionProvider : IChatCompletion
         renderedInstructions = [];
 
         var messages = new List<ChatMessage>();
-
-        var temperature = float.Parse(state.GetState("temperature", "0.0"));
-        var maxTokens = int.TryParse(state.GetState("max_tokens"), out var tokens)
-                            ? tokens
-                            : agent.LlmConfig?.MaxOutputTokens ?? LlmConstant.DEFAULT_MAX_OUTPUT_TOKEN;
-        var options = new ChatCompletionOptions()
-        {
-            Temperature = temperature,
-            MaxOutputTokenCount = maxTokens
-        };
+        var options = InitChatCompletionOption(agent);
 
         var functions = agent.Functions.Concat(agent.SecondaryFunctions ?? []);
         foreach (var function in functions)
@@ -275,10 +271,10 @@ public class ChatCompletionProvider : IChatCompletion
             {
                 messages.Add(new AssistantChatMessage(new List<ChatToolCall>
                 {
-                    ChatToolCall.CreateFunctionToolCall(message.FunctionName, message.FunctionName, BinaryData.FromString(message.FunctionArgs ?? string.Empty))
+                    ChatToolCall.CreateFunctionToolCall(message.ToolCallId.IfNullOrEmptyAs(message.FunctionName), message.FunctionName, BinaryData.FromString(message.FunctionArgs ?? "{}"))
                 }));
 
-                messages.Add(new ToolChatMessage(message.FunctionName, message.Content));
+                messages.Add(new ToolChatMessage(message.ToolCallId.IfNullOrEmptyAs(message.FunctionName), message.Content));
             }
             else if (message.Role == AgentRole.User)
             {
@@ -292,15 +288,15 @@ public class ChatCompletionProvider : IChatCompletion
                     {
                         if (!string.IsNullOrEmpty(file.FileData))
                         {
-                            var (contentType, bytes) = FileUtility.GetFileInfoFromData(file.FileData);
-                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Auto);
+                            var (contentType, binary) = FileUtility.GetFileInfoFromData(file.FileData);
+                            var contentPart = ChatMessageContentPart.CreateImagePart(binary, contentType.IfNullOrEmptyAs(file.ContentType), ChatImageDetailLevel.Auto);
                             contentParts.Add(contentPart);
                         }
                         else if (!string.IsNullOrEmpty(file.FileStorageUrl))
                         {
                             var contentType = FileUtility.GetFileContentType(file.FileStorageUrl);
-                            var bytes = fileStorage.GetFileBytes(file.FileStorageUrl);
-                            var contentPart = ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), contentType, ChatImageDetailLevel.Auto);
+                            var binary = fileStorage.GetFileBytes(file.FileStorageUrl);
+                            var contentPart = ChatMessageContentPart.CreateImagePart(binary, contentType.IfNullOrEmptyAs(file.ContentType), ChatImageDetailLevel.Auto);
                             contentParts.Add(contentPart);
                         }
                         else if (!string.IsNullOrEmpty(file.FileUrl))
@@ -389,6 +385,27 @@ public class ChatCompletionProvider : IChatCompletion
         }
 
         return prompt;
+    }
+
+    private ChatCompletionOptions InitChatCompletionOption(Agent agent)
+    {
+        var state = _services.GetRequiredService<IConversationStateService>();
+
+        var temperature = float.Parse(state.GetState("temperature", "0.0"));
+        if (_defaultTemperature.ContainsKey(_model))
+        {
+            temperature = _defaultTemperature[_model];
+        }
+
+        var maxTokens = int.TryParse(state.GetState("max_tokens"), out var tokens)
+                        ? tokens
+                        : agent.LlmConfig?.MaxOutputTokens ?? LlmConstant.DEFAULT_MAX_OUTPUT_TOKEN;
+
+        return new ChatCompletionOptions()
+        {
+            Temperature = temperature,
+            MaxOutputTokenCount = maxTokens
+        };
     }
 
     public void SetModelName(string model)

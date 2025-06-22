@@ -1,5 +1,4 @@
-using BotSharp.Abstraction.Interpreters.Settings;
-using BotSharp.Core.Crontab.Abstraction;
+using BotSharp.Abstraction.Crontab;
 using BotSharp.Plugin.ChatHub.Hooks;
 using Microsoft.Extensions.Configuration;
 
@@ -25,7 +24,6 @@ public class ChatHubPlugin : IBotSharpPlugin
         services.AddScoped<IConversationHook, ChatHubConversationHook>();
         services.AddScoped<IConversationHook, StreamingLogHook>();
         services.AddScoped<IConversationHook, WelcomeHook>();
-        services.AddScoped<ConversationHookProvider>();
         services.AddScoped<IRoutingHook, StreamingLogHook>();
         services.AddScoped<IContentGeneratingHook, StreamingLogHook>();
         services.AddScoped<ICrontabHook, ChatHubCrontabHook>();

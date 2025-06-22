@@ -15,6 +15,7 @@
 ******************************************************************************/
 
 using BotSharp.Abstraction.Conversations.Enums;
+using BotSharp.Abstraction.Hooks;
 using BotSharp.Abstraction.Options;
 using BotSharp.Abstraction.SideCar;
 
@@ -28,6 +29,7 @@ public class ConversationStateService : IConversationStateService
     private readonly ILogger _logger;
     private readonly IServiceProvider _services;
     private readonly IBotSharpRepository _db;
+    private readonly IRoutingContext _routingContext;
     private readonly IConversationSideCar? _sidecar;
     private string _conversationId;
     /// <summary>
@@ -42,10 +44,12 @@ public class ConversationStateService : IConversationStateService
     public ConversationStateService(
         IServiceProvider services,
         IBotSharpRepository db,
+        IRoutingContext routingContext,
         ILogger<ConversationStateService> logger)
     {
         _services = services;
         _db = db;
+        _routingContext = routingContext;
         _logger = logger;
         _curStates = new ConversationState();
         _historyStates = new ConversationState();
@@ -87,7 +91,6 @@ public class ConversationStateService : IConversationStateService
         }
 
         _logger.LogDebug($"[STATE] {name} = {value}");
-        var routingCtx = _services.GetRequiredService<IRoutingContext>();
 
         var isNoChange = ContainsState(name)
                           && preValue == currentValue
@@ -98,7 +101,7 @@ public class ConversationStateService : IConversationStateService
                           && prevLeafNode?.Active == curActive
                           && pair?.Readonly == readOnly;
 
-        var hooks = _services.GetServices<IConversationHook>();
+        var hooks = _services.GetHooks<IConversationHook>(_routingContext.GetCurrentAgentId());
         if (!ContainsState(name) || preValue != currentValue || prevLeafNode?.ActiveRounds != curActiveRounds)
         {
             foreach (var hook in hooks)
@@ -106,7 +109,7 @@ public class ConversationStateService : IConversationStateService
                 hook.OnStateChanged(new StateChangeModel
                 {
                     ConversationId = _conversationId,
-                    MessageId = routingCtx.MessageId,
+                    MessageId = _routingContext.MessageId,
                     Name = name,
                     BeforeValue = preValue,
                     BeforeActiveRounds = prevLeafNode?.ActiveRounds,
@@ -129,7 +132,7 @@ public class ConversationStateService : IConversationStateService
         var newValue = new StateValue
         {
             Data = currentValue,
-            MessageId = routingCtx.MessageId,
+            MessageId = _routingContext.MessageId,
             Active = curActive,
             ActiveRounds = curActiveRounds,
             DataType = valueType,
@@ -142,11 +145,7 @@ public class ConversationStateService : IConversationStateService
             newPair.Values = new List<StateValue> { newValue };
             _curStates[name] = newPair;
         }
-        else if (isNoChange)
-        {
-            // do nothing
-        }
-        else
+        else if (!isNoChange)
         {
             _curStates[name].Values.Add(newValue);
         }
@@ -171,8 +170,7 @@ public class ConversationStateService : IConversationStateService
             return endNodes;
         }
 
-        var routingCtx = _services.GetRequiredService<IRoutingContext>();
-        var curMsgId = routingCtx.MessageId;
+        var curMsgId = _routingContext.MessageId;
         var dialogs = _db.GetConversationDialogs(conversationId);
         var userDialogs = dialogs.Where(x => x.MetaData?.Role == AgentRole.User)
                                  .GroupBy(x => x.MetaData?.MessageId)
@@ -225,7 +223,7 @@ public class ConversationStateService : IConversationStateService
         }
 
         _logger.LogInformation($"Loaded conversation states: {conversationId}");
-        var hooks = _services.GetServices<IConversationHook>();
+        var hooks = _services.GetHooks<IConversationHook>(_routingContext.GetCurrentAgentId());
         foreach (var hook in hooks)
         {
             hook.OnStateLoaded(_curStates).Wait();
@@ -277,7 +275,6 @@ public class ConversationStateService : IConversationStateService
     {
         if (!ContainsState(name)) return false;
 
-        var routingCtx = _services.GetRequiredService<IRoutingContext>();
         var value = _curStates[name];
         var leafNode = value?.Values?.LastOrDefault();
         if (value == null || !value.Versioning || leafNode == null) return false;
@@ -285,7 +282,7 @@ public class ConversationStateService : IConversationStateService
         _curStates[name].Values.Add(new StateValue
         {
             Data = leafNode.Data,
-            MessageId = routingCtx.MessageId,
+            MessageId = _routingContext.MessageId,
             Active = false,
             ActiveRounds = leafNode.ActiveRounds,
             DataType = leafNode.DataType,
@@ -293,13 +290,13 @@ public class ConversationStateService : IConversationStateService
             UpdateTime = DateTime.UtcNow
         });
 
-        var hooks = _services.GetServices<IConversationHook>();
+        var hooks = _services.GetHooks<IConversationHook>(_routingContext.GetCurrentAgentId());
         foreach (var hook in hooks)
         {
             hook.OnStateChanged(new StateChangeModel
             {
                 ConversationId = _conversationId,
-                MessageId = routingCtx.MessageId,
+                MessageId = _routingContext.MessageId,
                 Name = name,
                 BeforeValue = leafNode.Data,
                 BeforeActiveRounds = leafNode.ActiveRounds,
@@ -316,8 +313,7 @@ public class ConversationStateService : IConversationStateService
 
     public void CleanStates(params string[] excludedStates)
     {
-        var routingCtx = _services.GetRequiredService<IRoutingContext>();
-        var curMsgId = routingCtx.MessageId;
+        var curMsgId = _routingContext.MessageId;
         var utcNow = DateTime.UtcNow;
 
         foreach (var key in _curStates.Keys)
@@ -415,7 +411,16 @@ public class ConversationStateService : IConversationStateService
 
     private bool CheckArgType(string name, string value)
     {
-        var agentTypes = AgentService.AgentParameterTypes.SelectMany(p => p.Value).ToList();
+        // Defensive: Ensure AgentParameterTypes is not null or empty and values are not null
+        if (AgentService.AgentParameterTypes.IsNullOrEmpty())
+            return true;
+
+        if (!AgentService.AgentParameterTypes.TryGetValue(_routingContext.GetCurrentAgentId(), out var agentTypes))
+            return true;
+
+        if (agentTypes.IsNullOrEmpty())
+            return true;
+            
         var found = agentTypes.FirstOrDefault(t => t.Key == name); 
         if (found.Key != null)
         {

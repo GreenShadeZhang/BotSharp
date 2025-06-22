@@ -15,8 +15,7 @@ public partial class RoutingService
         var convService = _services.GetRequiredService<IConversationService>();
         var storage = _services.GetRequiredService<IConversationStorage>();
 
-        _router = await agentService.GetAgent(message.CurrentAgentId);
-
+        _router = agent;
         var states = _services.GetRequiredService<IConversationStateService>();
         var executor = _services.GetRequiredService<IExecutor>();
 
@@ -51,9 +50,8 @@ public partial class RoutingService
         int loopCount = 1;
         while (true)
         {
-            await HookEmitter.Emit<IRoutingHook>(_services, async hook =>
-                await hook.OnRoutingInstructionReceived(inst, message)
-            );
+            await HookEmitter.Emit<IRoutingHook>(_services, async hook => await hook.OnRoutingInstructionReceived(inst, message),
+                agent.Id);
 
             // Save states
             states.SaveStateByArgs(inst.Arguments);

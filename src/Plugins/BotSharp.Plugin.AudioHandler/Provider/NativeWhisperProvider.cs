@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Repositories.Settings;
 using Whisper.net;
 using Whisper.net.Ggml;
 
@@ -88,8 +89,8 @@ public class NativeWhisperProvider : IAudioTranscription
                 DownloadModel(modelType, modelLoc);
             }
 
-            var bytes = _fileStorage.GetFileBytes(modelLoc);
-            _whisperProcessor = WhisperFactory.FromBuffer(bytes).CreateBuilder().WithLanguage("auto").Build();
+            var binary = _fileStorage.GetFileBytes(modelLoc);
+            _whisperProcessor = WhisperFactory.FromBuffer(binary.ToArray()).CreateBuilder().WithLanguage("auto").Build();
         }
         catch (Exception ex)
         {

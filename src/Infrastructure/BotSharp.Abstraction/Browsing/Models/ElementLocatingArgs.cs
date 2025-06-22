@@ -29,7 +29,8 @@ public class ElementLocatingArgs
     public bool Parent { get; set; }
 
     public bool FailIfMultiple { get; set; }
-    public bool IgnoreIfNotFound { get; set; }
+    [JsonPropertyName("ignore_if_not_found")]
+    public bool IgnoreIfNotFound { get; set; } = true;
 
     /// <summary>
     /// Draw outline around the element

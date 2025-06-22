@@ -1,3 +1,5 @@
+using BotSharp.Abstraction.Infrastructures.Attributes;
+using BotSharp.Abstraction.Roles;
 using BotSharp.Abstraction.Users.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -104,6 +106,13 @@ public class UserController : ControllerBase
                 Phone = identiy.Phone,
             });
         }
+
+        if (user != null)
+        {
+            var auth = await _userService.GetUserAuthorizations();
+            user.Permissions = auth?.Permissions ?? [];
+        }
+
         return UserViewModel.FromUser(user);
     }
 
@@ -181,12 +190,6 @@ public class UserController : ControllerBase
     public async Task<PagedItems<UserViewModel>> GetUsers([FromBody] UserFilter filter)
     {
         var userService = _services.GetRequiredService<IUserService>();
-        var isValid = await IsValidUser();
-        if (!isValid)
-        {
-            return new PagedItems<UserViewModel>();
-        }
-
         var users = await userService.GetUsers(filter);
         var views = users.Items.Select(x => UserViewModel.FromUser(x)).ToList();
 
@@ -197,6 +200,7 @@ public class UserController : ControllerBase
         };
     }
 
+    [BotSharpAuth]
     [HttpGet("/user/{id}/details")]
     public async Task<UserViewModel> GetUserDetails(string id)
     {
@@ -205,16 +209,11 @@ public class UserController : ControllerBase
         return UserViewModel.FromUser(user);
     }
 
+    [BotSharpAuth]
     [HttpPut("/user")]
     public async Task<bool> UpdateUser([FromBody] UserUpdateModel model)
     {
         if (model == null) return false;
-
-        var isValid = await IsValidUser();
-        if (!isValid)
-        {
-            return false;
-        }
 
         var userService = _services.GetRequiredService<IUserService>();
         var updated = await userService.UpdateUser(UserUpdateModel.ToUser(model), isUpdateUserAgents: true);
@@ -251,18 +250,11 @@ public class UserController : ControllerBase
 
 
     #region Private methods
-    private async Task<bool> IsValidUser()
-    {
-        var userService = _services.GetRequiredService<IUserService>();
-        var (isAdmin, _) = await userService.IsAdminUser(_user.Id);
-        return isAdmin;
-    }
-
     private FileContentResult BuildFileResult(string file)
     {
         var fileStorage = _services.GetRequiredService<IFileStorageService>();
-        var bytes = fileStorage.GetFileBytes(file);
-        return File(bytes, "application/octet-stream", Path.GetFileName(file));
+        var binary = fileStorage.GetFileBytes(file);
+        return File(binary.ToArray(), "application/octet-stream", Path.GetFileName(file));
     }
     #endregion
 }

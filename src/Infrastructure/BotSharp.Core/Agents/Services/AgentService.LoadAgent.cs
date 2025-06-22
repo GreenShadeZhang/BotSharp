@@ -5,51 +5,31 @@ namespace BotSharp.Core.Agents.Services;
 
 public partial class AgentService
 {
-    public static ConcurrentDictionary<string, Dictionary<string, string>> AgentParameterTypes = new();
+    public static ConcurrentDictionary<string, ConcurrentDictionary<string, string>> AgentParameterTypes = new();
 
     // [SharpCache(10, perInstanceCache: true)]
     public async Task<Agent> LoadAgent(string id, bool loadUtility = true)
     {
-        if (string.IsNullOrEmpty(id) || id == Guid.Empty.ToString())
-        {
-            return null;
-        }
+        if (string.IsNullOrEmpty(id) || id == Guid.Empty.ToString()) return null;
 
-        var hooks = _services.GetServices<IAgentHook>();
-
-        // Before agent is loaded.
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != id)
-            {
-                continue;
-            }
-
-            hook.OnAgentLoading(ref id);
-        }
+        HookEmitter.Emit<IAgentHook>(_services, hook => hook.OnAgentLoading(ref id), id);
 
         var agent = await GetAgent(id);
-        if (agent == null)
-        {
-            return null;
-        }
+        if (agent == null) return null;
+
+        agent.TemplateDict = [];
+        agent.SecondaryInstructions = [];
+        agent.SecondaryFunctions = [];
 
         await InheritAgent(agent);
         OverrideInstructionByChannel(agent);
         AddOrUpdateParameters(agent);
 
         // Populate state into dictionary
-        agent.TemplateDict = new Dictionary<string, object>();
         PopulateState(agent.TemplateDict);
 
         // After agent is loaded
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != id)
-            {
-                continue;
-            }
-
+        HookEmitter.Emit<IAgentHook>(_services, hook => {
             hook.SetAgent(agent);
 
             if (!string.IsNullOrEmpty(agent.Instruction))
@@ -72,13 +52,14 @@ public partial class AgentService
                 hook.OnAgentUtilityLoaded(agent);
             }
 
-            if(!agent.McpTools.IsNullOrEmpty())
+            if (!agent.McpTools.IsNullOrEmpty())
             {
                 hook.OnAgentMcpToolLoaded(agent);
             }
-            
+
             hook.OnAgentLoaded(agent);
-        }
+
+        }, id);
 
         _logger.LogInformation($"Loaded agent {agent}.");
 
@@ -92,14 +73,10 @@ public partial class AgentService
 
         var state = _services.GetRequiredService<IConversationStateService>();
         var channel = state.GetState("channel");
-
-        if (string.IsNullOrWhiteSpace(channel))
-        {
-            return;
-        }
-
+        
         var found = instructions.FirstOrDefault(x => x.Channel.IsEqualTo(channel));
-        agent.Instruction = !string.IsNullOrWhiteSpace(found?.Instruction) ? found.Instruction : agent.Instruction;
+        var defaultInstruction = instructions.FirstOrDefault(x => x.Channel == string.Empty);
+        agent.Instruction = !string.IsNullOrWhiteSpace(found?.Instruction) ? found.Instruction : defaultInstruction?.Instruction;
     }
 
     private void PopulateState(Dictionary<string, object> dict)
@@ -122,26 +99,18 @@ public partial class AgentService
 
     private void AddOrUpdateRoutesParameters(string agentId, List<RoutingRule> routingRules)
     {
-        if (!AgentParameterTypes.TryGetValue(agentId, out var parameterTypes))
-        {
-            parameterTypes = new();
-        }
+        var parameterTypes = AgentParameterTypes.GetOrAdd(agentId, _ => new());
 
         foreach (var rule in routingRules.Where(x => x.Required))
         {
             if (string.IsNullOrEmpty(rule.FieldType)) continue;
-            parameterTypes.TryAdd(rule.Field, rule.FieldType);
+            parameterTypes[rule.Field] = rule.FieldType;
         }
-
-        AgentParameterTypes.TryAdd(agentId, parameterTypes);
     }
 
     private void AddOrUpdateFunctionsParameters(string agentId, List<FunctionDef> functions)
     {
-        if (!AgentParameterTypes.TryGetValue(agentId, out var parameterTypes))
-        {
-            parameterTypes = new();
-        }
+        var parameterTypes = AgentParameterTypes.GetOrAdd(agentId, _ => new());
 
         var parameters = functions.Select(p => p.Parameters);
         foreach (var param in parameters)
@@ -152,11 +121,9 @@ public partial class AgentService
                 var node = prop.Value;
                 if (node.TryGetProperty("type", out var type))
                 {
-                    parameterTypes.TryAdd(name, type.GetString());
+                    parameterTypes[name] = type.GetString();
                 }
             }
         }
-
-        AgentParameterTypes.TryAdd(agentId, parameterTypes);
     }
 }

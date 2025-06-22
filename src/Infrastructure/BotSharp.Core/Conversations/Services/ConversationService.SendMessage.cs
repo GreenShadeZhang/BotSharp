@@ -1,6 +1,8 @@
+using BotSharp.Abstraction.Hooks;
 using BotSharp.Abstraction.Infrastructures.Enums;
 using BotSharp.Abstraction.Messaging;
 using BotSharp.Abstraction.Messaging.Models.RichContent;
+using BotSharp.Abstraction.Routing.Enums;
 using BotSharp.Abstraction.Routing.Settings;
 
 namespace BotSharp.Core.Conversations.Services;
@@ -30,7 +32,6 @@ public partial class ConversationService
         var dialogs = conv.GetDialogHistory();
 
         var statistics = _services.GetRequiredService<ITokenStatistics>();
-        var hookProvider = _services.GetRequiredService<ConversationHookProvider>();
 
         RoleDialogModel response = message;
         bool stopCompletion = false;
@@ -45,7 +46,8 @@ public partial class ConversationService
             message.Payload = replyMessage.Payload;
         }
 
-        foreach (var hook in hookProvider.HooksOrderByPriority)
+        var hooks = _services.GetHooksOrderByPriority<IConversationHook>(message.CurrentAgentId);
+        foreach (var hook in hooks)
         {
             hook.SetAgent(agent)
                 .SetConversation(conversation);
@@ -83,10 +85,10 @@ public partial class ConversationService
             {
                 // Check the routing mode
                 var states = _services.GetRequiredService<IConversationStateService>();
-                var routingMode = states.GetState(StateConst.ROUTING_MODE, "eager");
+                var routingMode = states.GetState(StateConst.ROUTING_MODE, RoutingMode.Eager);
                 routing.Context.Push(agent.Id, reason: "request started", updateLazyRouting: false);
 
-                if (routingMode == "lazy")
+                if (routingMode == RoutingMode.Lazy)
                 {
                     message.CurrentAgentId = states.GetState(StateConst.LAZY_ROUTING_AGENT_ID, message.CurrentAgentId);
                     routing.Context.Push(message.CurrentAgentId, reason: "lazy routing", updateLazyRouting: false);
@@ -159,16 +161,14 @@ public partial class ConversationService
             // Emit conversation ending hook
             if (response.Instruction.ConversationEnd)
             {
-                await HookEmitter.Emit<IConversationHook>(_services, async hook =>
-                    await hook.OnConversationEnding(response)
-                );
+                await HookEmitter.Emit<IConversationHook>(_services, async hook => await hook.OnConversationEnding(response),
+                    response.CurrentAgentId);
                 response.FunctionName = "conversation_end";
             }
         }
 
-        await HookEmitter.Emit<IConversationHook>(_services, async hook =>
-            await hook.OnResponseGenerated(response)
-        );
+        await HookEmitter.Emit<IConversationHook>(_services, async hook => await hook.OnResponseGenerated(response),
+            response.CurrentAgentId);
 
         await onResponseReceived(response);
 

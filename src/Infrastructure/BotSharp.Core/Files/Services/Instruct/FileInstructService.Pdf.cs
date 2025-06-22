@@ -21,14 +21,24 @@ public partial class FileInstructService
 
         try
         {
-            var pdfFiles = await DownloadFiles(sessionDir, files);
-            var images = await ConvertPdfToImages(pdfFiles);
-            if (images.IsNullOrEmpty()) return content;
+            var provider = options?.Provider ?? "openai";
+            var pdfFiles = await DownloadAndSaveFiles(sessionDir, files);
+
+            var targetFiles = pdfFiles;
+            if (provider != "google-ai")
+            {
+                targetFiles = await ConvertPdfToImages(pdfFiles);
+            }
+
+            if (targetFiles.IsNullOrEmpty())
+            {
+                return content;
+            }
 
             var innerAgentId = options?.AgentId ?? Guid.Empty.ToString();
             var instruction = await GetAgentTemplate(innerAgentId, options?.TemplateName);
 
-            var completion = CompletionProvider.GetChatCompletion(_services, provider: options?.Provider ?? "openai",
+            var completion = CompletionProvider.GetChatCompletion(_services, provider: provider,
                 model: options?.Model ?? "gpt-4o", multiModal: true);
             var message = await completion.GetChatCompletions(new Agent()
             {
@@ -38,18 +48,11 @@ public partial class FileInstructService
             {
                 new RoleDialogModel(AgentRole.User, text)
                 {
-                    Files = images.Select(x => new BotSharpFile { FileStorageUrl = x }).ToList()
+                    Files = targetFiles.Select(x => new BotSharpFile { FileStorageUrl = x }).ToList()
                 }
             });
 
-            var hooks = _services.GetServices<IInstructHook>();
-            foreach (var hook in hooks)
-            {
-                if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-                {
-                    continue;
-                }
-
+            await HookEmitter.Emit<IInstructHook>(_services, async hook =>
                 await hook.OnResponseGenerated(new InstructResponseModel
                 {
                     AgentId = innerAgentId,
@@ -59,8 +62,7 @@ public partial class FileInstructService
                     UserMessage = text,
                     SystemInstruction = instruction,
                     CompletionText = message.Content
-                });
-            }
+                }), innerAgentId);
 
             return message.Content;
         }
@@ -76,44 +78,38 @@ public partial class FileInstructService
     }
 
     #region Private methods
-    private async Task<IEnumerable<string>> DownloadFiles(string dir, List<InstructFileModel> files, string extension = "pdf")
+    private async Task<IEnumerable<string>> DownloadAndSaveFiles(string dir, List<InstructFileModel> files, string extension = "pdf")
     {
         if (string.IsNullOrWhiteSpace(dir) || files.IsNullOrEmpty())
         {
             return Enumerable.Empty<string>();
         }
 
+        var downloadTasks = files.Select(x => DownloadFile(x));
+        await Task.WhenAll(downloadTasks);
+
         var locs = new List<string>();
-        foreach (var file in files)
+        for (int i = 0; i < files.Count; i++)
         {
+            var binary = downloadTasks.ElementAt(i).Result;
+            if (binary == null || binary.IsEmpty)
+            {
+                continue;
+            }
+
             try
             {
-                var bytes = new byte[0];
-                if (!string.IsNullOrEmpty(file.FileUrl))
-                {
-                    var http = _services.GetRequiredService<IHttpClientFactory>();
-                    using var client = http.CreateClient();
-                    bytes = await client.GetByteArrayAsync(file.FileUrl);
-                }
-                else if (!string.IsNullOrEmpty(file.FileData))
-                {
-                    (_, bytes) = FileUtility.GetFileInfoFromData(file.FileData);
-                }
+                var guid = Guid.NewGuid().ToString();
+                var fileDir = _fileStorage.BuildDirectory(dir, guid);
+                DeleteIfExistDirectory(fileDir, createNew: true);
 
-                if (!bytes.IsNullOrEmpty())
-                {
-                    var guid = Guid.NewGuid().ToString();
-                    var fileDir = _fileStorage.BuildDirectory(dir, guid);
-                    DeleteIfExistDirectory(fileDir, true);
-
-                    var outputDir = _fileStorage.BuildDirectory(fileDir, $"{guid}.{extension}");
-                    _fileStorage.SaveFileBytesToPath(outputDir, bytes);
-                    locs.Add(outputDir);
-                }
+                var outputDir = _fileStorage.BuildDirectory(fileDir, $"{guid}.{extension}");
+                _fileStorage.SaveFileBytesToPath(outputDir, binary);
+                locs.Add(outputDir);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, $"Error when saving pdf file.");
+                _logger.LogWarning(ex, $"Error when saving #{i + 1} {extension} file.");
                 continue;
             }
         }

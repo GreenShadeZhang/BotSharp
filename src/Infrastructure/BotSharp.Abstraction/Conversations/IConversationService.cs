@@ -54,7 +54,7 @@ public interface IConversationService
     /// <returns></returns>
     Task UpdateBreakpoint(bool resetStates = false, string? reason = null, params string[] excludedStates);
 
-    Task<string> GetConversationSummary(IEnumerable<string> conversationId);
+    Task<string> GetConversationSummary(ConversationSummaryModel model);
 
     Task<Conversation> GetConversationRecordOrCreateNew(string agentId);
 

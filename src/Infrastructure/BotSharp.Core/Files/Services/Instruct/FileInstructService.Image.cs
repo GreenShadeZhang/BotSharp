@@ -1,6 +1,5 @@
 using BotSharp.Abstraction.Instructs.Models;
 using BotSharp.Abstraction.Instructs;
-using System.IO;
 
 namespace BotSharp.Core.Files.Services;
 
@@ -20,18 +19,16 @@ public partial class FileInstructService
         {
             new RoleDialogModel(AgentRole.User, text)
             {
-                Files = images?.Select(x => new BotSharpFile { FileUrl = x.FileUrl, FileData = x.FileData }).ToList() ?? []
+                Files = images?.Select(x => new BotSharpFile
+                {
+                    FileUrl = x.FileUrl,
+                    FileData = x.FileData,
+                    ContentType = x.ContentType
+                }).ToList() ?? []
             }
         });
 
-        var hooks = _services.GetServices<IInstructHook>();
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-            {
-                continue;
-            }
-
+        await HookEmitter.Emit<IInstructHook>(_services, async hook => 
             await hook.OnResponseGenerated(new InstructResponseModel
             {
                 AgentId = innerAgentId,
@@ -41,8 +38,7 @@ public partial class FileInstructService
                 UserMessage = text,
                 SystemInstruction = instruction,
                 CompletionText = message.Content
-            });
-        }
+            }), innerAgentId);
 
         return message.Content;
     }
@@ -59,14 +55,7 @@ public partial class FileInstructService
             Instruction = instruction
         }, new RoleDialogModel(AgentRole.User, instruction ?? text));
 
-        var hooks = _services.GetServices<IInstructHook>();
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-            {
-                continue;
-            }
-
+        await HookEmitter.Emit<IInstructHook>(_services, async hook =>
             await hook.OnResponseGenerated(new InstructResponseModel
             {
                 AgentId = innerAgentId,
@@ -76,8 +65,7 @@ public partial class FileInstructService
                 UserMessage = text,
                 SystemInstruction = instruction,
                 CompletionText = message.Content
-            });
-        }
+            }), innerAgentId);
 
         return message;
     }
@@ -91,12 +79,11 @@ public partial class FileInstructService
 
         var innerAgentId = options?.AgentId ?? Guid.Empty.ToString();
         var completion = CompletionProvider.GetImageCompletion(_services, provider: options?.Provider ?? "openai", model: options?.Model ?? "dall-e-2");
-        var bytes = await DownloadFile(image);
-        using var stream = new MemoryStream();
-        stream.Write(bytes, 0, bytes.Length);
+        var binary = await DownloadFile(image);
+        using var stream = binary.ToStream();
         stream.Position = 0;
 
-        var fileName = $"{image.FileName ?? "image"}.{image.FileExtension ?? "png"}";
+        var fileName = BuildFileName(image.FileName, image.FileExtension, "image", "png");
         var message = await completion.GetImageVariation(new Agent()
         {
             Id = innerAgentId
@@ -104,14 +91,7 @@ public partial class FileInstructService
 
         stream.Close();
 
-        var hooks = _services.GetServices<IInstructHook>();
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-            {
-                continue;
-            }
-
+        await HookEmitter.Emit<IInstructHook>(_services, async hook =>
             await hook.OnResponseGenerated(new InstructResponseModel
             {
                 AgentId = innerAgentId,
@@ -119,8 +99,7 @@ public partial class FileInstructService
                 Model = completion.Model,
                 UserMessage = string.Empty,
                 CompletionText = message.Content
-            });
-        }
+            }), innerAgentId);
 
         return message;
     }
@@ -136,12 +115,11 @@ public partial class FileInstructService
         var instruction = await GetAgentTemplate(innerAgentId, options?.TemplateName);
 
         var completion = CompletionProvider.GetImageCompletion(_services, provider: options?.Provider ?? "openai", model: options?.Model ?? "dall-e-2");
-        var bytes = await DownloadFile(image);
-        using var stream = new MemoryStream();
-        stream.Write(bytes, 0, bytes.Length);
+        var binary = await DownloadFile(image);
+        using var stream = binary.ToStream();
         stream.Position = 0;
 
-        var fileName = $"{image.FileName ?? "image"}.{image.FileExtension ?? "png"}";
+        var fileName = BuildFileName(image.FileName, image.FileExtension, "image", "png");
         var message = await completion.GetImageEdits(new Agent()
         {
             Id = innerAgentId
@@ -149,14 +127,7 @@ public partial class FileInstructService
 
         stream.Close();
 
-        var hooks = _services.GetServices<IInstructHook>();
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-            {
-                continue;
-            }
-
+        await HookEmitter.Emit<IInstructHook>(_services, async hook =>
             await hook.OnResponseGenerated(new InstructResponseModel
             {
                 AgentId = innerAgentId,
@@ -166,8 +137,7 @@ public partial class FileInstructService
                 UserMessage = text,
                 SystemInstruction = instruction,
                 CompletionText = message.Content
-            });
-        }
+            }), innerAgentId);
 
         return message;
     }
@@ -184,19 +154,17 @@ public partial class FileInstructService
         var instruction = await GetAgentTemplate(innerAgentId, options?.TemplateName);
 
         var completion = CompletionProvider.GetImageCompletion(_services, provider: options?.Provider ?? "openai", model: options?.Model ?? "dall-e-2");
-        var imageBytes = await DownloadFile(image);
-        var maskBytes = await DownloadFile(mask);
+        var imageBinary = await DownloadFile(image);
+        var maskBinary = await DownloadFile(mask);
 
-        using var imageStream = new MemoryStream();
-        imageStream.Write(imageBytes, 0, imageBytes.Length);
+        using var imageStream = imageBinary.ToStream();
         imageStream.Position = 0;
 
-        using var maskStream = new MemoryStream();
-        maskStream.Write(maskBytes, 0, maskBytes.Length);
+        using var maskStream = maskBinary.ToStream();
         maskStream.Position = 0;
 
-        var imageName = $"{image.FileName ?? "image"}.{image.FileExtension ?? "png"}";
-        var maskName = $"{mask.FileName ?? "mask"}.{mask.FileExtension ?? "png"}";
+        var imageName = BuildFileName(image.FileName, image.FileExtension, "image", "png");
+        var maskName = BuildFileName(image.FileName, image.FileExtension, "mask", "png");
         var message = await completion.GetImageEdits(new Agent()
         {
             Id = innerAgentId
@@ -205,14 +173,7 @@ public partial class FileInstructService
         imageStream.Close();
         maskStream.Close();
 
-        var hooks = _services.GetServices<IInstructHook>();
-        foreach (var hook in hooks)
-        {
-            if (!string.IsNullOrEmpty(hook.SelfId) && hook.SelfId != innerAgentId)
-            {
-                continue;
-            }
-
+        await HookEmitter.Emit<IInstructHook>(_services, async hook =>
             await hook.OnResponseGenerated(new InstructResponseModel
             {
                 AgentId = innerAgentId,
@@ -222,8 +183,7 @@ public partial class FileInstructService
                 UserMessage = text,
                 SystemInstruction = instruction,
                 CompletionText = message.Content
-            });
-        }
+            }), innerAgentId);
 
         return message;
     }

@@ -61,6 +61,11 @@ namespace BotSharp.Plugin.Google.Core
             return def.Parameters;
         }
 
+        public bool RenderVisibility(string? visibilityExpression, Dictionary<string, object> dict)
+        {
+            return true;
+        }
+
         public Task<Agent> GetAgent(string id)
         {
             return Task.FromResult(new Agent());
@@ -104,6 +109,11 @@ namespace BotSharp.Plugin.Google.Core
         public PluginDef GetPlugin(string agentId)
         {
             return new PluginDef();
+        }
+
+        public Task<IEnumerable<AgentUtility>> GetAgentUtilityOptions()
+        {
+            return Task.FromResult(Enumerable.Empty<AgentUtility>());
         }
     }
 }
