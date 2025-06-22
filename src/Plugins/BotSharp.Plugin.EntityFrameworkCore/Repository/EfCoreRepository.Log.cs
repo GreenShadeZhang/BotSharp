@@ -1,0 +1,299 @@
+using BotSharp.Abstraction.Loggers.Models;
+using BotSharp.Abstraction.Repositories.Filters;
+using BotSharp.Plugin.EntityFrameworkCore.Entities;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+
+namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
+
+public partial class EfCoreRepository
+{
+    #region LLM Completion Log
+    public void SaveLlmCompletionLog(Abstraction.Loggers.Models.LlmCompletionLog log)
+    {
+        if (log == null) return;
+
+        var conversationId = log.ConversationId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
+        var messageId = log.MessageId.IfNullOrEmptyAs(Guid.NewGuid().ToString());
+
+        var data = new Entities.LlmCompletionLog
+        {
+            Id = Guid.NewGuid().ToString(),
+            ConversationId = conversationId,
+            MessageId = messageId,
+            AgentId = log.AgentId,
+            Prompt = log.Prompt,
+            Response = log.Response,
+            CreatedTime = log.CreatedTime
+        };
+
+        _context.LlmCompletionLogs.Add(data);
+        _context.SaveChanges();
+    }
+
+    #endregion
+
+    #region Conversation Content Log
+    public void SaveConversationContentLog(ContentLogOutputModel log)
+    {
+        if (log == null) return;
+
+        var found = _context.Conversations.FirstOrDefault(x => x.Id == log.ConversationId);
+        if (found == null) return;
+
+        var logDoc = new Entities.ConversationContentLog
+        {
+            Id = Guid.NewGuid().ToString(),
+            ConversationId = log.ConversationId,
+            MessageId = log.MessageId,
+            Name = log.Name,
+            AgentId = log.AgentId,
+            Role = log.Role,
+            Source = log.Source,
+            Content = log.Content,
+            CreatedTime = log.CreatedTime
+        };
+
+        _context.ConversationContentLogs.Add(logDoc);
+        _context.SaveChanges();
+    }
+
+    public DateTimePagination<ContentLogOutputModel> GetConversationContentLogs(string conversationId, ConversationLogFilter filter)
+    {
+        var query = _context.ConversationContentLogs
+            .Where(x => x.ConversationId == conversationId);
+
+        if (filter != null)
+        {
+            query = query.Where(x => x.CreatedTime <= filter.StartTime);
+        }
+
+        var totalCount = query.Count();
+        var logs = query.OrderBy(x => x.CreatedTime)
+                       .Skip(0)
+                       .Take(filter?.Size ?? 10)
+                       .Select(x => new ContentLogOutputModel
+                       {
+                           ConversationId = x.ConversationId,
+                           MessageId = x.MessageId,
+                           Name = x.Name,
+                           AgentId = x.AgentId,
+                           Role = x.Role,
+                           Source = x.Source,
+                           Content = x.Content,
+                           CreatedTime = x.CreatedTime
+                       })
+                       .ToList();
+        logs.Reverse();
+        return new DateTimePagination<ContentLogOutputModel>
+        {
+            Items = logs,
+            Count = totalCount,
+            NextTime = logs.FirstOrDefault()?.CreatedTime
+        };
+    }
+    #endregion
+
+    #region Conversation State Log
+    public void SaveConversationStateLog(ConversationStateLogModel log)
+    {
+        if (log == null) return;
+
+        var found = _context.Conversations.FirstOrDefault(x => x.Id == log.ConversationId);
+        if (found == null) return;
+
+        var logDoc = new Entities.ConversationStateLog
+        {
+            Id = Guid.NewGuid().ToString(),
+            ConversationId = log.ConversationId,
+            MessageId = log.MessageId,
+            States = log.States ?? new Dictionary<string, string>(),
+            CreatedTime = log.CreatedTime
+        };
+
+        _context.ConversationStateLogs.Add(logDoc);
+        _context.SaveChanges();
+    }
+
+    public DateTimePagination<ConversationStateLogModel> GetConversationStateLogs(string conversationId, ConversationLogFilter filter)
+    {
+        var query = _context.ConversationStateLogs
+            .Where(x => x.ConversationId == conversationId);
+
+        if (filter != null)
+        {
+            query = query.Where(x => x.CreatedTime <= filter.StartTime);
+        }
+
+        var totalCount = query.Count();
+        var logs = query.OrderBy(x => x.CreatedTime)
+                       .Skip(0)
+                       .Take(filter?.Size ?? 10)
+                       .Select(x => new ConversationStateLogModel
+                       {
+                           ConversationId = x.ConversationId,
+                           MessageId = x.MessageId,
+                           States = x.States,
+                           CreatedTime = x.CreatedTime
+                       })
+                       .ToList();
+        logs.Reverse();
+        return new DateTimePagination<ConversationStateLogModel>
+        {
+            Items = logs,
+            Count = totalCount,
+            NextTime = logs.FirstOrDefault()?.CreatedTime
+        };
+    }
+    #endregion
+
+    #region Instruction Log
+    public bool SaveInstructionLogs(IEnumerable<InstructionLogModel> logs)
+    {
+        if (logs?.Any() != true) return false;
+
+        try
+        {
+            var logEntities = new List<InstructionLog>();
+            foreach (var log in logs)
+            {
+                var logEntitie = new Entities.InstructionLog
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    AgentId = log.AgentId,
+                    Provider = log.Provider,
+                    Model = log.Model,
+                    TemplateName = log.TemplateName,
+                    UserMessage = log.UserMessage,
+                    SystemInstruction = log.SystemInstruction,
+                    CompletionText = log.CompletionText,
+                    UserId = log.UserId,
+                    CreatedTime = log.CreatedTime
+                };
+                foreach (var pair in log.States)
+                {
+                    try
+                    {
+
+                        logEntitie.States[pair.Key] = JsonDocument.Parse(pair.Value);
+                    }
+                    catch
+                    {
+
+                        logEntitie.States[pair.Key] = JsonDocument.Parse("{}"); ;
+                    }
+                }
+                logEntities.Add(logEntitie);
+            }
+
+            _context.InstructionLogs.AddRange(logEntities);
+            _context.SaveChanges();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving instruction logs");
+            return false;
+        }
+    }
+
+    public PagedItems<InstructionLogModel> GetInstructionLogs(InstructLogFilter filter)
+    {
+        var query = _context.InstructionLogs.AsQueryable();
+
+        if (filter != null)
+        {
+            // Filter logs
+            if (!filter.AgentIds.IsNullOrEmpty())
+            {
+                foreach (var agentId in filter.AgentIds)
+                {
+                    query = query.Where(x => x.AgentId == agentId);
+                }
+            }
+            if (!filter.Providers.IsNullOrEmpty())
+            {
+                foreach (var providers in filter.Providers)
+                {
+                    query = query.Where(x => x.Provider == providers);
+                }
+            }
+            if (!filter.Models.IsNullOrEmpty())
+            {
+                foreach (var model in filter.Models)
+                {
+                    query = query.Where(x => x.Model == model);
+                }
+            }
+            if (!filter.TemplateNames.IsNullOrEmpty())
+            {
+                foreach (var templateName in filter.TemplateNames)
+                {
+                    query = query.Where(x => x.TemplateName == templateName);
+                }
+            }
+
+        }
+
+        var totalCount = query.Count();
+        var logs = query.OrderBy(x => x.CreatedTime)
+                       .Skip(filter?.Offset ?? 0)
+                       .Take(filter?.Size ?? 10)
+                       .Select(x => new InstructionLogModel
+                       {
+                           Id = x.Id,
+                           AgentId = x.AgentId,
+                           Provider = x.Provider,
+                           Model = x.Model,
+                           TemplateName = x.TemplateName,
+                           UserMessage = x.UserMessage,
+                           SystemInstruction = x.SystemInstruction,
+                           CompletionText = x.CompletionText,
+                           UserId = x.UserId,
+                           CreatedTime = x.CreatedTime
+                       })
+                       .ToList();
+
+        return new PagedItems<InstructionLogModel>
+        {
+            Items = logs,
+            Count = totalCount
+        };
+    }
+
+    public List<string> GetInstructionLogSearchKeys(InstructLogKeysFilter filter)
+    {
+        var query = _context.InstructionLogs.AsQueryable();
+
+        if (filter != null)
+        {
+            if (!filter.AgentIds.IsNullOrEmpty())
+            {
+                query = query.Where(x => filter.AgentIds.Contains(x.AgentId));
+            }
+
+            if (!filter.UserIds.IsNullOrEmpty())
+            {
+                query = query.Where(x => filter.UserIds.Contains(x.UserId));
+            }
+
+            // 按创建时间降序排序，获取指定数量的日志
+            var logs = query
+                .OrderByDescending(x => x.CreatedTime)
+                .Take(filter.LogLimit)
+                .ToList();
+
+            // 提取所有states的键并去重
+            var keys = logs
+                .SelectMany(x => x.States.Keys)
+                .Distinct()
+                .Take(filter.KeyLimit)
+                .ToList();
+
+            return keys;
+        }
+
+        return new List<string>();
+    }
+    #endregion
+}
