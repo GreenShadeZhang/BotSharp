@@ -18,6 +18,7 @@ public class ChatHubConversationHook : ConversationHookBase
     private const string INIT_CLIENT_CONVERSATION = "OnConversationInitFromClient";
     private const string RECEIVE_CLIENT_MESSAGE = "OnMessageReceivedFromClient";
     private const string RECEIVE_ASSISTANT_MESSAGE = "OnMessageReceivedFromAssistant";
+    private const string RECEIVE_ASSISTANT_STREAM_MESSAGE = "OnStreamMessageReceivedFromAssistant";
     private const string GENERATE_SENDER_ACTION = "OnSenderActionGenerated";
     private const string DELETE_MESSAGE = "OnMessageDeleted";
     private const string GENERATE_NOTIFICATION = "OnNotificationGenerated";
@@ -138,6 +139,33 @@ public class ChatHubConversationHook : ConversationHookBase
         await base.OnResponseGenerated(message);
     }
 
+    public override async Task OnStreamResponseGenerated(RoleDialogModel message)
+    {
+        if (!AllowSendingMessage()) return;
+
+        var conv = _services.GetRequiredService<IConversationService>();
+        var state = _services.GetRequiredService<IConversationStateService>();
+        var json = JsonSerializer.Serialize(new ChatResponseDto()
+        {
+            ConversationId = conv.ConversationId,
+            MessageId = message.MessageId,
+            Text = !string.IsNullOrEmpty(message.SecondaryContent) ? message.SecondaryContent : message.Content,
+            Function = message.FunctionName,
+            RichContent = message.SecondaryRichContent ?? message.RichContent,
+            Data = message.Data,
+            States = state.GetStates(),
+            Sender = new()
+            {
+                FirstName = "AI",
+                LastName = "Assistant",
+                Role = AgentRole.Assistant
+            }
+        }, _options.JsonSerializerOptions);
+
+        await ReceiveAssistantStreamMessage(conv.ConversationId, json);
+        await base.OnResponseGenerated(message);
+    }
+
 
     public override async Task OnNotificationGenerated(RoleDialogModel message)
     {
@@ -238,6 +266,25 @@ public class ChatHubConversationHook : ConversationHookBase
             _logger.LogWarning(ex, $"Failed to receive assistant message in {nameof(ChatHubConversationHook)} (conversation id: {conversationId})");
         }
 
+    }
+
+    private async Task ReceiveAssistantStreamMessage(string conversationId, string? json)
+    {
+        try
+        {
+            if (_settings.EventDispatchBy == EventDispatchType.Group)
+            {
+                await _chatHub.Clients.Group(conversationId).SendAsync(RECEIVE_ASSISTANT_STREAM_MESSAGE, json);
+            }
+            else
+            {
+                await _chatHub.Clients.User(_user.Id).SendAsync(RECEIVE_ASSISTANT_STREAM_MESSAGE, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Failed to receive assistant message in {nameof(ChatHubConversationHook)} (conversation id: {conversationId})");
+        }
     }
 
     private async Task GenerateSenderAction(string conversationId, ConversationSenderActionModel action)
