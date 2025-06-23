@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Marketplace.Models;
+using AgentTemplate = BotSharp.Abstraction.Marketplace.Models.AgentTemplate;
 
 namespace BotSharp.Abstraction.Marketplace;
 
