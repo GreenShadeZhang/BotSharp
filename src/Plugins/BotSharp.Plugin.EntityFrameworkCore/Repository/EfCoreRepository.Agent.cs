@@ -1,6 +1,5 @@
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
-using BotSharp.Plugin.EntityFrameworkCore.Models;
 using Microsoft.Extensions.Logging;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
@@ -448,6 +447,25 @@ public partial class EfCoreRepository
             query = query.Where(x => filter.AgentIds.Contains(x.Id));
         }
 
+        if (filter.Types != null)
+        {
+            query = query.Where(x => filter.Types.Contains(x.Type));
+        }
+
+        if (filter.SimilarName != null)
+        {
+            query = query.Where(x => x.Name.ToLower().Contains(filter.SimilarName) || x.Description.ToLower().Contains(filter.SimilarName));
+        }
+
+        if (!string.IsNullOrEmpty(filter.Pager?.Sort))
+        {
+
+        }
+        else
+        {
+            query = query.OrderByDescending(c => c.CreatedTime);
+        }
+
         var agentDocs = query.ToList();
         return agentDocs.Select(x => TransformAgentDocument(x)).ToList();
     }
@@ -587,7 +605,7 @@ public partial class EfCoreRepository
             {
                 agent.Labels.Add(label);
             }
-            
+
             agent.UpdatedTime = DateTime.UtcNow;
             _context.SaveChanges();
             return true;
@@ -669,7 +687,7 @@ public partial class EfCoreRepository
             Profiles = agentDoc.Profiles ?? [],
             Labels = agentDoc.Labels ?? [],
             MaxMessageCount = agentDoc.MaxMessageCount,
-            LlmConfig = agentDoc.LlmConfig?.ToModel(),
+            LlmConfig = agentDoc.LlmConfig?.ToModel() ?? new(),
             ChannelInstructions = agentDoc.ChannelInstructions?.Select(x => x.ToModel()).ToList() ?? [],
             Templates = agentDoc.Templates?.Select(x => x.ToModel()).ToList() ?? [],
             Functions = agentDoc.Functions?.Select(x => x.ToModel()).ToList() ?? [],
@@ -678,7 +696,9 @@ public partial class EfCoreRepository
             Utilities = agentDoc.Utilities?.Select(x => x.ToModel()).ToList() ?? [],
             McpTools = agentDoc.McpTools?.Select(x => x.ToModel()).ToList() ?? [],
             KnowledgeBases = agentDoc.KnowledgeBases?.Select(x => x.ToModel()).ToList() ?? [],
-            Rules = agentDoc.Rules?.Select(x => x.ToModel()).ToList() ?? []
+            Rules = agentDoc.Rules?.Select(x => x.ToModel()).ToList() ?? [],
+            CreatedDateTime = agentDoc.CreatedTime,
+            UpdatedDateTime = agentDoc.UpdatedTime
         };
     }
 }

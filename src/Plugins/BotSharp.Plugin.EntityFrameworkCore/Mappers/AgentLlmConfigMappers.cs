@@ -1,4 +1,4 @@
-﻿using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Abstraction.Agents.Models;
 using BotSharp.Plugin.EntityFrameworkCore.Models;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Mappers;
@@ -17,8 +17,12 @@ public static class AgentLlmConfigMappers
         };
     }
 
-    public static AgentLlmConfig ToModel(this AgentLlmConfigElement model)
+    public static AgentLlmConfig? ToModel(this AgentLlmConfigElement? model)
     {
+        if(model == null)
+        {
+            return null;
+        }
         return new AgentLlmConfig
         {
             Provider = model.Provider,
