@@ -39,6 +39,7 @@
     <ProjectReference Include="..\Infrastructure\BotSharp.Core.Realtime\BotSharp.Core.Realtime.csproj" />
     <ProjectReference Include="..\Plugins\BotSharp.Plugin.LiteDBStorage\BotSharp.Plugin.LiteDBStorage.csproj" />
     <ProjectReference Include="..\Plugins\BotSharp.Plugin.EntityFrameworkCore.PostgreSql\BotSharp.Plugin.EntityFrameworkCore.PostgreSql.csproj" />
+    <ProjectReference Include="..\Plugins\BotSharp.Plugin.PostgreSqlFileStorage\BotSharp.Plugin.PostgreSqlFileStorage.csproj" />
   </ItemGroup>
   
   <ItemGroup Condition="$(SolutionName)==BotSharp">

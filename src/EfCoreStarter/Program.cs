@@ -1,3 +1,4 @@
+using BotSharp.Abstraction.Files;
 using BotSharp.Abstraction.Messaging.JsonConverters;
 using BotSharp.Abstraction.Repositories;
 using BotSharp.Abstraction.Repositories.Enums;
@@ -6,7 +7,10 @@ using BotSharp.Core;
 using BotSharp.OpenAPI;
 using BotSharp.Plugin.EntityFrameworkCore;
 using BotSharp.Plugin.EntityFrameworkCore.Repository;
+using BotSharp.Plugin.PostgreSqlFileStorage.DbContexts;
+using BotSharp.Plugin.PostgreSqlFileStorage.Services;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +45,20 @@ if (dbSettings.Default == RepositoryEnum.PostgreSqlRepository)
 }
 
 builder.Services.AddScoped<IBotSharpRepository, EfCoreRepository>();
+
+var fileCoreSettings = new FileCoreSettings();
+builder.Configuration.Bind("FileCore", fileCoreSettings);
+
+if (fileCoreSettings.Storage == FileStorageEnum.PostgreSqlFileStorage)
+{
+    // Register the file storage specific DbContext
+
+    var dataSource = new NpgsqlDataSourceBuilder(dbSettings.BotSharpPostgreSql).EnableDynamicJson().Build();
+
+    builder.Services.AddDbContext<PostgreSqlFileStorageDbContext>(options => options.UseNpgsql(dataSource, x => x.MigrationsAssembly("BotSharp.Plugin.PostgreSqlFileStorage")));
+
+    builder.Services.AddScoped<IFileStorageService, PostgreSqlFileStorageService>();
+}
 
 var app = builder.Build();
 
