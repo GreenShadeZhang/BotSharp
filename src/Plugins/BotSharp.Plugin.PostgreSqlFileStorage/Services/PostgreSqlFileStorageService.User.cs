@@ -13,7 +13,7 @@ public partial class PostgreSqlFileStorageService
         if (string.IsNullOrEmpty(dir)) return string.Empty;
 
         var avatarFile = _context.FileStorages
-            .FirstOrDefault(f => f.Directory == dir);
+            .FirstOrDefault(f => dir.Contains(f.Directory));
 
         return avatarFile?.FilePath ?? string.Empty;
     }
@@ -33,7 +33,7 @@ public partial class PostgreSqlFileStorageService
             var (_, binary) = FileUtility.GetFileInfoFromData(file.FileData);
             var extension = Path.GetExtension(file.FileName);
             var fileName = user?.Id == null ? file.FileName : $"{user?.Id}{extension}";
-            var filePath = $"{dir}/{fileName}";
+            var filePath = Path.Combine(dir, fileName);
 
             return SaveFileBytesToPath(filePath, BinaryData.FromBytes(binary.ToArray()));
         }
