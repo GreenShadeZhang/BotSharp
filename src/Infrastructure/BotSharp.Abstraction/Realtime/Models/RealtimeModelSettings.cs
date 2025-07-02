@@ -9,7 +9,7 @@ public class RealtimeModelSettings
     public string InputAudioFormat { get; set; } = "g711_ulaw";
     public string OutputAudioFormat { get; set; } = "g711_ulaw";
     public bool InputAudioTranscribe { get; set; } = false;
-    public string Voice { get; set; } = "alloy";
+    public string Voice { get; set; } = "sage";
     public float Temperature { get; set; } = 0.8f;
     public int MaxResponseOutputTokens { get; set; } = 512;
     public int ModelResponseTimeoutSeconds { get; set; } = 30;
