@@ -13,10 +13,21 @@ public class PgvectorDbContext : DbContext
     {
     }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            // This will only be used if the context is not configured in DI
+            optionsBuilder.UseNpgsql(o => o.UseVector());
+        }
+        base.OnConfiguring(optionsBuilder);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Enable vector extension
         modelBuilder.HasPostgresExtension("vector");
+        
 
         // Apply entity configurations
         modelBuilder.ApplyConfiguration(new VectorCollectionConfiguration());

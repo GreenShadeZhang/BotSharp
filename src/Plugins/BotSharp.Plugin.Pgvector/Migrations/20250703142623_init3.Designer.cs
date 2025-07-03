@@ -3,6 +3,7 @@ using System;
 using BotSharp.Plugin.Pgvector.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace BotSharp.Plugin.Pgvector.Migrations
 {
     [DbContext(typeof(PgvectorDbContext))]
-    partial class PgvectorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250703142623_init3")]
+    partial class init3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

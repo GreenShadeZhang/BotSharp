@@ -3,6 +3,7 @@ using BotSharp.Plugin.Pgvector.DbContexts;
 using BotSharp.Plugin.Pgvector.Services;
 using BotSharp.Plugin.Pgvector.Settings;
 using Npgsql;
+using Pgvector.EntityFrameworkCore;
 
 namespace BotSharp.Plugin.Pgvector;
 
@@ -29,17 +30,15 @@ public class PgvectorPlugin : IBotSharpPlugin
         var dbSettings = new BotSharpDatabaseSettings();
         config.Bind("Database", dbSettings);
 
-        // Register the vector storage specific DbContext
-        var dataSource = new NpgsqlDataSourceBuilder(dbSettings.BotSharpPostgreSql)
-            .EnableDynamicJson()
-            .Build();
-
+        // Register the vector storage specific DbContext with proper pgvector configuration
         services.AddDbContext<PgvectorDbContext>(options =>
-            options.UseNpgsql(dataSource, x =>
+        {
+            options.UseNpgsql(dbSettings.BotSharpPostgreSql, npgsqlOptions =>
             {
-                x.MigrationsAssembly("BotSharp.Plugin.Pgvector");
-                x.UseVector();
-            }));
+                npgsqlOptions.MigrationsAssembly("BotSharp.Plugin.Pgvector");
+                npgsqlOptions.UseVector();
+            });
+        });
 
         // Register the vector database service
         services.AddScoped<IVectorDb, PgvectorDb>();

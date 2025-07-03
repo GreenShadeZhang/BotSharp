@@ -1,5 +1,6 @@
 using BotSharp.Plugin.Pgvector.Entities;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Pgvector.EntityFrameworkCore;
 
 namespace BotSharp.Plugin.Pgvector.EntityConfigurations;
 
@@ -37,7 +38,7 @@ public class VectorDataConfiguration : IEntityTypeConfiguration<VectorData>
 
         // Vector property configuration
         builder.Property(x => x.Embedding)
-            .HasColumnType("vector(384)");
+            .HasColumnType("vector");
 
         // Indexes
         builder.HasIndex(x => x.CollectionName);
