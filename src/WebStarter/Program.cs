@@ -5,6 +5,7 @@ using BotSharp.Logger;
 using BotSharp.OpenAPI;
 using BotSharp.Plugin.ChatHub;
 using Serilog;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,11 +37,29 @@ builder.AddServiceDefaults();
 
 // Add SignalR for WebSocket
 builder.Services.AddSignalR()
-    // Enable Redis backplane for SignalR
-    /*.AddStackExchangeRedis("127.0.0.1", o =>
+    .AddStackExchangeRedis(redis =>
     {
-        o.Configuration.ChannelPrefix = RedisChannel.Literal("botsharp");
-    })*/;
+        var redisConfiguration = builder.Configuration["Database:Redis"];
+        if (!string.IsNullOrEmpty(redisConfiguration))
+        {
+            var literal = builder.Environment.IsProduction() ? "ai-forge" : "ai-forge-dev";
+            redis.Configuration.ChannelPrefix = RedisChannel.Literal(literal);
+            redis.ConnectionFactory = async (writer) =>
+            {
+                var connection = await ConnectionMultiplexer.ConnectAsync(redisConfiguration);
+                connection.ConnectionFailed += (_, e) =>
+                {
+                    Console.WriteLine("Connection to Redis failed.");
+                };
+
+                if (!connection.IsConnected)
+                {
+                    Console.WriteLine("Did not connect to Redis.");
+                }
+                return connection;
+            };
+        }
+    });
 
 var app = builder.Build();
 

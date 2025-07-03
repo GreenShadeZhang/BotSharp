@@ -7,6 +7,7 @@ using BotSharp.Core;
 using BotSharp.OpenAPI;
 using BotSharp.Plugin.EntityFrameworkCore;
 using BotSharp.Plugin.EntityFrameworkCore.Repository;
+using BotSharp.Plugin.Pgvector.DbContexts;
 using BotSharp.Plugin.PostgreSqlFileStorage.DbContexts;
 using BotSharp.Plugin.PostgreSqlFileStorage.Services;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,12 @@ if (fileCoreSettings.Storage == FileStorageEnum.PostgreSqlFileStorage)
 
     builder.Services.AddDbContext<PostgreSqlFileStorageDbContext>(options => options.UseNpgsql(dataSource, x => x.MigrationsAssembly("BotSharp.Plugin.PostgreSqlFileStorage")));
 
+    builder.Services.AddDbContext<PgvectorDbContext>(options =>
+    options.UseNpgsql(dataSource, x =>
+    {
+        x.MigrationsAssembly("BotSharp.Plugin.Pgvector");
+        x.UseVector();
+    }));
     builder.Services.AddScoped<IFileStorageService, PostgreSqlFileStorageService>();
 }
 

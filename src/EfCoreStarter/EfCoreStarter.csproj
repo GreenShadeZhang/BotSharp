@@ -21,6 +21,7 @@
     <ProjectReference Include="..\Infrastructure\BotSharp.Core\BotSharp.Core.csproj" />
     <ProjectReference Include="..\Infrastructure\BotSharp.OpenAPI\BotSharp.OpenAPI.csproj" />
     <ProjectReference Include="..\Plugins\BotSharp.Plugin.EntityFrameworkCore.PostgreSql\BotSharp.Plugin.EntityFrameworkCore.PostgreSql.csproj" />
+    <ProjectReference Include="..\Plugins\BotSharp.Plugin.Pgvector\BotSharp.Plugin.Pgvector.csproj" />
     <ProjectReference Include="..\Plugins\BotSharp.Plugin.PostgreSqlFileStorage\BotSharp.Plugin.PostgreSqlFileStorage.csproj" />
   </ItemGroup>
 
