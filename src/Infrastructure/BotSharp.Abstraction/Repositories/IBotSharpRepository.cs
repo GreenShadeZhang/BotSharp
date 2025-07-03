@@ -215,7 +215,7 @@ public interface IBotSharpRepository : IHaveServiceProvider
          => throw new NotImplementedException();
     IEnumerable<VectorCollectionConfig> GetKnowledgeCollectionConfigs(VectorCollectionConfigFilter filter)
          => throw new NotImplementedException();
-    bool SaveKnolwedgeBaseFileMeta(KnowledgeDocMetaData metaData)
+    bool SaveKnowledgeBaseFileMeta(KnowledgeDocMetaData metaData)
          => throw new NotImplementedException();
 
     /// <summary>
@@ -225,7 +225,7 @@ public interface IBotSharpRepository : IHaveServiceProvider
     /// <param name="vectorStoreProvider"></param>
     /// <param name="fileId"></param>
     /// <returns></returns>
-    bool DeleteKnolwedgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
+    bool DeleteKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
          => throw new NotImplementedException();
     PagedItems<KnowledgeDocMetaData> GetKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, KnowledgeFileFilter filter)
          => throw new NotImplementedException();

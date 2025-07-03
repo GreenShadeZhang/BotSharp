@@ -138,7 +138,7 @@ public partial class KnowledgeService
 
                 db.DeleteKnowledgeCollectionConfig(collectionName);
                 fileStorage.DeleteKnowledgeFile(collectionName, vectorStoreProvider);
-                db.DeleteKnolwedgeBaseFileMeta(collectionName, vectorStoreProvider);
+                db.DeleteKnowledgeBaseFileMeta(collectionName, vectorStoreProvider);
             }
 
             return deleted;

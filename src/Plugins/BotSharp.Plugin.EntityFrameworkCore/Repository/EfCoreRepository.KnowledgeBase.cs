@@ -146,6 +146,8 @@ public partial class EfCoreRepository
             VectorStoreProvider = metaData.VectorStoreProvider,
             VectorDataIds = metaData.VectorDataIds,
             RefData = metaData.RefData.ToEntity(),
+            CreatedTime = metaData.CreateDate,
+            CreateUserId = metaData.CreateUserId
         };
 
         _context.KnowledgeCollectionFileMetas.Add(doc);

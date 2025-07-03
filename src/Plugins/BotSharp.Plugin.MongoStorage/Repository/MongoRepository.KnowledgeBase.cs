@@ -116,7 +116,7 @@ public partial class MongoRepository
     #endregion
 
     #region Documents
-    public bool SaveKnolwedgeBaseFileMeta(KnowledgeDocMetaData metaData)
+    public bool SaveKnowledgeBaseFileMeta(KnowledgeDocMetaData metaData)
     {
         if (metaData == null
             || string.IsNullOrWhiteSpace(metaData.Collection)
@@ -144,7 +144,7 @@ public partial class MongoRepository
         return true;
     }
 
-    public bool DeleteKnolwedgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
+    public bool DeleteKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null)
     {
         if (string.IsNullOrWhiteSpace(collectionName)
             || string.IsNullOrWhiteSpace(vectorStoreProvider))

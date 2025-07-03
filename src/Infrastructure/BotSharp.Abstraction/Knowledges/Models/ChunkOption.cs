@@ -19,9 +19,9 @@ public class ChunkOption
     {
         return new ChunkOption
         {
-            Size = 1024,
+            Size = 2048,
             Conjunction = 12,
-            SplitByWord = true,
+            SplitByWord = false,
         };
     }
 }

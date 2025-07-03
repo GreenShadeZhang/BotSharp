@@ -190,10 +190,10 @@ public class BotSharpDbContext : Database, IBotSharpRepository
     public IEnumerable<VectorCollectionConfig> GetKnowledgeCollectionConfigs(VectorCollectionConfigFilter filter) =>
         throw new NotImplementedException();
 
-    public bool SaveKnolwedgeBaseFileMeta(KnowledgeDocMetaData metaData) =>
+    public bool SaveKnowledgeBaseFileMeta(KnowledgeDocMetaData metaData) =>
         throw new NotImplementedException();
 
-    public bool DeleteKnolwedgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null) =>
+    public bool DeleteKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, Guid? fileId = null) =>
         throw new NotImplementedException();
 
     public PagedItems<KnowledgeDocMetaData> GetKnowledgeBaseFileMeta(string collectionName, string vectorStoreProvider, KnowledgeFileFilter filter) =>
