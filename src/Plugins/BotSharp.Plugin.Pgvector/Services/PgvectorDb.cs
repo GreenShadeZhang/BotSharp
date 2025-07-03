@@ -1,6 +1,4 @@
-#nullable enable
 using BotSharp.Abstraction.Knowledges.Enums;
-using BotSharp.Abstraction.VectorStorage.Enums;
 using BotSharp.Plugin.Pgvector.DbContexts;
 using BotSharp.Plugin.Pgvector.Entities;
 using BotSharp.Plugin.Pgvector.Settings;
@@ -68,7 +66,7 @@ public class PgvectorDb : IVectorDb
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating collection {CollectionName} with dimension {Dimension}", 
+            _logger.LogError(ex, "Error creating collection {CollectionName} with dimension {Dimension}",
                 collectionName, dimension);
             return false;
         }
@@ -173,7 +171,59 @@ public class PgvectorDb : IVectorDb
                 .FirstOrDefaultAsync(x => x.Id == id && x.CollectionName == collectionName);
 
             var pgVector = new Vector(vector);
-            var payloadJson = payload != null ? JsonSerializer.Serialize(payload) : "{}";
+
+            // Process payload similar to QdrantDb approach
+            var processedPayload = new Dictionary<string, object>();
+            processedPayload[KnowledgePayloadName.Text] = text;
+
+            if (payload != null)
+            {
+                foreach (var item in payload)
+                {
+                    var value = item.Value?.ToString();
+                    if (value == null) continue;
+
+                    // Type conversion similar to QdrantDb
+                    if (bool.TryParse(value, out var b))
+                    {
+                        processedPayload[item.Key] = b;
+                    }
+                    else if (byte.TryParse(value, out var int8))
+                    {
+                        processedPayload[item.Key] = int8;
+                    }
+                    else if (short.TryParse(value, out var int16))
+                    {
+                        processedPayload[item.Key] = int16;
+                    }
+                    else if (int.TryParse(value, out var int32))
+                    {
+                        processedPayload[item.Key] = int32;
+                    }
+                    else if (long.TryParse(value, out var int64))
+                    {
+                        processedPayload[item.Key] = int64;
+                    }
+                    else if (float.TryParse(value, out var f32))
+                    {
+                        processedPayload[item.Key] = f32;
+                    }
+                    else if (double.TryParse(value, out var f64))
+                    {
+                        processedPayload[item.Key] = f64;
+                    }
+                    else if (DateTime.TryParse(value, out var dt))
+                    {
+                        processedPayload[item.Key] = dt.ToUniversalTime().ToString("o");
+                    }
+                    else
+                    {
+                        processedPayload[item.Key] = value;
+                    }
+                }
+            }
+
+            var payloadJson = JsonSerializer.Serialize(processedPayload);
 
             if (existingData != null)
             {
@@ -216,6 +266,12 @@ public class PgvectorDb : IVectorDb
     {
         try
         {
+            var exists = await DoesCollectionExist(collectionName);
+            if (!exists)
+            {
+                return Enumerable.Empty<VectorCollectionData>();
+            }
+
             var collection = await _context.VectorCollections
                 .FirstOrDefaultAsync(x => x.Name == collectionName);
 
@@ -264,6 +320,12 @@ public class PgvectorDb : IVectorDb
     {
         try
         {
+            var exists = await DoesCollectionExist(collectionName);
+            if (!exists)
+            {
+                return new StringIdPagedItems<VectorCollectionData>();
+            }
+
             var query = _context.VectorData
                 .Where(x => x.CollectionName == collectionName);
 
@@ -320,6 +382,12 @@ public class PgvectorDb : IVectorDb
                 return Enumerable.Empty<VectorCollectionData>();
             }
 
+            var exists = await DoesCollectionExist(collectionName);
+            if (!exists)
+            {
+                return Enumerable.Empty<VectorCollectionData>();
+            }
+
             var results = await _context.VectorData
                 .Where(x => x.CollectionName == collectionName && idList.Contains(x.Id))
                 .ToListAsync();
@@ -343,6 +411,9 @@ public class PgvectorDb : IVectorDb
         try
         {
             if (!ids.Any()) return false;
+
+            var exists = await DoesCollectionExist(collectionName);
+            if (!exists) return false;
 
             var itemsToDelete = await _context.VectorData
                 .Where(x => x.CollectionName == collectionName && ids.Contains(x.Id))
@@ -459,7 +530,7 @@ public class PgvectorDb : IVectorDb
             collection.IsIndexed = true;
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Created vector index {IndexName} for collection {CollectionName}", 
+            _logger.LogInformation("Created vector index {IndexName} for collection {CollectionName}",
                 indexName, collectionName);
         }
         catch (Exception ex)
@@ -481,7 +552,7 @@ public class PgvectorDb : IVectorDb
             var dropSql = $"DROP INDEX CONCURRENTLY IF EXISTS {indexName}";
 
             await _context.Database.ExecuteSqlRawAsync(dropSql);
-            _logger.LogInformation("Dropped vector index {IndexName} for collection {CollectionName}", 
+            _logger.LogInformation("Dropped vector index {IndexName} for collection {CollectionName}",
                 indexName, collectionName);
         }
         catch (Exception ex)
@@ -514,11 +585,33 @@ public class PgvectorDb : IVectorDb
 
     private Dictionary<string, object> ParsePayload(string payloadJson, string text, IEnumerable<string>? fields)
     {
-        var payload = JsonSerializer.Deserialize<Dictionary<string, object>>(payloadJson) 
+        var payload = JsonSerializer.Deserialize<Dictionary<string, object>>(payloadJson)
                      ?? new Dictionary<string, object>();
-        
+
         // Always include text
         payload[KnowledgePayloadName.Text] = text;
+
+        // Convert JsonElement values to proper types (similar to QdrantDb approach)
+        var convertedPayload = new Dictionary<string, object>();
+        foreach (var kvp in payload)
+        {
+            if (kvp.Value is JsonElement jsonElement)
+            {
+                convertedPayload[kvp.Key] = jsonElement.ValueKind switch
+                {
+                    JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
+                    JsonValueKind.Number => jsonElement.TryGetInt64(out var longVal) ? longVal : jsonElement.GetDouble(),
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    JsonValueKind.Null => string.Empty,
+                    _ => kvp.Value
+                };
+            }
+            else
+            {
+                convertedPayload[kvp.Key] = kvp.Value;
+            }
+        }
 
         // Filter fields if specified
         if (fields != null)
@@ -529,16 +622,16 @@ public class PgvectorDb : IVectorDb
                 var filteredPayload = new Dictionary<string, object>();
                 foreach (var field in fieldList)
                 {
-                    if (payload.ContainsKey(field))
+                    if (convertedPayload.ContainsKey(field))
                     {
-                        filteredPayload[field] = payload[field];
+                        filteredPayload[field] = convertedPayload[field];
                     }
                 }
                 return filteredPayload;
             }
         }
 
-        return payload;
+        return convertedPayload;
     }
 
     #endregion
