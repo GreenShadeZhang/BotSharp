@@ -27,6 +27,7 @@ public partial class AgentService
         record.Name = agent.Name ?? string.Empty;
         record.Description = agent.Description ?? string.Empty;
         record.IsPublic = agent.IsPublic;
+        record.IconUrl = agent.IconUrl;
         record.Disabled = agent.Disabled;
         record.MergeUtility = agent.MergeUtility;
         record.MaxMessageCount = agent.MaxMessageCount;

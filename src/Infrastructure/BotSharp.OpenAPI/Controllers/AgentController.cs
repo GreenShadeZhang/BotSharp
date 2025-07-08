@@ -1,4 +1,5 @@
 using BotSharp.Abstraction.Agents.Models;
+using BotSharp.Abstraction.Files.Utilities;
 using BotSharp.Abstraction.Infrastructures.Attributes;
 
 namespace BotSharp.OpenAPI.Controllers;
@@ -10,17 +11,17 @@ public class AgentController : ControllerBase
     private readonly IAgentService _agentService;
     private readonly IUserIdentity _user;
     private readonly IServiceProvider _services;
- 
+
     public AgentController(
         IAgentService agentService,
         IUserIdentity user,
-        IServiceProvider services  
+        IServiceProvider services
         )
     {
         _agentService = agentService;
         _user = user;
         _services = services;
-     }
+    }
 
     [HttpGet("/agent/settings")]
     public AgentSettings GetSettings()
@@ -58,7 +59,7 @@ public class AgentController : ControllerBase
         {
             var found = redirectAgents.Items.FirstOrDefault(x => x.Id == rule.RedirectTo);
             if (found == null) continue;
-            
+
             rule.RedirectToAgentName = found.Name;
         }
 
@@ -164,7 +165,7 @@ public class AgentController : ControllerBase
         var agentService = _services.GetRequiredService<IAgentService>();
         return await agentService.GetAgentUtilityOptions();
     }
- 
+
     [HttpGet("/agent/labels")]
     public async Task<IEnumerable<string>> GetAgentLabels()
     {
@@ -180,4 +181,105 @@ public class AgentController : ControllerBase
                                   .ToList() ?? [];
         return labels;
     }
+
+    #region Agent Icon
+    [HttpPost("/agent/{agentId}/icon")]
+    public string UploadAgentIcon([FromRoute] string agentId, [FromBody] AgentIconModel input)
+    {
+        if (string.IsNullOrEmpty(agentId) || input == null || string.IsNullOrEmpty(input.FileData))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var fileStorage = _services.GetRequiredService<IFileStorageService>();
+            var (_, binary) = FileUtility.GetFileInfoFromData(input.FileData);
+            var extension = Path.GetExtension(input.FileName);
+            var fileName = $"{agentId}{extension}";
+            var dir = $"agents/{agentId}/icon/";
+
+            var filePath = Path.Combine(dir, fileName);
+
+            var result = fileStorage.SaveFileBytesToPath(filePath, BinaryData.FromBytes(binary.ToArray()));
+
+            if (!result)
+            {
+                return string.Empty;
+            }
+            return filePath;
+        }
+        catch (Exception ex)
+        {
+            var logger = _services.GetService<ILogger<AgentController>>();
+            logger?.LogError(ex, "Error uploading icon for agent {AgentId}", agentId);
+            return string.Empty;
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/agents/{agentId}/icon/{fileName}")]
+    public IActionResult GetAgentIconByAgentId([FromRoute] string agentId, [FromRoute] string fileName)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(agentId) || string.IsNullOrEmpty(fileName))
+            {
+                return NotFound();
+            }
+
+            var fileStorage = _services.GetRequiredService<IFileStorageService>();
+
+            // 构建图标文件路径
+            var iconPath = $"agents/{agentId}/icon/{fileName}";
+            var iconDirectory = $"agents/{agentId}/icon";
+
+            // 检查目录是否存在
+            if (!fileStorage.ExistDirectory(iconDirectory))
+            {
+                return NotFound();
+            }
+
+            // 获取文件字节数据
+            var fileBytes = fileStorage.GetFileBytes(iconPath);
+            if (fileBytes == null || fileBytes.Length == 0)
+            {
+                return NotFound();
+            }
+
+            // 根据文件扩展名确定MIME类型
+            var contentType = GetImageContentType(fileName);
+
+            // 返回图片文件
+            return File(fileBytes.ToArray(), contentType);
+        }
+        catch (Exception ex)
+        {
+            // 记录错误日志
+            var logger = _services.GetService<ILogger<AgentController>>();
+            logger?.LogError(ex, "Error retrieving icon for agent {AgentId}, file {FileName}", agentId, fileName);
+
+            return NotFound();
+        }
+    }
+    #endregion
+
+    #region Private methods
+    private string GetImageContentType(string fileName)
+    {
+        var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+        return extension switch
+        {
+            ".png" => "image/png",
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            _ => "application/octet-stream"
+        };
+    }
+    #endregion
 }

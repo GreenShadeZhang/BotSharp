@@ -67,6 +67,9 @@ public class AgentUpdateModel
     /// </summary>
     public List<AgentResponse>? Responses { get; set; }
 
+    [JsonPropertyName("icon_url")]
+    public string? IconUrl { get; set; }
+
     [JsonPropertyName("is_public")]
     public bool IsPublic { get; set; }
 
@@ -101,6 +104,7 @@ public class AgentUpdateModel
             Name = Name ?? string.Empty,
             Type = Type,
             Mode = Mode,
+            IconUrl = IconUrl,
             IsPublic = IsPublic,
             Disabled = Disabled,
             Description = Description ?? string.Empty,

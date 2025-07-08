@@ -1,5 +1,4 @@
 using BotSharp.Abstraction.Infrastructures.Attributes;
-using BotSharp.Abstraction.Roles;
 using BotSharp.Abstraction.Users.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -246,6 +245,47 @@ public class UserController : ControllerBase
         }
         return BuildFileResult(file);
     }
+
+    [AllowAnonymous]
+    [HttpGet("/users/{userId}/avatar/{fileName}")]
+    public IActionResult GetUserAvatarByUserId([FromRoute] string userId, [FromRoute] string fileName)
+    {
+        try
+        {
+            var fileStorage = _services.GetRequiredService<IFileStorageService>();
+
+            // 构建头像文件路径
+            var avatarPath = $"users/{userId}/avatar/{fileName}";
+            var avatarDirectory = $"users/{userId}/avatar";
+
+            // 检查目录是否存在
+            if (!fileStorage.ExistDirectory(avatarDirectory))
+            {
+                return NotFound();
+            }
+
+            // 获取文件字节数据
+            var fileBytes = fileStorage.GetFileBytes(avatarPath);
+            if (fileBytes == null || fileBytes.Length == 0)
+            {
+                return NotFound();
+            }
+
+            // 根据文件扩展名确定MIME类型
+            var contentType = GetImageContentType(fileName);
+
+            // 返回图片文件
+            return File(fileBytes.ToArray(), contentType);
+        }
+        catch (Exception ex)
+        {
+            // 记录错误日志
+            var logger = _services.GetService<ILogger<UserController>>();
+            logger?.LogError(ex, "Error retrieving avatar for user {UserId}, file {FileName}", userId, fileName);
+
+            return NotFound();
+        }
+    }
     #endregion
 
 
@@ -255,6 +295,23 @@ public class UserController : ControllerBase
         var fileStorage = _services.GetRequiredService<IFileStorageService>();
         var binary = fileStorage.GetFileBytes(file);
         return File(binary.ToArray(), "application/octet-stream", Path.GetFileName(file));
+    }
+
+    private string GetImageContentType(string fileName)
+    {
+        var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+        return extension switch
+        {
+            ".png" => "image/png",
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            _ => "application/octet-stream"
+        };
     }
     #endregion
 }

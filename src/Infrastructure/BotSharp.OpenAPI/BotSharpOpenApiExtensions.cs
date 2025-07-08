@@ -125,13 +125,13 @@ public static class BotSharpOpenApiExtensions
                 endpoints.MapFallbackToFile("/index.html");
             });
 
-        app.UseSpa(config =>
-        {
-            if (isDevelopment)
-            {
-                config.UseProxyToSpaDevelopmentServer("http://localhost:5015");
-            }
-        });
+        //app.UseSpa(config =>
+        //{
+        //    if (isDevelopment)
+        //    {
+        //        config.UseProxyToSpaDevelopmentServer("http://localhost:5015");
+        //    }
+        //});
 
         return app;
     }
