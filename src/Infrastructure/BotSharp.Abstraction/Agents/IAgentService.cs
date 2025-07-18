@@ -61,5 +61,7 @@ public interface IAgentService
 
     Task<List<UserAgent>> GetUserAgents(string userId);
 
+    Task<List<Agent>> GetAgentsByUserAsync(string userId);
+
     PluginDef GetPlugin(string agentId);
 }

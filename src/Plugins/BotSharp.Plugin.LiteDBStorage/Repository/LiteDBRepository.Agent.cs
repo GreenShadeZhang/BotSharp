@@ -2,6 +2,7 @@ using BotSharp.Abstraction.Agents.Models;
 using BotSharp.Abstraction.Functions.Models;
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Abstraction.Routing.Models;
+using System.Threading.Tasks;
 
 namespace BotSharp.Plugin.LiteDBStorage.Repository;
 
@@ -473,13 +474,13 @@ public partial class LiteDBRepository
     }
 	
 
-    public List<Agent> GetAgentsByUser(string userId)
+    public Task<List<Agent>> GetAgentsByUserAsync(string userId)
     {
         var user = _dc.Users.Query().Where(x => x.Id == userId || x.ExternalId == userId).FirstOrDefault();
 
         if (user == null)
         {
-            return new List<Agent>();
+            return Task.FromResult(new List<Agent>());
         }
 
         var agentIds = _dc.UserAgents.Query().Where(x => x.UserId == user.Id).Select(ua => ua.Id).ToList();
@@ -489,7 +490,7 @@ public partial class LiteDBRepository
             AgentIds = agentIds
         };
         var agents = GetAgents(filter);
-        return agents;
+        return Task.FromResult(agents);
     }
 
     public List<string> GetAgentResponses(string agentId, string prefix, string intent)

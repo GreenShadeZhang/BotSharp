@@ -462,6 +462,11 @@ public partial class MongoRepository
         return res;
     }
 
+    public Task<List<Agent>> GetAgentsByUserAsync(string userId)
+    {
+        throw new NotImplementedException();
+    }
+
     public List<string> GetAgentResponses(string agentId, string prefix, string intent)
     {
         var responses = new List<string>();

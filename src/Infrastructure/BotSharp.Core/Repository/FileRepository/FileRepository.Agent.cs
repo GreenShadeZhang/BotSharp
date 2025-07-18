@@ -529,6 +529,11 @@ namespace BotSharp.Core.Repository
             return found;
         }
 
+        public Task<List<Agent>> GetAgentsByUserAsync(string userId)
+        {
+            throw new NotImplementedException();
+        }
+
 
         public string GetAgentTemplate(string agentId, string templateName)
         {

@@ -1,6 +1,5 @@
 using BotSharp.Abstraction.Repositories.Settings;
 using System.IO;
-using System.Reflection;
 
 namespace BotSharp.Core.Agents.Services;
 
@@ -14,7 +13,7 @@ public partial class AgentService : IAgentService
 
     public AgentService(IServiceProvider services,
         IBotSharpRepository db,
-        ILogger<AgentService> logger, 
+        ILogger<AgentService> logger,
         AgentSettings agentSettings)
     {
         _services = services;
@@ -53,5 +52,12 @@ public partial class AgentService : IAgentService
 
         var userAgents = _db.GetUserAgents(userId);
         return userAgents;
+    }
+
+    public async Task<List<Agent>> GetAgentsByUserAsync(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return [];
+        var agents = await _db.GetAgentsByUserAsync(userId);
+        return agents;
     }
 }

@@ -1,6 +1,7 @@
 using BotSharp.Abstraction.Repositories.Filters;
 using BotSharp.Plugin.EntityFrameworkCore.Mappers;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace BotSharp.Plugin.EntityFrameworkCore.Repository;
 
@@ -470,7 +471,7 @@ public partial class EfCoreRepository
         return agentDocs.Select(x => TransformAgentDocument(x)).ToList();
     }
 
-    public List<Agent> GetAgentsByUser(string userId)
+    public Task<List<Agent>> GetAgentsByUserAsync(string userId)
     {
         var agentIds = (from ua in _context.UserAgents.AsQueryable()
                         join u in _context.Users.AsQueryable() on ua.UserId equals u.Id
@@ -482,7 +483,7 @@ public partial class EfCoreRepository
             AgentIds = agentIds
         };
         var agents = GetAgents(filter);
-        return agents;
+        return Task.FromResult(agents);
     }
 
     public List<string> GetAgentResponses(string agentId, string prefix, string intent)

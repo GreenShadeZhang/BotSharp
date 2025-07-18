@@ -71,6 +71,8 @@ public interface IBotSharpRepository : IHaveServiceProvider
         => throw new NotImplementedException();
     List<UserAgent> GetUserAgents(string userId)
         => throw new NotImplementedException();
+    Task<List<Agent>> GetAgentsByUserAsync(string userId)
+        => throw new NotImplementedException();
     void BulkInsertAgents(List<Agent> agents)
         => throw new NotImplementedException();
     void BulkInsertUserAgents(List<UserAgent> userAgents)

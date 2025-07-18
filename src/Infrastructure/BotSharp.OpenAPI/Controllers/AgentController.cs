@@ -103,6 +103,13 @@ public class AgentController : ControllerBase
         };
     }
 
+    [HttpGet("/agent/user-agents")]
+    public async Task<List<AgentViewModel>> GetAgentsByUserAsync()
+    {
+        var userAgents = await _agentService.GetAgentsByUserAsync(_user.Id);
+        return userAgents.Select(ua => AgentViewModel.FromAgent(ua)).ToList();
+    }
+
     [HttpPost("/agent")]
     public async Task<AgentViewModel> CreateAgent(AgentCreationModel agent)
     {
