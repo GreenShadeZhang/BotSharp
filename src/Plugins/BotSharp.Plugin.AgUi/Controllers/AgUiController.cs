@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 using BotSharp.Abstraction.Agents.Enums;
 using BotSharp.Abstraction.Conversations;
 using BotSharp.Abstraction.Conversations.Models;
@@ -18,6 +11,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace BotSharp.Plugin.AgUi.Controllers;
 
@@ -27,11 +28,20 @@ public class AgUiController : ControllerBase
 {
     private readonly IServiceProvider _services;
     private readonly ILogger<AgUiController> _logger;
+    private JsonSerializerOptions _options;
 
     public AgUiController(ILogger<AgUiController> logger, IServiceProvider services)
     {
         _logger = logger;
         _services = services;
+        _options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true,
+            AllowTrailingCommas = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
     }
 
     /// <summary>
@@ -62,15 +72,16 @@ public class AgUiController : ControllerBase
             // Convert all messages to BotSharp format for conversation history
             // This helps the agent understand the full context
             var allMessages = AgUiMessageConverter.ConvertToBotSharpMessages(input.Messages);
-            
+
             // Get the current user message
             var message = allMessages.LastOrDefault(m => m.Role == AgentRole.User);
+
             if (message == null)
             {
                 await SendErrorEvent(outputStream, "Failed to convert user message");
                 return;
             }
-
+            message.IsStreaming = true;
             // Get conversation service
             var conv = _services.GetRequiredService<IConversationService>();
             var routing = _services.GetRequiredService<IRoutingService>();
@@ -81,7 +92,7 @@ public class AgUiController : ControllerBase
 
             // Set conversation state
             var states = new List<MessageState>();
-            
+
             // Add AG-UI state
             if (input.State != null)
             {
@@ -95,7 +106,7 @@ public class AgUiController : ControllerBase
                     });
                 }
             }
-            
+
             // Add AG-UI context
             if (input.Context != null && input.Context.Any())
             {
@@ -109,7 +120,7 @@ public class AgUiController : ControllerBase
                     });
                 }
             }
-            
+
             // Add AG-UI config
             if (input.Config != null)
             {
@@ -125,7 +136,7 @@ public class AgUiController : ControllerBase
 
             conv.SetConversationId(conversationId, states);
             conv.States.SetState("channel", "ag-ui");
-            
+
             // Store tools information if provided
             if (input.Tools != null && input.Tools.Any())
             {
@@ -283,11 +294,7 @@ public class AgUiController : ControllerBase
 
     private async Task SendEvent(Stream outputStream, AgUiEvent eventData)
     {
-        var json = JsonSerializer.Serialize(eventData, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        });
+        var json = JsonSerializer.Serialize(eventData, eventData.GetType(), _options);
 
         var buffer = Encoding.UTF8.GetBytes($"data: {json}\n\n");
         await outputStream.WriteAsync(buffer, 0, buffer.Length);
