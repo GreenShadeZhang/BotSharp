@@ -59,11 +59,17 @@ public class AgUiController : ControllerBase
                 return;
             }
 
-            // Create BotSharp message
-            var message = new RoleDialogModel(AgentRole.User, userMessage.Content)
+            // Convert all messages to BotSharp format for conversation history
+            // This helps the agent understand the full context
+            var allMessages = AgUiMessageConverter.ConvertToBotSharpMessages(input.Messages);
+            
+            // Get the current user message
+            var message = allMessages.LastOrDefault(m => m.Role == AgentRole.User);
+            if (message == null)
             {
-                MessageId = userMessage.Id ?? Guid.NewGuid().ToString()
-            };
+                await SendErrorEvent(outputStream, "Failed to convert user message");
+                return;
+            }
 
             // Get conversation service
             var conv = _services.GetRequiredService<IConversationService>();
