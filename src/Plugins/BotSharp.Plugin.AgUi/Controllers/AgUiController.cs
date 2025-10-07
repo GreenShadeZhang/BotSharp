@@ -11,6 +11,7 @@ using BotSharp.Abstraction.Conversations.Models;
 using BotSharp.Abstraction.Models;
 using BotSharp.Abstraction.Routing;
 using BotSharp.Plugin.AgUi.Models;
+using BotSharp.Plugin.AgUi.Utilities;
 using BotSharp.Plugin.AgUi.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -74,13 +75,43 @@ public class AgUiController : ControllerBase
 
             // Set conversation state
             var states = new List<MessageState>();
+            
+            // Add AG-UI state
             if (input.State != null)
             {
-                foreach (var kvp in input.State)
+                var convertedState = AgUiMessageConverter.ConvertStateToConversationState(input.State);
+                foreach (var kvp in convertedState)
                 {
                     states.Add(new MessageState
                     {
                         Key = kvp.Key,
+                        Value = kvp.Value
+                    });
+                }
+            }
+            
+            // Add AG-UI context
+            if (input.Context != null && input.Context.Any())
+            {
+                var contextState = AgUiMessageConverter.ConvertContextToState(input.Context);
+                foreach (var kvp in contextState)
+                {
+                    states.Add(new MessageState
+                    {
+                        Key = kvp.Key,
+                        Value = kvp.Value
+                    });
+                }
+            }
+            
+            // Add AG-UI config
+            if (input.Config != null)
+            {
+                foreach (var kvp in input.Config)
+                {
+                    states.Add(new MessageState
+                    {
+                        Key = $"config_{kvp.Key}",
                         Value = kvp.Value?.ToString() ?? string.Empty
                     });
                 }
@@ -88,6 +119,13 @@ public class AgUiController : ControllerBase
 
             conv.SetConversationId(conversationId, states);
             conv.States.SetState("channel", "ag-ui");
+            
+            // Store tools information if provided
+            if (input.Tools != null && input.Tools.Any())
+            {
+                var toolsJson = JsonSerializer.Serialize(input.Tools);
+                conv.States.SetState("ag_ui_tools", toolsJson);
+            }
 
             // Send state snapshot if state exists
             if (input.State != null && input.State.Any())
@@ -129,16 +167,29 @@ public class AgUiController : ControllerBase
             // Send text message events
             await SendTextMessageEvents(outputStream, message.MessageId, message.Content);
         }
-        else if (message.Role == AgentRole.Function && !string.IsNullOrEmpty(message.FunctionName))
+        else if (message.Role == AgentRole.Function)
         {
-            // Send tool call events
-            await SendToolCallEvents(
-                outputStream,
-                message.ToolCallId ?? message.MessageId,
-                message.FunctionName,
-                message.FunctionArgs ?? "{}",
-                message.MessageId
-            );
+            if (!string.IsNullOrEmpty(message.FunctionName))
+            {
+                // Send tool call events
+                var args = AgUiMessageConverter.SafeSerializeArguments(message.FunctionArgs);
+                await SendToolCallEvents(
+                    outputStream,
+                    message.ToolCallId ?? message.MessageId,
+                    message.FunctionName,
+                    args,
+                    message.MessageId
+                );
+            }
+            else if (!string.IsNullOrEmpty(message.Content))
+            {
+                // Send tool result event
+                await SendToolResultEvent(
+                    outputStream,
+                    message.ToolCallId ?? message.MessageId,
+                    message.Content
+                );
+            }
         }
     }
 
@@ -193,6 +244,16 @@ public class AgUiController : ControllerBase
             ToolCallId = toolCallId
         };
         await SendEvent(outputStream, endEvent);
+    }
+
+    private async Task SendToolResultEvent(Stream outputStream, string toolCallId, string result)
+    {
+        var resultEvent = new ToolCallResultEvent
+        {
+            ToolCallId = toolCallId,
+            Result = result
+        };
+        await SendEvent(outputStream, resultEvent);
     }
 
     private async Task SendStateSnapshotEvent(Stream outputStream, Dictionary<string, object> state)
