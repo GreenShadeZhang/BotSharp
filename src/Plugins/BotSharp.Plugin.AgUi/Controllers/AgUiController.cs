@@ -50,10 +50,14 @@ public class AgUiController : ControllerBase
     [HttpPost("/ag-ui/chat")]
     public async Task Chat([FromBody] AgUiMessageInput input)
     {
+        var request = Request;
         Response.StatusCode = 200;
         Response.Headers[HeaderNames.ContentType] = "text/event-stream";
         Response.Headers[HeaderNames.CacheControl] = "no-cache";
         Response.Headers[HeaderNames.Connection] = "keep-alive";
+
+        var agentId = Request.Headers["x-agent-id"].ToString() ?? input.AgentId;
+        var convId = Request.Headers["x-conv-id"].ToString() ?? input.ConversationId;
         var outputStream = Response.Body;
 
         try
@@ -87,7 +91,7 @@ public class AgUiController : ControllerBase
             var routing = _services.GetRequiredService<IRoutingService>();
 
             // Set conversation ID
-            var conversationId = input.ConversationId ?? Guid.NewGuid().ToString();
+            var conversationId = convId ?? Guid.NewGuid().ToString();
             routing.Context.SetMessageId(conversationId, message.MessageId);
 
             // Set conversation state
@@ -152,7 +156,7 @@ public class AgUiController : ControllerBase
 
             // Send message to agent and stream responses
             await conv.SendMessage(
-                input.AgentId,
+                agentId,
                 message,
                 replyMessage: null,
                 async msg => await OnChunkReceived(outputStream, msg)
