@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace BotSharp.Plugin.AgUi.Controllers;
@@ -37,10 +38,11 @@ public class AgUiController : ControllerBase
         _options = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true,
+            PropertyNamingPolicy = null, // Use [JsonPropertyName] attributes for snake_case naming (AG UI protocol requirement)
+            WriteIndented = false, // SSE format should be compact, not indented
             AllowTrailingCommas = true,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
     }
 
@@ -148,6 +150,11 @@ public class AgUiController : ControllerBase
                 conv.States.SetState("ag_ui_tools", toolsJson);
             }
 
+            // AG-UI Protocol: First event MUST be RUN_STARTED
+            var runId = input.RunId ?? Guid.NewGuid().ToString();
+            var threadId = input.ThreadId ?? conversationId;
+            await SendRunStartedEvent(outputStream, threadId, runId);
+
             // Send state snapshot if state exists
             if (input.State != null && input.State.Any())
             {
@@ -166,14 +173,38 @@ public class AgUiController : ControllerBase
             var finalState = new Dictionary<string, object>();
             foreach (var state in conv.States.GetStates())
             {
-                finalState[state.Key] = state.Value ?? string.Empty;
+                // Try to parse JSON strings back to objects/arrays for proper client-side handling
+                var value = state.Value ?? string.Empty;
+                try
+                {
+                    // If the value looks like JSON, try to deserialize it
+                    if (value is string strValue && 
+                        (strValue.StartsWith("{") || strValue.StartsWith("[")))
+                    {
+                        using var doc = JsonDocument.Parse(strValue);
+                        finalState[state.Key] = doc.RootElement.Clone();
+                    }
+                    else
+                    {
+                        finalState[state.Key] = value;
+                    }
+                }
+                catch
+                {
+                    // If parsing fails, use the value as-is
+                    finalState[state.Key] = value;
+                }
             }
             await SendStateSnapshotEvent(outputStream, finalState);
+
+            // AG-UI Protocol: Last event MUST be RUN_FINISHED
+            await SendRunFinishedEvent(outputStream, threadId, runId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing AG-UI chat request");
-            await SendErrorEvent(outputStream, ex.Message);
+            // AG-UI Protocol: Send RUN_ERROR on exception
+            await SendRunErrorEvent(outputStream, ex.Message, ex.GetType().Name);
         }
         finally
         {
@@ -279,9 +310,12 @@ public class AgUiController : ControllerBase
 
     private async Task SendStateSnapshotEvent(Stream outputStream, Dictionary<string, object> state)
     {
+        // Ensure state is not null and properly structured
+        var snapshot = state ?? new Dictionary<string, object>();
+        
         var stateEvent = new StateSnapshotEvent
         {
-            Snapshot = state
+            Snapshot = snapshot
         };
         await SendEvent(outputStream, stateEvent);
     }
@@ -296,9 +330,42 @@ public class AgUiController : ControllerBase
         await SendEvent(outputStream, errorEvent);
     }
 
+    private async Task SendRunStartedEvent(Stream outputStream, string threadId, string runId)
+    {
+        var runStartedEvent = new RunStartedEvent
+        {
+            ThreadId = threadId,
+            RunId = runId
+        };
+        await SendEvent(outputStream, runStartedEvent);
+    }
+
+    private async Task SendRunFinishedEvent(Stream outputStream, string threadId, string runId)
+    {
+        var runFinishedEvent = new RunFinishedEvent
+        {
+            ThreadId = threadId,
+            RunId = runId
+        };
+        await SendEvent(outputStream, runFinishedEvent);
+    }
+
+    private async Task SendRunErrorEvent(Stream outputStream, string message, string code)
+    {
+        var runErrorEvent = new RunErrorEvent
+        {
+            Message = message,
+            Code = code
+        };
+        await SendEvent(outputStream, runErrorEvent);
+    }
+
     private async Task SendEvent(Stream outputStream, AgUiEvent eventData)
     {
         var json = JsonSerializer.Serialize(eventData, eventData.GetType(), _options);
+        
+        // Log the actual JSON being sent for debugging
+        _logger.LogDebug("[AG-UI SSE] Sending event: {Json}", json);
 
         var buffer = Encoding.UTF8.GetBytes($"data: {json}\n\n");
         await outputStream.WriteAsync(buffer, 0, buffer.Length);

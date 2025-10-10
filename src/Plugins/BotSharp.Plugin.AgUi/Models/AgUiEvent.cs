@@ -25,7 +25,7 @@ public class TextMessageStartEvent : AgUiEvent
     [JsonPropertyName("role")]
     public string Role { get; set; } = "assistant";
     
-    [JsonPropertyName("message_id")]
+    [JsonPropertyName("messageId")]
     public string MessageId { get; set; } = string.Empty;
 }
 
@@ -39,7 +39,7 @@ public class TextMessageContentEvent : AgUiEvent
         Type = AgUiEventType.TextMessageContent;
     }
     
-    [JsonPropertyName("message_id")]
+    [JsonPropertyName("messageId")]
     public string MessageId { get; set; } = string.Empty;
     
     [JsonPropertyName("delta")]
@@ -56,7 +56,7 @@ public class TextMessageEndEvent : AgUiEvent
         Type = AgUiEventType.TextMessageEnd;
     }
     
-    [JsonPropertyName("message_id")]
+    [JsonPropertyName("messageId")]
     public string MessageId { get; set; } = string.Empty;
 }
 
@@ -129,7 +129,8 @@ public class ToolCallResultEvent : AgUiEvent
 }
 
 /// <summary>
-/// State snapshot event
+/// State snapshot event - provides complete state snapshot
+/// The snapshot can contain nested objects, arrays, and primitive values
 /// </summary>
 public class StateSnapshotEvent : AgUiEvent
 {
@@ -138,8 +139,13 @@ public class StateSnapshotEvent : AgUiEvent
         Type = AgUiEventType.StateSnapshot;
     }
     
+    /// <summary>
+    /// Complete state snapshot as a plain object/dictionary
+    /// Can contain nested objects, arrays, strings, numbers, booleans, and null
+    /// Must be JSON-serializable for proper client-side processing
+    /// </summary>
     [JsonPropertyName("snapshot")]
-    public Dictionary<string, object> Snapshot { get; set; } = new();
+    public object Snapshot { get; set; } = new Dictionary<string, object>();
 }
 
 /// <summary>
@@ -174,4 +180,55 @@ public class ErrorEvent : AgUiEvent
     
     [JsonPropertyName("message")]
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Run started event - MUST be the first event in AG-UI protocol
+/// </summary>
+public class RunStartedEvent : AgUiEvent
+{
+    public RunStartedEvent()
+    {
+        Type = AgUiEventType.RunStarted;
+    }
+    
+    [JsonPropertyName("threadId")]
+    public string ThreadId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("runId")]
+    public string RunId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Run finished event - MUST be the last event in AG-UI protocol
+/// </summary>
+public class RunFinishedEvent : AgUiEvent
+{
+    public RunFinishedEvent()
+    {
+        Type = AgUiEventType.RunFinished;
+    }
+    
+    [JsonPropertyName("threadId")]
+    public string ThreadId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("runId")]
+    public string RunId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Run error event - sent when an error occurs during the run
+/// </summary>
+public class RunErrorEvent : AgUiEvent
+{
+    public RunErrorEvent()
+    {
+        Type = AgUiEventType.RunError;
+    }
+    
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+    
+    [JsonPropertyName("code")]
+    public string Code { get; set; } = string.Empty;
 }

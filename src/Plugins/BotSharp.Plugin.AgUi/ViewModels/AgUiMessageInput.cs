@@ -15,6 +15,12 @@ public class AgUiMessageInput
     [JsonPropertyName("conversation_id")]
     public string? ConversationId { get; set; }
     
+    [JsonPropertyName("threadId")]
+    public string? ThreadId { get; set; }
+    
+    [JsonPropertyName("runId")]
+    public string? RunId { get; set; }
+    
     [JsonPropertyName("messages")]
     public List<AgUiMessage> Messages { get; set; } = new();
     
